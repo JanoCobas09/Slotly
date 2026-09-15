@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { PLANS, OVERAGE_COST_USD } from '../config/plans';
+import { PLANS, FEATURES_COMUNES, OVERAGE_COST_USD } from '../config/plans';
 import HeroMotionMockup from '../components/landing/HeroMotionMockup';
 import FloatingActionWidget from '../components/landing/FloatingActionWidget';
 
@@ -292,6 +292,14 @@ export default function LandingPage() {
               </CTAWhatsApp>
             </div>
           ))}
+        </div>
+
+        {/* Lo que no cambia entre planes va una sola vez: así cada tarjeta
+            muestra únicamente por qué elegirla, y no se promete como exclusivo
+            lo que en realidad tienen todos. */}
+        <div className="card landing-comunes">
+          <strong>Todos los planes incluyen:</strong>{' '}
+          {FEATURES_COMUNES.join(' · ')}
         </div>
 
         <p className="landing-fineprint">

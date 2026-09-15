@@ -88,6 +88,16 @@ export function createAppointment({ businessId, professionalId, serviceId, appoi
 }
 
 /**
+ * Horarios tomados de un profesional en un día, para pintar la grilla.
+ * Devuelve solo { startTime, endTime } de cada turno activo: el cliente no
+ * puede leer la agenda del negocio (tiene datos de otros clientes), pero sí
+ * necesita saber qué está ocupado. Respuesta: { ocupados: [...] }.
+ */
+export function getBusySlots({ businessId, professionalId, appointmentDate }) {
+  return llamar('getBusySlots', { businessId, professionalId, appointmentDate });
+}
+
+/**
  * Crea la cuenta de un dueño con email y contraseña, y le asigna los permisos.
  * Para el barbero que no usa Gmail o no quiere mezclarlo con lo personal.
  *

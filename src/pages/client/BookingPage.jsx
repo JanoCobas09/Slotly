@@ -1,9 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBooking } from '../../contexts/BookingContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../hooks/useTenantData';
-import { createAppointment } from '../../lib/functions';
+import { createAppointment, getBusySlots } from '../../lib/functions';
 import { calculateAvailableSlots, professionalWorksOnDate } from '../../utils/availabilityEngine';
 import { formatDate, formatPrice, toDateString, getMonthName } from '../../utils/dateUtils';
 
@@ -156,9 +156,21 @@ function DatePicker({ selectedDate, onSelect, professionalId, schedules: allSche
 }
 
 // ---- TIME SLOT GRID ----
-function TimeSlotGrid({ slots, selectedSlot, onSelect, date }) {
+function TimeSlotGrid({ slots, selectedSlot, onSelect, date, cargando }) {
   const morning = slots.filter(s => parseInt(s.startTime.split(':')[0]) < 13);
   const afternoon = slots.filter(s => parseInt(s.startTime.split(':')[0]) >= 13);
+
+  if (cargando) {
+    return (
+      <div>
+        <h2 className="booking-step-title">Horarios disponibles</h2>
+        <p className="booking-step-subtitle">{formatDate(date)}</p>
+        <div className="empty-state">
+          <p>Buscando horarios libres…</p>
+        </div>
+      </div>
+    );
+  }
 
   if (slots.length === 0) {
     return (
@@ -413,21 +425,52 @@ export default function BookingPage() {
   const finalPrice = ps?.customPrice || selectedService?.price || 0;
   const finalDuration = ps?.customDuration || selectedService?.durationMinutes || 30;
 
+  // Qué está ocupado ese día para ese profesional. No sale de `appointments`
+  // del contexto: para un cliente esa lista trae SOLO sus propios turnos (las
+  // Rules no le dejan ver los de los demás, y está bien), así que con ella la
+  // grilla mostraría como libre lo que ya tomó otro y cada reserva moriría en
+  // "ese horario ya fue tomado". Se le pide al servidor solo las horas.
+  //
+  // La respuesta se guarda junto con la clave que la pidió: si cambia el
+  // profesional o el día, la que hay deja de valer sola, sin un setState
+  // sincrónico en el efecto (que el compilador de React rechaza).
+  const claveOcupados = `${businessId}|${professionalId}|${date}`;
+  const [ocupados, setOcupados] = useState({ clave: '', lista: [] });
+  useEffect(() => {
+    if (!businessId || !professionalId || !date) return;
+    let vigente = true;
+    getBusySlots({ businessId, professionalId, appointmentDate: date })
+      .then(({ ocupados }) => {
+        if (!vigente) return;
+        // Con la forma que espera availabilityEngine.
+        const lista = ocupados.map((o) => ({ ...o, professionalId, appointmentDate: date, status: 'confirmada' }));
+        setOcupados({ clave: claveOcupados, lista });
+      })
+      .catch((err) => {
+        console.error('[BookingPage] No se pudieron leer los horarios ocupados:', err);
+        // Mejor una grilla optimista que ninguna: la transacción del servidor
+        // sigue frenando el solapamiento.
+        if (vigente) setOcupados({ clave: claveOcupados, lista: [] });
+      });
+    return () => { vigente = false; };
+  }, [businessId, professionalId, date, claveOcupados]);
+  const cargandoOcupados = ocupados.clave !== claveOcupados;
+
   // Calculate available slots
   const availableSlots = useMemo(() => {
-    if (!professionalId || !serviceId || !date) return [];
+    if (!professionalId || !serviceId || !date || cargandoOcupados) return [];
     return calculateAvailableSlots({
       professionalId,
       serviceId,
       date,
       schedules,
-      appointments,
+      appointments: ocupados.lista,
       services,
       professionalServices,
       slotInterval: business.slotInterval,
       businessHours: business.businessHours,
     });
-  }, [professionalId, serviceId, date, schedules, appointments, services, professionalServices, business]);
+  }, [professionalId, serviceId, date, schedules, ocupados, cargandoOcupados, services, professionalServices, business]);
 
   if (blockedReason) {
     return <BookingUnavailable reason={blockedReason} business={business} />;
@@ -569,6 +612,7 @@ export default function BookingPage() {
           selectedSlot={timeSlot}
           onSelect={s => dispatch({ type: 'SET_TIMESLOT', payload: s })}
           date={date}
+          cargando={cargandoOcupados}
         />
       )}
 

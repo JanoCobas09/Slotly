@@ -101,7 +101,8 @@ Google.
 - Multi-tenancy por slug: `/:businessSlug`.
 - Panel global: alta de barberías, facturación, suspensión, tickets.
 - Panel por barbería: staff, servicios, horarios, agenda, admins, soporte.
-- Reserva pública con motor de disponibilidad.
+- Reserva pública con motor de disponibilidad. El staff también agenda a mano
+  desde Citas (para el cliente que pide por WhatsApp).
 - Sistema de tickets de soporte (chat barbería ↔ plataforma).
 - Landing pública de venta en la raíz.
 - Identidad visual de SACIA aplicada.
@@ -270,9 +271,31 @@ confirmar con milisegundos de diferencia.
 node scripts/test-reservas-emulador.mjs
 ```
 
-18 casos: precio falsificado, fecha pasada, profesional y servicio inexistentes,
+35 casos: precio falsificado, fecha pasada, profesional y servicio inexistentes,
 servicio que ese profesional no hace, fuera de horario, en el descanso, día que
-no trabaja, doble reserva, negocio suspendido y sin sesión.
+no trabaja, teléfono inválido, un turno por día, doble reserva, negocio
+suspendido, sin sesión, tope de turnos a futuro y `getBusySlots`.
+
+**Tope por cuenta.** Además de un turno por día, una cuenta no puede tener más
+de `MAX_TURNOS_ACTIVOS` (3) turnos activos de hoy en adelante en la misma
+barbería. Es lo que hace inútil llenarle la agenda al barbero con una sola
+cuenta. Los pasados no cuentan aunque hayan quedado `pendiente`; los cancelados
+tampoco. Se cuenta en la misma transacción, con una sola lectura por `userId`
+filtrada en memoria — a propósito: un `where` por uid + rango de fecha pediría
+un índice compuesto que el emulador no exige y producción sí.
+
+**`getBusySlots`.** Devuelve `{ ocupados: [{ startTime, endTime }] }` de un
+profesional en un día. Existe porque al cerrar la agenda a los clientes en las
+Rules (correcto: tiene datos de otros), la grilla del cliente quedó ciega —
+mostraba libre lo que ya estaba tomado y cada reserva moría en "ese horario ya
+fue tomado". `BookingPage` la llama al elegir profesional y día. No expone ni
+un campo más que las horas.
+
+**Turno agendado por el staff.** `NuevoTurnoModal` (botón "Agendar turno" en
+Citas) escribe directo a Firestore, NO por la function: la function cuenta los
+turnos del uid que llama, y frenaría al barbero en el cuarto que cargue. Las
+Rules ya permiten al staff crear en su propia agenda. Nace `pendiente` y se
+confirma acto seguido. Lleva `type: 'manual'` y `userId` del que lo cargó.
 
 ---
 
@@ -433,51 +456,54 @@ curl -s "https://barberos.sacia.tech$B" | grep -c "TEXTO_A_BUSCAR"
 
 ## Próximos pasos, en orden
 
-### Manual, en consola — nadie más lo puede hacer
+### Manual — nadie más lo puede hacer
 
-1. **Dominio autorizado.** `barberos.sacia.tech` tiene que estar en Firebase →
-   Authentication → Settings → Authorized domains. Sin eso el login en
-   producción falla con `auth/unauthorized-domain`. Firebase trae `localhost` y
-   `*.firebaseapp.com` por defecto; un dominio propio va a mano. No hay comando
-   de CLI: es sí o sí por consola.
-2. **Habilitar Email/Password** en Authentication → Sign-in method, para que
-   funcionen las cuentas con contraseña. El código ya está; sin el proveedor
-   habilitado devuelve `auth/operation-not-allowed`.
-3. **Trámite de Meta para WhatsApp** — tarda 1-2 semanas, conviene arrancarlo en
-   paralelo con lo demás.
+1. **Trámite de Meta para WhatsApp** — tarda 1-2 semanas, conviene arrancarlo en
+   paralelo con lo demás. Hasta entonces la landing lo marca "pronto".
+2. **Ensayo en producción.** Todas las suites corren contra emulador; el
+   recorrido completo en producción real (alta con días de prueba → dueño
+   carga servicios/barberos/horarios → cliente reserva desde incógnito → se ve
+   en el panel y en "Mis citas") nunca se hizo. Es la condición para sacar el
+   fallback de permisos de `AuthContext` (punto 9 de abajo).
+
+Ya resueltos y verificados: dominio `barberos.sacia.tech` autorizado,
+Email/Password habilitado, alcance del barbero cerrado en Rules.
 
 ### Producto — hace falta decidir antes de programar
 
-4. **Alcance del barbero.** La landing promete "cada barbero ve solo sus propios
-   turnos", pero eso lo hace **solo la UI**: las Rules dan a cualquier
-   `isBusinessStaff` lectura y escritura sobre toda la agenda. Verificado: un
-   barbero puede editar el turno de otro. No es fuga entre barberías y el
-   empleado es de confianza, pero no es lo que se vende. Apretarlo exige revisar
-   primero qué vistas necesitan la agenda completa (`DashboardPage` calcula
-   estadísticas sobre todos los turnos), así que no es un cambio de una línea.
-   La otra salida válida es corregir la promesa.
+3. **Días de demo.** La landing dice `DIAS_DEMO = 10`; en el alta se tipean cada
+   vez. Elegir un número y usar siempre ese.
+4. **Planes.** Lo único que el sistema hace cumplir es `maxBarbers`. La landing
+   ya lo refleja: cada tarjeta muestra solo lo que la diferencia (barberos,
+   cuota de avisos "pronto", soporte) y lo común va en un bloque aparte
+   (`FEATURES_COMUNES`). Cuando lleguen los avisos por WhatsApp, la cuota es la
+   segunda diferencia real. No restar funciones al Básico para diferenciar.
+5. **Abuso de reservas.** Hecho: un turno por día y tope de 3 a futuro por
+   cuenta. Falta, por orden: bloquear cliente desde el panel (para la cuenta que
+   se porta mal), y App Check con reCAPTCHA v3 sobre los callables para frenar
+   scripts. Ninguno hace falta para la demo con amigos.
 
 ### Técnico, cuando haya tiempo
 
-5. Sacar el SDK de Firebase del camino crítico de la landing. **El split por
+6. Sacar el SDK de Firebase del camino crítico de la landing. **El split por
    rutas ya está hecho**: lo que falta es otra cosa. Hoy quien entra a ver
    precios baja 265 kB gzip, de los cuales 164 kB son Firebase, que la landing
    no usa. Sin él serían 101 kB — 62% menos. `App.jsx` importa `LoginPage` eager
    y los tres contexts importan firebase a nivel de módulo, así que hay que
    desmontar los providers de la raíz y montarlos dentro de las rutas de app.
-6. Revisar `src/components/landing/HeroMotionMockup.jsx` y
+7. Revisar `src/components/landing/HeroMotionMockup.jsx` y
    `FloatingActionWidget.jsx` (generados por Antigravity, sin auditar).
-7. Monitoreo global de turnos: hoy la pestaña del panel global solo muestra el
+8. Monitoreo global de turnos: hoy la pestaña del panel global solo muestra el
    negocio activo. Necesita `collectionGroup` + regla nueva.
-8. Sacar el fallback de permisos de `AuthContext` (paso 4 del checklist
+9. Sacar el fallback de permisos de `AuthContext` (paso 4 del checklist
    post-Blaze). Se dejó hasta ver a un dueño real entrando con claims.
-9. Los 3 errores de lint que quedan son `react-refresh/only-export-components`
+10. Los 3 errores de lint que quedan son `react-refresh/only-export-components`
    en los contexts: mover los hooks a otro archivo toca todos los imports y no
    cambia el comportamiento. Con eso el lint queda en cero y se puede poner CI.
-10. Borrado en cascada al eliminar un negocio (`deleteBusinessRecord` deja
+11. Borrado en cascada al eliminar un negocio (`deleteBusinessRecord` deja
     huérfanas las subcolecciones y los claims de los admins).
-11. Subir logo por barbería (Firebase Storage).
-12. PWA.
+12. Subir logo por barbería (Firebase Storage).
+13. PWA.
 
 ---
 
@@ -491,7 +517,7 @@ node scripts/test-billing-emulador.mjs     # cobro, suspensión y prueba gratis
 node scripts/auditar-rules-emulador.mjs    # aislamiento entre barberías
 ```
 
-Hoy: claims 45, reservas 23, facturación 11, rules 61. Todo en verde.
+Hoy: claims 45, reservas 35, facturación 11, rules 61. Todo en verde.
 
 ---
 

@@ -2009,6 +2009,15 @@ select.form-input {
   flex: 1;
 }
 
+.landing-comunes {
+  margin-top: var(--space-lg);
+  padding: 14px 18px;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  text-align: center;
+  line-height: 1.6;
+}
+
 .landing-fineprint {
   font-size: 0.75rem;
   color: var(--text-muted);

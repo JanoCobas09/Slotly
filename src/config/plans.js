@@ -10,6 +10,23 @@
 // lo que todavía no anda: los avisos por WhatsApp esperan la aprobación de Meta
 // y la exportación de clientes no está construida. Vender eso como disponible
 // es la clase de cosa que te hace perder un cliente en la primera semana.
+//
+// Cada plan lista SOLO lo que lo diferencia. Lo que tienen todos va en
+// FEATURES_COMUNES y se muestra aparte. Antes las estadísticas y el walk-in
+// figuraban como exclusivos del Pro, pero nada en el código los restringe: el
+// Básico los tiene igual. Lo único que el sistema hace cumplir de verdad es
+// `maxBarbers` (ProfessionalsPage), y cuando lleguen los avisos por WhatsApp,
+// la cuota. Prometer una diferencia que no existe es peor que no prometerla:
+// el primer Pro que pregunte qué compró se entera solo.
+
+/** Lo que incluye cualquier plan. Se muestra una vez, debajo de los tres. */
+export const FEATURES_COMUNES = [
+  'Turnos e historial sin límite',
+  'Tu link público con tu marca',
+  'Estadísticas de facturación',
+  'Servicios sin turno en vivo (walk-in)',
+  'Cada barbero ve solo su agenda',
+];
 
 export const PLANS = [
   {
@@ -20,11 +37,9 @@ export const PLANS = [
     description: 'Ideal para barberos independientes o duplas',
     maxBarbers: 2,
     features: [
-      { texto: '100 avisos por WhatsApp/mes', proximamente: true },
       'Hasta 2 barberos',
-      'Turnos e historial sin límite',
-      'Tu link público con tu marca',
-      'Soporte estándar por WhatsApp',
+      { texto: '100 avisos por WhatsApp/mes', proximamente: true },
+      'Soporte por WhatsApp',
     ],
   },
   {
@@ -35,12 +50,8 @@ export const PLANS = [
     description: 'El más elegido para barberías en crecimiento',
     maxBarbers: 5,
     features: [
-      { texto: '500 avisos por WhatsApp/mes', proximamente: true },
       'Hasta 5 barberos',
-      'Turnos e historial sin límite',
-      'Tu link público con tu marca',
-      'Estadísticas de facturación',
-      'Servicios sin turno en vivo (walk-in)',
+      { texto: '500 avisos por WhatsApp/mes', proximamente: true },
       'Soporte prioritario por WhatsApp',
     ],
   },
@@ -52,14 +63,11 @@ export const PLANS = [
     description: 'Para barberías grandes o múltiples sillones',
     maxBarbers: null,
     features: [
-      { texto: '2000 avisos por WhatsApp/mes', proximamente: true },
       'Barberos sin límite',
-      'Turnos e historial sin límite',
-      'Tu link público con tu marca',
-      'Estadísticas y reportes avanzados',
-      'Servicios sin turno en vivo (walk-in)',
+      { texto: '2000 avisos por WhatsApp/mes', proximamente: true },
       { texto: 'Exportación de base de clientes', proximamente: true },
       'Configuración inicial asistida',
+      'Soporte prioritario por WhatsApp',
     ],
   },
 ];

@@ -33,8 +33,8 @@ async function usuario(email) {
   return { uid: u.uid, token: (await r.json()).idToken };
 }
 
-async function reservar(u, datos) {
-  const r = await fetch(FN('createAppointment'), {
+async function llamar(u, nombre, datos) {
+  const r = await fetch(FN(nombre), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...(u ? { Authorization: `Bearer ${u.token}` } : {}) },
     body: JSON.stringify({ data: datos }),
@@ -42,6 +42,7 @@ async function reservar(u, datos) {
   const j = await r.json().catch(() => ({}));
   return j.error ? { error: j.error.status || j.error.message } : { ok: j.result };
 }
+const reservar = (u, datos) => llamar(u, 'createAppointment', datos);
 
 let ok = 0, mal = 0;
 const chequear = (desc, cond, detalle) => {
@@ -150,6 +151,54 @@ await db.doc(`businesses/${BID}`).update({ isFrozen: false });
 titulo('Sin sesión:');
 r = await reservar(null, { ...base, startTime: '16:30' });
 chequear('anónimo, rechazado', r.error === 'UNAUTHENTICATED', JSON.stringify(r));
+
+titulo('Tope de turnos a futuro por cuenta (3):');
+// Martes siguientes al FECHA base, para que caigan en el único día con horario.
+const MARTES = ['2027-03-09', '2027-03-16', '2027-03-23', '2027-03-30'];
+const c6 = await usuario('c6@gmail.com');
+r = await reservar(c6, { ...base, startTime: '09:00' });
+chequear('1º turno (FECHA base), creado', r.ok?.status === 'created', JSON.stringify(r));
+r = await reservar(c6, { ...base, appointmentDate: MARTES[0], startTime: '09:00' });
+chequear('2º turno, creado', r.ok?.status === 'created', JSON.stringify(r));
+r = await reservar(c6, { ...base, appointmentDate: MARTES[1], startTime: '09:00' });
+const tercero = r.ok?.id;
+chequear('3º turno, creado', r.ok?.status === 'created', JSON.stringify(r));
+r = await reservar(c6, { ...base, appointmentDate: MARTES[2], startTime: '09:00' });
+chequear('4º turno, rechazado por tope', r.error === 'RESOURCE_EXHAUSTED', JSON.stringify(r));
+await db.doc(`businesses/${BID}/appointments/${tercero}`).update({ status: 'cancelada' });
+r = await reservar(c6, { ...base, appointmentDate: MARTES[2], startTime: '09:00' });
+chequear('cancelado uno, vuelve a poder reservar', r.ok?.status === 'created', JSON.stringify(r));
+// Un turno viejo que quedó 'pendiente' porque nadie lo marcó no cuenta: ya pasó.
+for (const fecha of ['2020-01-07', '2020-01-14']) {
+  await db.collection(`businesses/${BID}/appointments`).add({
+    businessId: BID, userId: c6.uid, professionalId: PROF, serviceId: SRV,
+    appointmentDate: fecha, startTime: '09:00', endTime: '09:30', status: 'pendiente',
+  });
+}
+// Quedan 3 activos a futuro (base, MARTES[0], MARTES[2]) + 2 viejos. Se cancela
+// uno a futuro: con 2 a futuro tiene que entrar; si los viejos contaran serían
+// 4 y se rechazaría.
+const cuarto = (await db.collection(`businesses/${BID}/appointments`)
+  .where('userId', '==', c6.uid).where('appointmentDate', '==', MARTES[2]).get()).docs[0];
+await cuarto.ref.update({ status: 'cancelada' });
+r = await reservar(c6, { ...base, appointmentDate: MARTES[3], startTime: '09:00' });
+chequear('los turnos pasados no cuentan para el tope', r.ok?.status === 'created', JSON.stringify(r));
+
+titulo('getBusySlots — solo horas, sin datos de otros clientes:');
+const c7 = await usuario('c7@gmail.com');
+r = await llamar(c7, 'getBusySlots', { businessId: BID, professionalId: PROF, appointmentDate: FECHA });
+const ocupados = r.ok?.ocupados || [];
+chequear('devuelve los turnos activos del día', ocupados.length >= 3, JSON.stringify(r));
+chequear('cada uno trae startTime y endTime', ocupados.every((o) => o.startTime && o.endTime), JSON.stringify(ocupados));
+chequear('ninguno trae nombre, teléfono ni userId',
+  ocupados.every((o) => !('clientName' in o) && !('clientPhone' in o) && !('userId' in o) && !('clientEmail' in o)),
+  JSON.stringify(ocupados));
+r = await llamar(c7, 'getBusySlots', { businessId: BID, professionalId: PROF, appointmentDate: MARTES[1] });
+chequear('el día del turno cancelado viene vacío', r.ok?.ocupados?.length === 0, JSON.stringify(r));
+r = await llamar(null, 'getBusySlots', { businessId: BID, professionalId: PROF, appointmentDate: FECHA });
+chequear('anónimo, rechazado', r.error === 'UNAUTHENTICATED', JSON.stringify(r));
+r = await llamar(c7, 'getBusySlots', { businessId: BID, professionalId: PROF, appointmentDate: '2/3/2027' });
+chequear('fecha mal formada, rechazada', r.error === 'INVALID_ARGUMENT', JSON.stringify(r));
 
 console.log(`\n${ok} pasaron, ${mal} fallaron\n`);
 process.exit(mal ? 1 : 0);

@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../hooks/useTenantData';
 import { updateAppointment, cancelAppointment } from '../../lib/repository';
+import NuevoTurnoModal from '../../components/admin/NuevoTurnoModal';
 import { formatDate, formatPrice } from '../../utils/dateUtils';
 
 const STATUS_OPTIONS = [
@@ -49,6 +50,7 @@ export default function AppointmentsPage() {
   const [filterProf,   setFilterProf]   = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterDate,   setFilterDate]   = useState('');
+  const [agendando,    setAgendando]    = useState(false);
 
   const filtered = useMemo(() => {
     let result = [...appointments].sort((a, b) => {
@@ -88,8 +90,17 @@ export default function AppointmentsPage() {
     <div>
       <div className="admin-page-header">
         <h1>{isOwner ? 'Citas' : 'Mis Citas'}</h1>
-        <span className="badge badge-neutral">{filtered.length} resultado{filtered.length !== 1 ? 's' : ''}</span>
+        <div className="flex items-center gap-md">
+          <span className="badge badge-neutral">{filtered.length} resultado{filtered.length !== 1 ? 's' : ''}</span>
+          {/* El barbero carga los turnos que le piden por WhatsApp o en persona,
+              así la agenda online y la de siempre son la misma. */}
+          <button className="btn btn-primary" onClick={() => setAgendando(true)}>
+            + Agendar turno
+          </button>
+        </div>
       </div>
+
+      {agendando && <NuevoTurnoModal onClose={() => setAgendando(false)} />}
 
       {/* Filtros */}
       <div className="filters-bar">

@@ -395,6 +395,9 @@ function diaDeLaSemana(fechaISO) {
   return d === 0 ? 6 : d - 1;
 }
 
+/** Turnos activos (hoy o después) que una cuenta puede tener en una barbería. */
+const MAX_TURNOS_ACTIVOS = 3;
+
 const FORMATO_FECHA = /^\d{4}-\d{2}-\d{2}$/;
 const FORMATO_HORA = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -521,16 +524,37 @@ exports.createAppointment = onCall(async (request) => {
   const ref = agenda.doc();
 
   await db.runTransaction(async (tx) => {
+    // Los turnos de este cliente en esta barbería, todos, en una sola lectura.
+    // Se filtran en memoria en vez de con dos queries por rango porque un
+    // where por userId + rango de fecha exigiría un índice compuesto, que el
+    // emulador no pide y producción sí: pasaría todas las suites y fallaría
+    // recién con el primer cliente real. Un cliente asiduo junta ~50 turnos
+    // al año; leerlos es barato.
+    const propios = await tx.get(agenda.where('userId', '==', request.auth.uid));
+    const activos = propios.docs
+      .map((d) => d.data())
+      .filter((a) => a.status === 'pendiente' || a.status === 'confirmada');
+
     // Un turno activo por cliente por día en esta barbería. El front también lo
     // mira (hasAppointmentToday), pero eso se saltea con la consola abierta —
     // y de hecho estuvo roto un tiempo porque la lista de turnos del cliente
     // llegaba vacía. Acá es donde tiene que valer.
-    const propios = await tx.get(
-      agenda.where('userId', '==', request.auth.uid)
-            .where('appointmentDate', '==', appointmentDate)
-    );
-    if (propios.docs.some((d) => ['pendiente', 'confirmada'].includes(d.data().status))) {
+    if (activos.some((a) => a.appointmentDate === appointmentDate)) {
       throw new HttpsError('already-exists', 'Ya tenés un turno ese día. Si querés cambiarlo, cancelá el anterior primero.');
+    }
+
+    // Y un tope de turnos a futuro por cuenta. Sin esto, la regla de uno por
+    // día no frena a nadie: con una sola cuenta se le llena al barbero la
+    // agenda de los próximos 30 días sin ninguna intención de ir. Tres es lo
+    // que necesita un cliente real (el de esta semana, el de la que viene y
+    // uno más) y lo que hace inútil el abuso.
+    const hoy = hoyEnArgentina();
+    const aFuturo = activos.filter((a) => a.appointmentDate >= hoy).length;
+    if (aFuturo >= MAX_TURNOS_ACTIVOS) {
+      throw new HttpsError(
+        'resource-exhausted',
+        `Ya tenés ${MAX_TURNOS_ACTIVOS} turnos reservados. Cuando pase alguno, o si cancelás uno, podés reservar otro.`
+      );
     }
 
     const delDia = await tx.get(
@@ -571,6 +595,45 @@ exports.createAppointment = onCall(async (request) => {
   });
 
   return { status: 'created', id: ref.id, price: precio, endTime: minutesToTime(fin) };
+});
+
+/**
+ * Horarios ocupados de un profesional en un día: solo `startTime` y `endTime`
+ * de los turnos activos, nada más.
+ *
+ * Por qué existe: la grilla de reserva se pinta en el browser con
+ * availabilityEngine, que necesita saber qué está tomado. Antes el cliente
+ * leía la agenda entera del negocio para eso, y eso era una filtración: se
+ * llevaba nombre, teléfono y email de todos los demás clientes. Al cerrarla
+ * en las Rules, el cliente quedó viendo solo sus propios turnos y la grilla
+ * mostraba como libres los horarios de todo el resto — cada reserva terminaba
+ * en "ese horario ya fue tomado". Esta función le da a la grilla lo que
+ * necesita y ni un campo más. La transacción de createAppointment sigue
+ * siendo la que decide.
+ */
+exports.getBusySlots = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Tenés que iniciar sesión.');
+  }
+  const { businessId, professionalId, appointmentDate } = request.data || {};
+  if (!businessId || !professionalId || !appointmentDate) {
+    throw new HttpsError('invalid-argument', 'Faltan datos.');
+  }
+  if (!FORMATO_FECHA.test(appointmentDate)) {
+    throw new HttpsError('invalid-argument', 'Fecha con formato inválido.');
+  }
+
+  const snap = await db.collection(`businesses/${businessId}/appointments`)
+    .where('appointmentDate', '==', appointmentDate)
+    .where('professionalId', '==', professionalId)
+    .get();
+
+  const ocupados = snap.docs
+    .map((d) => d.data())
+    .filter((a) => a.status === 'pendiente' || a.status === 'confirmada')
+    .map((a) => ({ startTime: a.startTime, endTime: a.endTime || a.startTime }));
+
+  return { ocupados };
 });
 
 // ============================================================================
