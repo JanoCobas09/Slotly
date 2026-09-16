@@ -80,6 +80,11 @@ service cloud.firestore {
       return resource.data.professionalId == claims().get('professionalId', '');
     }
 
+    /** ¿Este horario es del barbero que está llamando? */
+    function esSuHorario(bizId, datos) {
+      return esBarbero(bizId) && datos.professionalId == claims().get('professionalId', '');
+    }
+
     // Escribe cosas del negocio: su dueño, o vos preparando la cuenta.
     function canManage(bizId) {
       return isBusinessOwner(bizId) || isPlatform();
@@ -127,9 +132,20 @@ service cloud.firestore {
       // ── Staff, catálogo y horarios ───────────────────────────────────────
       // Lectura pública: sin esto la página de reservas no puede mostrar
       // profesionales, servicios ni calcular horarios disponibles.
+      //
+      // El barbero edita SU ficha desde "Mi Configuración" (nombre, especialidad,
+      // bio). Lo que no puede tocar es `isActive`: activarse o desactivarse es
+      // del dueño, y además es lo que cuenta para el límite de barberos del
+      // plan. Tampoco crea ni borra fichas. Verificado: sin esta rama la página
+      // entera del barbero fallaba con permission-denied al guardar.
       match /professionals/{profId} {
         allow read: if true;
-        allow write: if canManage(bizId);
+        allow create, delete: if canManage(bizId);
+        allow update: if canManage(bizId)
+                         || (esBarbero(bizId)
+                             && claims().get('professionalId', '') == profId
+                             && !request.resource.data.diff(resource.data).affectedKeys()
+                                   .hasAny(['isActive', 'id']));
       }
 
       // Teléfono y mail personales del staff, en subcolección aparte.
@@ -152,9 +168,14 @@ service cloud.firestore {
         allow write: if canManage(bizId);
       }
 
+      // El barbero maneja sus propios horarios (la página los reemplaza
+      // enteros: borra los suyos y crea los nuevos). Los de otro, no.
       match /schedules/{schId} {
         allow read: if true;
-        allow write: if canManage(bizId);
+        allow create: if canManage(bizId) || esSuHorario(bizId, request.resource.data);
+        allow update: if canManage(bizId)
+                         || (esSuHorario(bizId, resource.data) && esSuHorario(bizId, request.resource.data));
+        allow delete: if canManage(bizId) || esSuHorario(bizId, resource.data);
       }
 
       match /professionalServices/{psId} {
@@ -274,10 +295,16 @@ service cloud.firestore {
                        || inBusiness(get(/databases/$(database)/documents/tickets/$(ticketId)).data.businessId);
 
         // El autor no se acepta del cliente: se compara contra su propio uid.
+        //
+        // getAfter y no get: el ticket y su primer mensaje se escriben en un
+        // mismo batch, y get() ve el estado ANTERIOR al batch — el ticket
+        // todavía no existe, .data es null y la regla revienta. Así nadie podía
+        // abrir un ticket, dueño incluido; el barbero fue el primero en
+        // avisar. getAfter ve el estado como quedaría si el batch entra.
         allow create: if signedIn()
                          && request.resource.data.authorId == request.auth.uid
                          && (esEquipoPlataforma()
-                             || inBusiness(get(/databases/$(database)/documents/tickets/$(ticketId)).data.businessId));
+                             || inBusiness(getAfter(/databases/$(database)/documents/tickets/$(ticketId)).data.businessId));
 
         // Un mensaje enviado no se edita ni se borra.
         allow update, delete: if false;

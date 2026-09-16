@@ -19,7 +19,17 @@ export default function MyAppointments() {
   // Solo las citas del negocio por el que entró el cliente.
   const { appointments, professionals, services, business, slug, businessId } = useTenant();
   const [tab, setTab] = useState('upcoming');
-  const today = new Date().toISOString().split('T')[0];
+  const ahora = new Date();
+
+  // Fecha + hora, local. Un turno de hoy a las 11:00 a las 18:00 ya pasó: no
+  // es "próximo" ni se puede cancelar.
+  const inicioDe = (apt) => new Date(`${apt.appointmentDate}T${apt.startTime || '00:00'}:00`);
+  const yaPaso = (apt) => inicioDe(apt) <= ahora;
+
+  // Con cuánta anticipación se puede cancelar: lo elige la barbería
+  // (Configuración). Más cerca del turno, el cliente le escribe al barbero.
+  const horasMinimas = Number(business?.minCancelHours) || 2;
+  const puedeCancelar = (apt) => inicioDe(apt) - ahora > horasMinimas * 60 * 60 * 1000;
 
   if (!isAuthenticated) {
     return (
@@ -43,12 +53,9 @@ export default function MyAppointments() {
       return dateA > dateB ? -1 : 1;
     });
 
-  const upcoming = myAppointments.filter(a =>
-    a.appointmentDate >= today && (a.status === 'pendiente' || a.status === 'confirmada')
-  );
-  const past = myAppointments.filter(a =>
-    a.appointmentDate < today || a.status === 'completada' || a.status === 'cancelada' || a.status === 'no_asistio'
-  );
+  const activa = (a) => a.status === 'pendiente' || a.status === 'confirmada';
+  const upcoming = myAppointments.filter(a => activa(a) && !yaPaso(a));
+  const past = myAppointments.filter(a => !activa(a) || yaPaso(a));
 
   const displayed = tab === 'upcoming' ? upcoming : past;
 
@@ -98,10 +105,16 @@ export default function MyAppointments() {
               </div>
               <div className="appointment-actions">
                 <span className={`badge ${statusInfo.className}`}>{statusInfo.label}</span>
-                {(apt.status === 'pendiente' || apt.status === 'confirmada') && apt.appointmentDate >= today && (
-                  <button className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }} onClick={() => handleCancel(apt.id)}>
-                    Cancelar
-                  </button>
+                {activa(apt) && !yaPaso(apt) && (
+                  puedeCancelar(apt) ? (
+                    <button className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }} onClick={() => handleCancel(apt.id)}>
+                      Cancelar
+                    </button>
+                  ) : (
+                    <span className="text-sm text-muted" title={`Se puede cancelar hasta ${horasMinimas} h antes`}>
+                      Para cancelar, escribile a la barbería
+                    </span>
+                  )
                 )}
               </div>
             </div>

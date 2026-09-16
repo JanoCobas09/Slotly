@@ -158,24 +158,31 @@ export default function SettingsPage() {
                   </select>
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Intervalo de slots (min)</label>
+                  <label className="form-label">Cada cuánto se ofrece un turno</label>
                   <select className="form-input" value={form.slotInterval} onChange={e => editar({ slotInterval: parseInt(e.target.value) })}>
-                    <option value={15}>15 minutos</option>
-                    <option value={30}>30 minutos</option>
-                    <option value={45}>45 minutos</option>
-                    <option value={60}>60 minutos</option>
+                    <option value={15}>Cada 15 minutos</option>
+                    <option value={30}>Cada 30 minutos</option>
+                    <option value={45}>Cada 45 minutos</option>
+                    <option value={60}>Cada 1 hora</option>
                   </select>
+                  <p className="text-sm text-muted" style={{ marginTop: 6 }}>
+                    Es el paso de la grilla que ve el cliente. Con 30, ve 09:00, 09:30, 10:00…
+                    La duración de cada turno la define el servicio.
+                  </p>
                 </div>
               </div>
               <div className="form-group">
-                <label className="form-label">Horas mínimas para cancelar</label>
-                <select className="form-input" value={form.minCancelHours} onChange={e => editar({ minCancelHours: parseInt(e.target.value) })}>
+                <label className="form-label">Con cuánta anticipación puede cancelar el cliente</label>
+                <select className="form-input" value={form.minCancelHours || 2} onChange={e => editar({ minCancelHours: parseInt(e.target.value) })}>
                   <option value={1}>1 hora</option>
                   <option value={2}>2 horas</option>
                   <option value={4}>4 horas</option>
                   <option value={12}>12 horas</option>
                   <option value={24}>24 horas</option>
                 </select>
+                <p className="text-sm text-muted" style={{ marginTop: 6 }}>
+                  Más cerca del turno, el cliente ya no puede cancelarlo solo: te tiene que escribir.
+                </p>
               </div>
               <div className="form-group">
                 <label className="form-label">Teléfono</label>

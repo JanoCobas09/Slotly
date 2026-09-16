@@ -16,7 +16,10 @@ const ownerNavItems = [
 
 // Items para el admin/peluquero → solo sus citas
 const adminNavItems = [
-  { to: '/admin',         icon: '📅', label: 'Mis Citas', end: true },
+  { to: '/admin',         icon: '🏠', label: 'Hoy', end: true },
+  // La tabla con confirmar / completar / no asistió / cancelar y "Agendar
+  // turno". Sin esta entrada el barbero no tenía forma de llegar.
+  { to: '/admin/citas',   icon: '📅', label: 'Mi Agenda' },
   { to: '/admin/ajustes', icon: '⚙️', label: 'Mi Configuración' },
   { to: '/admin/soporte', icon: '💬', label: 'Soporte' },
 ];
@@ -111,6 +114,8 @@ export default function AdminLayout() {
       <main className="admin-main">
         {/* Prueba gratis: los días que quedan, y qué hacer cuando se termina. */}
         {(() => {
+          // Solo al dueño: el barbero no decide si se paga ni a quién escribir.
+          if (!isOwner) return null;
           const dias = diasDePruebaRestantes(business?.trialEndsAt);
           if (dias === null) return null;
           const vencida = dias < 0;

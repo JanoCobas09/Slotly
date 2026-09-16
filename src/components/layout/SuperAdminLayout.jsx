@@ -44,7 +44,7 @@ export default function SuperAdminLayout() {
             className="badge"
             style={{ background: 'var(--primary-light)', color: 'var(--primary)', fontSize: '11px', fontWeight: 700 }}
           >
-            Dueño de Solución
+            {user?.isModerator ? 'Moderador' : 'Dueño de Solución'}
           </span>
         </div>
 

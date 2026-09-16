@@ -78,7 +78,7 @@ export default function AdminsPage() {
       });
       setAviso(
         res?.status === 'pending'
-          ? `${form.email.trim().toLowerCase()} todavía no entró nunca. El permiso queda anotado y se activa solo en su primer login con Google.`
+          ? `${form.email.trim().toLowerCase()} todavía no entró nunca. El permiso queda anotado y se activa solo la primera vez que inicie sesión.`
           : ''
       );
     } catch (err) {
@@ -115,7 +115,7 @@ export default function AdminsPage() {
         <div>
           <h1>Administradores</h1>
           <p className="text-secondary text-sm" style={{ marginTop: 4 }}>
-            Gestioná quién puede acceder al panel. Solo los Gmail de esta lista tendrán acceso.
+            Gestioná quién puede acceder al panel. Solo las cuentas de esta lista tienen acceso.
           </p>
         </div>
         <button className="btn btn-primary" onClick={openNew}>+ Agregar</button>
@@ -131,7 +131,7 @@ export default function AdminsPage() {
         <table className="data-table">
           <thead>
             <tr>
-              <th>Gmail autorizado</th>
+              <th>Email autorizado</th>
               <th>Nombre</th>
               <th>Rol</th>
               <th>Profesional vinculado</th>
@@ -160,7 +160,9 @@ export default function AdminsPage() {
                   </td>
                   <td>{prof?.name || (admin.role === 'owner' ? '—' : <span className="text-muted">Sin asignar</span>)}</td>
                   <td className="text-sm text-secondary">
-                    {admin.addedAt ? new Date(admin.addedAt).toLocaleDateString('es-AR') : '—'}
+                    {/* Viene como Timestamp de Firestore; new Date(timestamp) da Invalid Date. */}
+                    {admin.addedAt?.toDate ? admin.addedAt.toDate().toLocaleDateString('es-AR')
+                      : admin.addedAt ? new Date(admin.addedAt).toLocaleDateString('es-AR') : '—'}
                   </td>
                   <td>
                     <div className="table-actions">
@@ -182,9 +184,9 @@ export default function AdminsPage() {
       <div className="card" style={{ marginTop: 'var(--space-lg)', background: 'var(--primary-light)', border: '1px solid var(--primary)' }}>
         <h4 style={{ color: 'var(--primary)', marginBottom: 'var(--space-sm)' }}>ℹ️ ¿Cómo funciona?</h4>
         <ul style={{ paddingLeft: 'var(--space-lg)', color: 'var(--text-secondary)', fontSize: 14, lineHeight: 1.8 }}>
-          <li>Al agregar un Gmail acá, el permiso queda escrito en su cuenta de Google.</li>
+          <li>Al agregar un email acá, el permiso queda escrito en su cuenta.</li>
           <li><strong>Si ya usó BarberOS alguna vez</strong> → el acceso queda activo enseguida, pero tiene que cerrar sesión y volver a entrar para que le tome.</li>
-          <li><strong>Si nunca entró</strong> → el permiso queda anotado y se activa solo, la primera vez que inicie sesión con Google.</li>
+          <li><strong>Si nunca entró</strong> → el permiso queda anotado y se activa solo, la primera vez que inicie sesión.</li>
           <li><strong>Quien no está en la lista</strong> → va al flujo normal de reserva de clientes.</li>
           <li><strong>Dueño</strong>: ve todas las citas, estadísticas globales y puede modificar todo.</li>
           <li><strong>Peluquero</strong>: solo ve las citas asignadas a su perfil de profesional.</li>
@@ -207,7 +209,7 @@ export default function AdminsPage() {
               )}
 
               <div className="form-group">
-                <label className="form-label">Gmail autorizado <span className="required">*</span></label>
+                <label className="form-label">Email <span className="required">*</span></label>
                 <input
                   className="form-input"
                   type="email"
@@ -217,7 +219,7 @@ export default function AdminsPage() {
                   autoFocus
                 />
                 <p className="text-xs text-muted" style={{ marginTop: 4 }}>
-                  Debe ser el Gmail exacto con el que inicia sesión.
+                  Tiene que ser el email exacto con el que inicia sesión (su Gmail, o el usuario que le creamos).
                 </p>
               </div>
 

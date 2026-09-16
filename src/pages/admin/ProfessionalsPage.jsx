@@ -232,7 +232,7 @@ export default function ProfessionalsPage() {
               const profPS      = professionalServices.filter(ps => ps.professionalId === prof.id);
               const profSched   = schedules.filter(s => s.professionalId === prof.id && s.isActive);
               const srvNames    = profPS.map(ps => services.find(s => s.id === ps.serviceId)?.name).filter(Boolean);
-              const days        = profSched.map(s => getDayName(s.dayOfWeek).substring(0, 3)).join(', ');
+              const days        = [...profSched].sort((a, b) => a.dayOfWeek - b.dayOfWeek).map(s => getDayName(s.dayOfWeek).substring(0, 3)).join(', ');
               return (
                 <tr key={prof.id}>
                   <td>

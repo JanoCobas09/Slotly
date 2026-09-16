@@ -202,10 +202,14 @@ export default function App() {
 
         {/* ── Rutas públicas de cliente, por negocio ──────────────── */}
         {/* Van al final: los segmentos estáticos de arriba tienen prioridad */}
+        {/* Sin ProtectedRoute a propósito: el link de la barbería se abre sin
+            cuenta. El cliente ve el equipo, los servicios y la grilla, y recién
+            al llegar a sus datos se le pide entrar. Antes lo primero que veía
+            era una pantalla de login con marca BarberOS y ni el nombre de la
+            barbería — para un link puesto en Instagram es tirar la mitad de
+            los que entran. */}
         <Route path="/:businessSlug" element={
-          <ProtectedRoute>
-            <ClientLayout><TenantRoute><BookingPage /></TenantRoute></ClientLayout>
-          </ProtectedRoute>
+          <ClientLayout><TenantRoute><BookingPage /></TenantRoute></ClientLayout>
         } />
         <Route path="/:businessSlug/confirmacion" element={
           <ProtectedRoute>

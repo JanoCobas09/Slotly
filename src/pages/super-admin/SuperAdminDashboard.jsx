@@ -432,7 +432,8 @@ export default function SuperAdminDashboard() {
             <div className="card" style={{ padding: 'var(--space-md)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-md)' }}>
                 <h3>Rendimiento WhatsApp API</h3>
-                <span className="badge badge-success" style={{ fontSize: 11 }}>Conectado</span>
+                {/* No hay integración todavía: decir "Conectado" era mentira. */}
+                <span className="badge badge-warning" style={{ fontSize: 11 }}>Pendiente de Meta</span>
               </div>
               <div style={{ display: 'flex', gap: 'var(--space-lg)', marginBottom: 'var(--space-md)', background: 'var(--bg-secondary)', padding: 'var(--space-sm)', borderRadius: 8 }}>
                 <div style={{ flex: 1, textAlign: 'center' }}>

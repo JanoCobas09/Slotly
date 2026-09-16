@@ -4,7 +4,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../hooks/useTenantData';
 import { createAppointment, updateAppointment } from '../../lib/repository';
 import { calculateStats } from '../../utils/statsCalculator';
-import { formatPrice, formatDate } from '../../utils/dateUtils';
+import { formatPrice, formatDate, toDateString } from '../../utils/dateUtils';
+import NuevoTurnoModal from '../../components/admin/NuevoTurnoModal';
 
 const STATUS_BADGES = {
   pendiente:  'badge-warning',
@@ -95,9 +96,12 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const { appointments, professionals, services, professionalServices, business, businessId } = useTenant();
   const [showWalkinModal, setShowWalkinModal] = useState(false);
+  const [agendando, setAgendando] = useState(false);
 
   const isOwner = user?.role === 'owner';
-  const today   = new Date().toISOString().split('T')[0];
+  // Local, no toISOString(): eso es UTC, y a partir de las 21:00 en Argentina
+  // ya es "mañana" — el walk-in se registraba en el día equivocado.
+  const today   = toDateString(new Date());
 
   // Owner ve todas las citas; peluquero solo las suyas
   const visibleAppointments = isOwner
@@ -160,11 +164,16 @@ export default function DashboardPage() {
             <span className="badge badge-warning" style={{ fontSize: 13, padding: '6px 12px' }}>
               ⏳ {upcomingPending.length} pendiente{upcomingPending.length !== 1 ? 's' : ''}
             </span>
+            <button className="btn btn-outline" onClick={() => setAgendando(true)}>
+              📅 Agendar turno
+            </button>
             <button className="btn btn-primary" onClick={() => setShowWalkinModal(true)}>
               ✂️ Servicio sin turno
             </button>
           </div>
         </div>
+
+        {agendando && <NuevoTurnoModal onClose={() => setAgendando(false)} />}
 
         {/* Lista de turnos próximos */}
         <div className="card">
@@ -346,9 +355,15 @@ export default function DashboardPage() {
           <div>
             <strong style={{ fontSize: 14 }}>✅ La cuenta está lista para tomar turnos</strong>
             <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-              Link para compartir con los clientes: <code>/{business.slug}</code>
+              Link para compartir con los clientes: <code>{window.location.origin}/{business.slug}</code>
             </div>
           </div>
+          <button
+            className="btn btn-outline btn-sm"
+            onClick={() => navigator.clipboard?.writeText(`${window.location.origin}/${business.slug}`).catch(() => {})}
+          >
+            Copiar link
+          </button>
           <a
             href={`/${business.slug}`}
             target="_blank"

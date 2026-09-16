@@ -92,6 +92,7 @@ export function createAppointment({ businessId, professionalId, serviceId, appoi
  * Devuelve solo { startTime, endTime } de cada turno activo: el cliente no
  * puede leer la agenda del negocio (tiene datos de otros clientes), pero sí
  * necesita saber qué está ocupado. Respuesta: { ocupados: [...] }.
+ * No pide sesión: la grilla se mira antes de entrar.
  */
 export function getBusySlots({ businessId, professionalId, appointmentDate }) {
   return llamar('getBusySlots', { businessId, professionalId, appointmentDate });

@@ -236,6 +236,8 @@ function TimeSlotGrid({ slots, selectedSlot, onSelect, date, cargando }) {
  * con o sin código de país. La function lo vuelve a validar del lado del
  * servidor; esto es para que el error se vea antes de mandar.
  */
+const VOLVER_DEL_LOGIN = 'barberos:volverAlPaso5';
+
 function telefonoValido(tel) {
   const digitos = String(tel || '').replace(/\D/g, '');
   return digitos.length >= 10 && digitos.length <= 13;
@@ -258,7 +260,7 @@ function PersonalInfoStep({ user, phone, onPhoneChange }) {
           <div style={{ fontWeight: 600 }}>{user.name}</div>
           <div className="text-sm text-secondary">{user.email}</div>
         </div>
-        <span className="badge badge-success">✓ Google</span>
+        <span className="badge badge-success">✓ Verificado</span>
       </div>
 
       <div className="personal-form">
@@ -425,6 +427,15 @@ export default function BookingPage() {
   const finalPrice = ps?.customPrice || selectedService?.price || 0;
   const finalDuration = ps?.customDuration || selectedService?.durationMinutes || 30;
 
+  // Volvió del login con el horario ya elegido: seguir al paso 5 solo, sin
+  // pedirle que aprete "Siguiente" otra vez.
+  useEffect(() => {
+    if (!user || step !== 4 || !timeSlot) return;
+    let volvio = false;
+    try { volvio = sessionStorage.getItem(VOLVER_DEL_LOGIN) === '1'; sessionStorage.removeItem(VOLVER_DEL_LOGIN); } catch { /* nada */ }
+    if (volvio) dispatch({ type: 'NEXT_STEP' });
+  }, [user, step, timeSlot, dispatch]);
+
   // Qué está ocupado ese día para ese profesional. No sale de `appointments`
   // del contexto: para un cliente esa lista trae SOLO sus propios turnos (las
   // Rules no le dejan ver los de los demás, y está bien), así que con ella la
@@ -490,6 +501,15 @@ export default function BookingPage() {
   const handleNext = () => {
     if (step === 3 && hasAppointmentToday) {
       setError('Ya tenés un turno reservado para este día.');
+      return;
+    }
+    // Hasta acá se puede mirar sin cuenta. Para poner sus datos y confirmar,
+    // tiene que entrar. Lo elegido queda en BookingContext (vive en la raíz),
+    // así que al volver del login sigue en el paso 5 con todo cargado.
+    if (step === 4 && !user) {
+      setError('');
+      try { sessionStorage.setItem(VOLVER_DEL_LOGIN, '1'); } catch { /* sin storage, vuelve al paso 4 */ }
+      navigate('/login', { state: { from: `/${slug}` } });
       return;
     }
     setError('');

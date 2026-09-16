@@ -126,7 +126,7 @@ export default function ProfileSettingsPage() {
         <div>
           <h1>Mi Configuración</h1>
           <p className="text-secondary text-sm" style={{ marginTop: 4 }}>
-            Administra tus datos personales y tus horarios de trabajo en la barbería.
+            Tus datos personales y tus horarios de trabajo en la barbería.
           </p>
         </div>
         {saved && <span className="badge badge-success">✅ Cambios Guardados</span>}
@@ -186,7 +186,7 @@ export default function ProfileSettingsPage() {
                   style={{ minHeight: 100, resize: 'vertical' }}
                   value={form.bio}
                   onChange={e => editar({ bio: e.target.value })}
-                  placeholder="Cuéntale a tus clientes sobre tu experiencia..."
+                  placeholder="Contales a tus clientes sobre tu experiencia…"
                 />
               </div>
             </div>
@@ -198,7 +198,7 @@ export default function ProfileSettingsPage() {
           <div className="card">
             <h3 className="mb-lg">Mi Horario de Trabajo</h3>
             <p className="text-secondary text-sm mb-md">
-              Configura los días de la semana y las horas en las que atiendes clientes.
+              Los días de la semana y las horas en las que atendés.
             </p>
             <div className="schedule-grid">
               {editSchedules.map((sch, idx) => (

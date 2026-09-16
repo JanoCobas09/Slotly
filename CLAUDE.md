@@ -101,8 +101,14 @@ Google.
 - Multi-tenancy por slug: `/:businessSlug`.
 - Panel global: alta de barberías, facturación, suspensión, tickets.
 - Panel por barbería: staff, servicios, horarios, agenda, admins, soporte.
-- Reserva pública con motor de disponibilidad. El staff también agenda a mano
-  desde Citas (para el cliente que pide por WhatsApp).
+- Reserva pública con motor de disponibilidad. **Se mira sin cuenta**: el link
+  muestra equipo, servicios y grilla; el login se pide recién al cargar los
+  datos (paso 5), y al volver sigue donde estaba. El staff también agenda a
+  mano desde Citas (para el cliente que pide por WhatsApp).
+- El barbero (rol `admin`) edita su propia ficha y horarios, atiende su agenda
+  (confirmar / completar / no asistió / cancelar / agendar) y abre tickets.
+- El cliente puede cancelar solo hasta `minCancelHours` antes (Configuración);
+  después tiene que escribir a la barbería. Se hace cumplir en el front.
 - Sistema de tickets de soporte (chat barbería ↔ plataforma).
 - Landing pública de venta en la raíz.
 - Identidad visual de SACIA aplicada.
@@ -408,6 +414,21 @@ global los liste con una query simple, sin `collectionGroup` ni su índice.
   para todos hasta que un usuario real lo notó. Ahora la suscripción se arma por
   rol (dueño todo, barbero lo suyo, cliente lo suyo, anónimo lo público). Si
   agregás una regla con `resource.data`, revisá quién hace la consulta.
+- **En un batch, `get()` en las Rules ve el estado ANTERIOR al batch.** El
+  ticket y su primer mensaje se escriben juntos; la regla del mensaje hacía
+  `get(ticket).data.businessId`, el ticket todavía no existía, y `.data` de
+  null revienta → denegado. Nadie podía abrir un ticket. Para leer otro doc
+  del mismo batch es `getAfter()`. La suite de rules ahora prueba el batch tal
+  como lo manda la app (`commit` en `auditar-rules-emulador.mjs`).
+- **Las suites comparten `biz-test` en el emulador.** Un seed a mano (o la
+  suite de claims) que deje horarios o servicios de más rompe "día que no
+  trabaja" y "servicio que no hace" en la de reservas. Cada suite limpia sus
+  subcolecciones al arrancar; si agregás una, hacé lo mismo.
+- **`new Date().toISOString()` es UTC.** A partir de las 21:00 en Argentina
+  ya es mañana: el walk-in y "Hoy" del panel caían en el día equivocado. Para
+  fechas locales, `toDateString(new Date())` de `dateUtils`.
+- **Los Timestamps de Firestore no son fechas de JS.** `new Date(timestamp)` da
+  `Invalid Date`. Es `timestamp.toDate()`.
 - **Los turnos guardan la fecha en `appointmentDate`, NO en `date`.** Todo el
   código lo usa así (`BookingPage`, `AppointmentsPage`, `DashboardPage`,
   `MyAppointments`, `availabilityEngine`). Sembrar datos de prueba con `date`
@@ -464,7 +485,7 @@ curl -s "https://barberos.sacia.tech$B" | grep -c "TEXTO_A_BUSCAR"
    recorrido completo en producción real (alta con días de prueba → dueño
    carga servicios/barberos/horarios → cliente reserva desde incógnito → se ve
    en el panel y en "Mis citas") nunca se hizo. Es la condición para sacar el
-   fallback de permisos de `AuthContext` (punto 9 de abajo).
+   fallback de permisos de `AuthContext` (punto 10 de abajo).
 
 Ya resueltos y verificados: dominio `barberos.sacia.tech` autorizado,
 Email/Password habilitado, alcance del barbero cerrado en Rules.
@@ -478,32 +499,41 @@ Email/Password habilitado, alcance del barbero cerrado en Rules.
    cuota de avisos "pronto", soporte) y lo común va en un bloque aparte
    (`FEATURES_COMUNES`). Cuando lleguen los avisos por WhatsApp, la cuota es la
    segunda diferencia real. No restar funciones al Básico para diferenciar.
-5. **Abuso de reservas.** Hecho: un turno por día y tope de 3 a futuro por
+5. **Seña por Mercado Pago.** No empezado. El modelo correcto es OAuth de
+   Mercado Pago ("Conectar con Mercado Pago" en Configuración): el dueño
+   autoriza con su cuenta, MP le da a la plataforma un token de SU cuenta y la
+   plata va directo a él, sin que nadie tipee credenciales. Hace falta antes:
+   una aplicación creada en el panel de desarrolladores de MP (client_id +
+   client_secret como secrets de Functions, redirect URL), y decidir monto de
+   seña (fijo o %), qué pasa si no paga en N minutos (se libera el turno) y
+   si se devuelve al cancelar. Se construye recién con las credenciales, para
+   probarlo de verdad.
+6. **Abuso de reservas.** Hecho: un turno por día y tope de 3 a futuro por
    cuenta. Falta, por orden: bloquear cliente desde el panel (para la cuenta que
    se porta mal), y App Check con reCAPTCHA v3 sobre los callables para frenar
    scripts. Ninguno hace falta para la demo con amigos.
 
 ### Técnico, cuando haya tiempo
 
-6. Sacar el SDK de Firebase del camino crítico de la landing. **El split por
+7. Sacar el SDK de Firebase del camino crítico de la landing. **El split por
    rutas ya está hecho**: lo que falta es otra cosa. Hoy quien entra a ver
    precios baja 265 kB gzip, de los cuales 164 kB son Firebase, que la landing
    no usa. Sin él serían 101 kB — 62% menos. `App.jsx` importa `LoginPage` eager
    y los tres contexts importan firebase a nivel de módulo, así que hay que
    desmontar los providers de la raíz y montarlos dentro de las rutas de app.
-7. Revisar `src/components/landing/HeroMotionMockup.jsx` y
+8. Revisar `src/components/landing/HeroMotionMockup.jsx` y
    `FloatingActionWidget.jsx` (generados por Antigravity, sin auditar).
-8. Monitoreo global de turnos: hoy la pestaña del panel global solo muestra el
+9. Monitoreo global de turnos: hoy la pestaña del panel global solo muestra el
    negocio activo. Necesita `collectionGroup` + regla nueva.
-9. Sacar el fallback de permisos de `AuthContext` (paso 4 del checklist
+10. Sacar el fallback de permisos de `AuthContext` (paso 4 del checklist
    post-Blaze). Se dejó hasta ver a un dueño real entrando con claims.
-10. Los 3 errores de lint que quedan son `react-refresh/only-export-components`
+11. Los 3 errores de lint que quedan son `react-refresh/only-export-components`
    en los contexts: mover los hooks a otro archivo toca todos los imports y no
    cambia el comportamiento. Con eso el lint queda en cero y se puede poner CI.
-11. Borrado en cascada al eliminar un negocio (`deleteBusinessRecord` deja
+12. Borrado en cascada al eliminar un negocio (`deleteBusinessRecord` deja
     huérfanas las subcolecciones y los claims de los admins).
-12. Subir logo por barbería (Firebase Storage).
-13. PWA.
+13. Subir logo por barbería (Firebase Storage).
+14. PWA.
 
 ---
 
@@ -517,7 +547,7 @@ node scripts/test-billing-emulador.mjs     # cobro, suspensión y prueba gratis
 node scripts/auditar-rules-emulador.mjs    # aislamiento entre barberías
 ```
 
-Hoy: claims 45, reservas 35, facturación 11, rules 61. Todo en verde.
+Hoy: claims 45, reservas 35, facturación 11, rules 75. Todo en verde.
 
 ---
 

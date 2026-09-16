@@ -49,6 +49,12 @@ const editar = (u, path, datos) => {
   return fetch(`${DOCS}/${path}?${qs}`, { method: 'PATCH', headers: cab(u), body: JSON.stringify(enc(datos)) });
 };
 const borrar = (u, path) => fetch(`${DOCS}/${path}`, { method: 'DELETE', headers: cab(u) });
+// Batch: varios documentos en un commit, como writeBatch del SDK. Hace falta
+// para probar las reglas que dependen de otro doc del mismo batch (getAfter).
+const commit = (u, docs) => fetch(`${DOCS.replace('/documents', '')}/documents:commit`, {
+  method: 'POST', headers: cab(u),
+  body: JSON.stringify({ writes: docs.map(([path, datos]) => ({ update: { name: `projects/${PROJECT}/databases/(default)/documents/${path}`, ...enc(datos) } })) }),
+});
 
 async function consultar(u, padre, col, where) {
   const q = { structuredQuery: { from: [{ collectionId: col }] } };
@@ -83,9 +89,18 @@ await db.doc(`businesses/${A}/appointments/apt-otro`).set({
   professionalId: 'p9', serviceId: 's1', appointmentDate: '2026-09-01', startTime: '10:00', endTime: '10:30',
   price: 12000, status: 'pendiente' });
 await db.doc(`businesses/${A}/professionals/p1`).set({ name: 'Martin', specialty: 'Barbero', isActive: true });
+await db.doc(`businesses/${A}/professionals/p2`).set({ name: 'Lucas', specialty: 'Barbero', isActive: true });
+await db.doc(`businesses/${A}/schedules/sch-p1`).set({ professionalId: 'p1', dayOfWeek: 0, startTime: '09:00', endTime: '18:00', isActive: true });
+await db.doc(`businesses/${A}/schedules/sch-p1b`).set({ professionalId: 'p1', dayOfWeek: 2, startTime: '09:00', endTime: '18:00', isActive: true });
+await db.doc(`businesses/${A}/schedules/sch-p2`).set({ professionalId: 'p2', dayOfWeek: 0, startTime: '09:00', endTime: '18:00', isActive: true });
 await db.doc(`businesses/${A}/staffContacts/p1`).set({ phone: '+54 11 6666-7777', email: 'martin.personal@gmail.com' });
 await db.doc('tickets/tk-alfa').set({ businessId: A, subject: 'Alfa', status: 'abierto' });
 await db.doc('tickets/tk-beta').set({ businessId: B, subject: 'Beta', status: 'abierto' });
+// Los tickets que crean los casos de batch: si quedaron de una corrida anterior,
+// el commit pasa a ser update y los mensajes no se editan nunca (denegado).
+for (const id of ['tk-batch-dueno', 'tk-batch-barbero', 'tk-batch-cli', 'tk-batch-b']) {
+  await db.recursiveDelete(db.doc(`tickets/${id}`));
+}
 
 const plat     = await usuario('plat@sacia.tech',    { platform: true });
 const duenoA   = await usuario('duenoa@gmail.com',   { businessId: A, role: 'owner', professionalId: null });
@@ -138,6 +153,16 @@ await esperar('barbero NO edita el turno de otro',       editar(barberoA, `busin
 await esperar('barbero SI edita el suyo',                editar(barberoA, `businesses/${A}/appointments/apt-mio`, { status: 'confirmada' }), 'permitido');
 await esperar('barbero NO lista la agenda entera',       consultar(barberoA, `businesses/${A}`, 'appointments'), 'denegado');
 await esperar('barbero SI lista filtrando por su perfil', consultar(barberoA, `businesses/${A}`, 'appointments', ['professionalId', 'p1']), 'permitido');
+// "Mi Configuración": su ficha y sus horarios sí; activarse, otros, no.
+await esperar('barbero edita SU ficha',                  editar(barberoA, `businesses/${A}/professionals/p1`, { specialty: 'Fade' }), 'permitido');
+await esperar('barbero NO se activa/desactiva solo',     editar(barberoA, `businesses/${A}/professionals/p1`, { isActive: false }), 'denegado');
+await esperar('barbero NO edita la ficha de otro',       editar(barberoA, `businesses/${A}/professionals/p2`, { specialty: 'x' }), 'denegado');
+await esperar('barbero NO crea fichas',                  crear(barberoA, `businesses/${A}/professionals`, { name: 'x' }), 'denegado');
+await esperar('barbero crea SU horario',                 crear(barberoA, `businesses/${A}/schedules`, { professionalId: 'p1', dayOfWeek: 1, startTime: '09:00', endTime: '18:00', isActive: true }), 'permitido');
+await esperar('barbero NO crea horario de otro',         crear(barberoA, `businesses/${A}/schedules`, { professionalId: 'p2', dayOfWeek: 1 }), 'denegado');
+await esperar('barbero borra SU horario',                borrar(barberoA, `businesses/${A}/schedules/sch-p1`), 'permitido');
+await esperar('barbero NO borra el horario de otro',     borrar(barberoA, `businesses/${A}/schedules/sch-p2`), 'denegado');
+await esperar('barbero NO cambia su horario a otro',     editar(barberoA, `businesses/${A}/schedules/sch-p1b`, { professionalId: 'p2' }), 'denegado');
 await esperar('barbero NO crea turno para otro',         crear(barberoA, `businesses/${A}/appointments`, { businessId:A, userId:barberoA.uid, status:'pendiente', professionalId:'p9', appointmentDate:'2026-09-03', startTime:'09:00', endTime:'09:30' }), 'denegado');
 await esperar('barbero SI crea su walk-in',              crear(barberoA, `businesses/${A}/appointments`, { businessId:A, userId:barberoA.uid, status:'pendiente', professionalId:'p1', type:'walkin', appointmentDate:'2026-09-03', startTime:'09:00', endTime:'09:30' }), 'permitido');
 await esperar('el dueno SI ve toda la agenda',           consultar(duenoA, `businesses/${A}`, 'appointments'), 'permitido');
@@ -169,6 +194,17 @@ await esperar('cliente NO crea ticket',                   crear(cliente, 'ticket
 await esperar('cliente NO crea ticket con businessId ""', crear(cliente, 'tickets', { businessId: '', subject: 'x' }), 'denegado');
 await esperar('dueno de B NO crea ticket a nombre de A',  crear(duenoB, 'tickets', { businessId: A, subject: 'x' }), 'denegado');
 await esperar('nadie borra tickets',                      borrar(duenoA, 'tickets/tk-alfa'), 'denegado');
+// Como lo hace la app: ticket + primer mensaje en un solo batch. Con get() en
+// vez de getAfter() esto fallaba para todos.
+const ticketConMensaje = (u, id) => commit(u, [
+  [`tickets/${id}`, { businessId: A, subject: 'batch', status: 'abierto' }],
+  [`tickets/${id}/messages/m1`, { text: 'hola', authorId: u.uid, authorRole: 'business' }],
+]);
+await esperar('dueno abre ticket con mensaje (batch)',    ticketConMensaje(duenoA, 'tk-batch-dueno'), 'permitido');
+await esperar('barbero abre ticket con mensaje (batch)',  ticketConMensaje(barberoA, 'tk-batch-barbero'), 'permitido');
+await esperar('cliente NO abre ticket (batch)',           ticketConMensaje(cliente, 'tk-batch-cli'), 'denegado');
+await esperar('dueno de B NO abre ticket de A (batch)',   ticketConMensaje(duenoB, 'tk-batch-b'), 'denegado');
+await esperar('barbero responde en el ticket',            crear(barberoA, 'tickets/tk-batch-barbero/messages', { text: 'sigo', authorId: barberoA.uid }), 'permitido');
 
 console.log('\n-- Sin sesion --');
 await esperar('anonimo lee el negocio (link publico)',    leer(null, `businesses/${A}`), 'permitido');

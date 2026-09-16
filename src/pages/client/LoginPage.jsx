@@ -22,6 +22,10 @@ export default function LoginPage() {
   // al barbero curioso sin entender qué pasó.
   const origen = location.state?.from;
   const from = origen && origen !== '/' && origen !== '/login' ? origen : null;
+  // "Reservar turno" solo si venía del link de una barbería. Si venía del
+  // panel (cerró sesión, o le venció el token), es alguien del staff y el
+  // título de reserva lo confunde.
+  const vieneDeReserva = Boolean(from) && !/^\/(admin|super-admin|cuenta)(\/|$)/.test(from);
 
   const redirectAfterLogin = (user) => {
     if (user.isPlatformTeam || isPlatformOwner(user.email)) {
@@ -83,9 +87,9 @@ export default function LoginPage() {
         <div style={{ textAlign: 'center', marginBottom: 'var(--space-md)' }}>
           <img src="/img/barberos-logo-full.svg" alt="BarberOS Logo" width="200" height="48" style={{ margin: '0 auto' }} />
         </div>
-        <h1>{from ? 'Reservar turno' : 'Iniciar sesión'}</h1>
+        <h1>{vieneDeReserva ? 'Reservar turno' : 'Iniciar sesión'}</h1>
         <p className="auth-subtitle">
-          {from
+          {vieneDeReserva
             ? 'Entrá con tu cuenta para confirmar el turno'
             : 'Entrá a tu panel, o al link de tu barbería para reservar'}
         </p>

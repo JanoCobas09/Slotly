@@ -612,9 +612,8 @@ exports.createAppointment = onCall(async (request) => {
  * siendo la que decide.
  */
 exports.getBusySlots = onCall(async (request) => {
-  if (!request.auth) {
-    throw new HttpsError('unauthenticated', 'Tenés que iniciar sesión.');
-  }
+  // Sin exigir sesión: la grilla se mira antes de entrar (el login se pide
+  // recién al confirmar), y la respuesta no tiene ningún dato de nadie.
   const { businessId, professionalId, appointmentDate } = request.data || {};
   if (!businessId || !professionalId || !appointmentDate) {
     throw new HttpsError('invalid-argument', 'Faltan datos.');

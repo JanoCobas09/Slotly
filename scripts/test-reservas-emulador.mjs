@@ -59,6 +59,12 @@ const PROF = 'prof-1', SRV = 'srv-1', SRV_HUERFANO = 'srv-2';
 const FECHA = '2027-03-02';
 const DOW = 1; // 0=Lunes … 6=Domingo (convención de dateUtils, no la de JS)
 
+// Escenario limpio: si otra prueba (o un seed a mano) dejó horarios o
+// servicios de más en biz-test, los casos de "día que no trabaja" y "servicio
+// que no hace" dejan de valer.
+for (const col of ['schedules', 'professionalServices', 'services', 'professionals']) {
+  for (const d of (await db.collection(`businesses/${BID}/${col}`).get()).docs) await d.ref.delete();
+}
 await db.doc(`businesses/${BID}`).set({
   name: 'Test', slug: 'test', isFrozen: false,
   businessHours: [{ dayOfWeek: DOW, startTime: '09:00', endTime: '18:00', isActive: true }],
@@ -196,7 +202,7 @@ chequear('ninguno trae nombre, teléfono ni userId',
 r = await llamar(c7, 'getBusySlots', { businessId: BID, professionalId: PROF, appointmentDate: MARTES[1] });
 chequear('el día del turno cancelado viene vacío', r.ok?.ocupados?.length === 0, JSON.stringify(r));
 r = await llamar(null, 'getBusySlots', { businessId: BID, professionalId: PROF, appointmentDate: FECHA });
-chequear('anónimo, rechazado', r.error === 'UNAUTHENTICATED', JSON.stringify(r));
+chequear('anónimo también la ve (la grilla es pública, sin datos de nadie)', r.ok?.ocupados?.length >= 3, JSON.stringify(r));
 r = await llamar(c7, 'getBusySlots', { businessId: BID, professionalId: PROF, appointmentDate: '2/3/2027' });
 chequear('fecha mal formada, rechazada', r.error === 'INVALID_ARGUMENT', JSON.stringify(r));
 

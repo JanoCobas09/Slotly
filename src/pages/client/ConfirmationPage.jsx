@@ -26,8 +26,10 @@ export default function ConfirmationPage() {
   return (
     <div className="confirmation-container">
       <div className="confirmation-icon">✓</div>
-      <h1>¡Reserva Confirmada!</h1>
-      <p className="text-secondary mt-sm mb-lg">Tu cita fue agendada exitosamente</p>
+      {/* Nace 'pendiente': la barbería lo confirma. Decir "confirmada" acá y
+          que el barbero lo vea como pendiente confundía a los dos. */}
+      <h1>¡Turno reservado!</h1>
+      <p className="text-secondary mt-sm mb-lg">Quedó agendado en la barbería. Si hay algún cambio, te van a avisar.</p>
 
       <div className="summary-card" style={{ textAlign: 'left' }}>
         <div className="summary-body">
