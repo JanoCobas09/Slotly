@@ -117,10 +117,15 @@ service cloud.firestore {
 
       // El dueño edita su marca y configuración, pero no puede tocar su propia
       // facturación ni descongelarse solo.
+      //
+      // `trialEndsAt` está en la lista por una razón concreta: runBilling lo
+      // lee de ESTE documento para saber si cobrar. Sin protegerlo, un dueño
+      // con la consola abierta se ponía la prueba en 2099 y no pagaba nunca.
       allow update: if isPlatform() || (
         isBusinessOwner(bizId) &&
         !request.resource.data.diff(resource.data).affectedKeys()
-          .hasAny(['isFrozen', 'planId', 'monthlyFee', 'whatsappQuota', 'slug', 'id'])
+          .hasAny(['isFrozen', 'planId', 'monthlyFee', 'whatsappQuota', 'slug', 'id',
+                   'trialEndsAt', 'createdAt', 'maxBarbers'])
       );
 
       // Facturación: solo la plataforma. Ni el dueño la lee.
@@ -224,10 +229,14 @@ service cloud.firestore {
         // El staff sí crea directo, y es a propósito: el panel registra los
         // "servicio sin turno" (walk-in) del que ya está sentado en la silla.
         // Es su propia agenda y sus propios precios.
-        allow create: if isPlatform()
-                         || isBusinessOwner(bizId)
-                         || (esBarbero(bizId)
-                             && request.resource.data.professionalId == claims().get('professionalId', ''));
+        //
+        // El turno que carga el staff lleva SU uid como userId (quién lo cargó):
+        // no puede plantarle un turno a otra cuenta, que lo vería en "Mis citas".
+        allow create: if request.resource.data.userId == request.auth.uid
+                         && (isPlatform()
+                             || isBusinessOwner(bizId)
+                             || (esBarbero(bizId)
+                                 && request.resource.data.professionalId == claims().get('professionalId', '')));
 
         // Cancelar: el cliente solo puede cambiar el estado a 'cancelada' de un
         // turno propio. Cambiar fecha, precio o profesional es cosa del staff.
@@ -237,6 +246,9 @@ service cloud.firestore {
                          || (
                               signedIn()
                               && resource.data.userId == request.auth.uid
+                              // Solo un turno vivo se cancela: uno completado o
+                              // ausente ya cuenta en la caja y las estadísticas.
+                              && resource.data.status in ['pendiente', 'confirmada']
                               && request.resource.data.status == 'cancelada'
                               && request.resource.data.diff(resource.data).affectedKeys()
                                    .hasOnly(['status', 'cancelledAt', 'cancellationReason', 'cancelledBy'])

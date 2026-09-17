@@ -106,8 +106,8 @@ export default function NewBusinessModal({ onClose, onCreated }) {
     if (!form.ownerName.trim()) e.ownerName = 'Poné el nombre del dueño.';
 
     const pass = form.passwordElegida.trim();
-    if (form.accesoPor === 'password' && pass && pass.length < 6) {
-      e.passwordElegida = 'Si la elegís vos, tiene que tener al menos 6 caracteres.';
+    if (form.accesoPor === 'password' && pass && pass.length < 8) {
+      e.passwordElegida = 'Si la elegís vos, tiene que tener al menos 8 caracteres.';
     }
 
     setErrors(e);

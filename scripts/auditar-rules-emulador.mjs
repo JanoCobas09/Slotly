@@ -135,6 +135,11 @@ await esperar('dueno NO se cambia el abono',              editar(duenoA, `busine
 await esperar('dueno NO se cambia el plan',               editar(duenoA, `businesses/${A}`, { planId: 'premium' }), 'denegado');
 await esperar('dueno NO se cambia el slug',               editar(duenoA, `businesses/${A}`, { slug: 'otro' }), 'denegado');
 await esperar('dueno SI edita su marca',                  editar(duenoA, `businesses/${A}`, { name: 'Alfa Barberia' }), 'permitido');
+// runBilling lee trialEndsAt de este documento: si el dueno lo pudiera tocar,
+// se ponia la prueba en 2099 y no pagaba nunca.
+await esperar('dueno NO se extiende la prueba gratis',    editar(duenoA, `businesses/${A}`, { trialEndsAt: '2099-01-01' }), 'denegado');
+await esperar('dueno NO se sube el tope de barberos',     editar(duenoA, `businesses/${A}`, { maxBarbers: 99 }), 'denegado');
+await esperar('plataforma SI extiende la prueba',         editar(plat,   `businesses/${A}`, { trialEndsAt: '2026-12-31' }), 'permitido');
 
 console.log('\n-- Turnos: cliente --');
 await esperar('cliente NO lista la agenda entera',        consultar(cliente, `businesses/${A}`, 'appointments'), 'denegado');
@@ -145,6 +150,14 @@ await esperar('cliente NO reserva a nombre de otro',      crear(cliente, `busine
 await esperar('cliente NO reserva ya confirmada',         crear(cliente, `businesses/${A}/appointments`, { userId: cliente.uid, businessId: A, status: 'confirmada' }), 'denegado');
 await esperar('cliente NO reserva para otro negocio',     crear(cliente, `businesses/${A}/appointments`, { userId: cliente.uid, businessId: B, status: 'pendiente' }), 'denegado');
 await esperar('cliente NO borra turnos',                  borrar(cliente, `businesses/${A}/appointments/apt-otro`), 'denegado');
+await db.doc(`businesses/${A}/appointments/apt-cli-hecho`).set({ id:'apt-cli-hecho', businessId:A, userId:cliente.uid, professionalId:'p1', appointmentDate:'2026-08-01', startTime:'12:00', endTime:'12:30', price:12000, status:'completada' });
+await db.doc(`businesses/${A}/appointments/apt-cli-vivo`).set({ id:'apt-cli-vivo', businessId:A, userId:cliente.uid, professionalId:'p1', appointmentDate:'2026-12-01', startTime:'12:00', endTime:'12:30', price:12000, status:'confirmada' });
+await esperar('cliente NO "cancela" un turno ya completado', editar(cliente, `businesses/${A}/appointments/apt-cli-hecho`, { status: 'cancelada' }), 'denegado');
+await esperar('cliente SI cancela el suyo vigente',       editar(cliente, `businesses/${A}/appointments/apt-cli-vivo`, { status: 'cancelada', cancelledBy: 'client' }), 'permitido');
+// El staff carga turnos con SU uid: no le planta uno a otra cuenta.
+await esperar('dueno NO crea un turno a nombre de otro uid', crear(duenoA, `businesses/${A}/appointments`, { userId: cliente.uid, businessId: A, professionalId: 'p1', status: 'pendiente' }), 'denegado');
+await esperar('dueno SI carga un turno (con su uid)',     crear(duenoA, `businesses/${A}/appointments`, { userId: duenoA.uid, businessId: A, professionalId: 'p1', status: 'pendiente', type: 'manual' }), 'permitido');
+await esperar('barbero SI carga un turno propio',         crear(barberoA, `businesses/${A}/appointments`, { userId: barberoA.uid, businessId: A, professionalId: 'p1', status: 'pendiente', type: 'walkin' }), 'permitido');
 
 console.log('\n-- Turnos: precio (punto 7 del roadmap) --');
 await esperar('[?] cliente reserva con price 0',          crear(cliente, `businesses/${A}/appointments`, { userId: cliente.uid, businessId: A, status: 'pendiente', price: 0, appointmentDate: '2026-09-02', startTime: '09:00', endTime: '09:30' }), 'denegado');

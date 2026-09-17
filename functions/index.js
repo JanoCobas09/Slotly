@@ -128,6 +128,16 @@ exports.setBusinessAdmin = onCall(async (request) => {
 
   assertTargetEnAlcance(caller, targetUser?.customClaims, businessId);
 
+  // Misma razón que en applyPendingClaims: una cuenta que existe pero no tiene
+  // el mail verificado puede ser de cualquiera que se registró por la API
+  // pública con ese mail. No se le dan permisos.
+  if (targetUser && !targetUser.emailVerified) {
+    throw new HttpsError(
+      'failed-precondition',
+      'Ya existe una cuenta con ese mail pero no está verificada. Escribinos y lo revisamos.'
+    );
+  }
+
   // Registro para la UI (la lista de /admin/admins sale de acá).
   await db.doc(`businesses/${businessId}/admins/${normalizedEmail}`).set({
     email: normalizedEmail,
@@ -206,6 +216,15 @@ exports.applyPendingClaims = onCall(async (request) => {
 
   const email = (request.auth.token.email || '').toLowerCase();
   if (!email) return { status: 'no-email' };
+
+  // Solo con el mail verificado. Con la API pública de Firebase Auth cualquiera
+  // puede crear una cuenta de email+contraseña con el mail que quiera, sin
+  // verificarlo; sin este chequeo, se registraba con el mail de un pendiente
+  // (barbero, dueño o moderador) y se llevaba el permiso. Google verifica; las
+  // cuentas que crea la plataforma nacen verificadas; las de un intruso, no.
+  if (request.auth.token.email_verified !== true) {
+    return { status: 'email-no-verificado' };
+  }
 
   const pendingRef = db.doc(`pendingAdmins/${email}`);
   const pending = await pendingRef.get();
@@ -588,7 +607,8 @@ exports.createAppointment = onCall(async (request) => {
       serviceName: servicio.name || '',
       clientName: String(clientName).slice(0, 120),
       clientPhone: String(clientPhone).slice(0, 40),
-      clientEmail: String(clientEmail).slice(0, 120),
+      // Del token, no del cliente: que no se registre un turno con el mail de otro.
+      clientEmail: String(request.auth.token.email || clientEmail || '').slice(0, 120),
       notes: String(notes).slice(0, 500),
       status: 'pendiente',
       createdAt: FieldValue.serverTimestamp(),
@@ -770,8 +790,8 @@ exports.createOwnerWithPassword = onCall(async (request) => {
 
   // Firebase exige 6 caracteres como mínimo. Se valida acá para que el error
   // llegue en castellano y no como un código del SDK.
-  if (elegida !== null && String(elegida).length < 6) {
-    throw new HttpsError('invalid-argument', 'La contraseña tiene que tener al menos 6 caracteres.');
+  if (elegida !== null && String(elegida).length < 8) {
+    throw new HttpsError('invalid-argument', 'La contraseña tiene que tener al menos 8 caracteres.');
   }
 
   const password = elegida ? String(elegida) : generarPassword();
@@ -806,8 +826,8 @@ exports.createOwnerWithPassword = onCall(async (request) => {
 exports.resetOwnerPassword = onCall(async (request) => {
   const { email, password: elegida = null } = request.data || {};
   if (!email) throw new HttpsError('invalid-argument', 'Falta el email.');
-  if (elegida !== null && String(elegida).length < 6) {
-    throw new HttpsError('invalid-argument', 'La contraseña tiene que tener al menos 6 caracteres.');
+  if (elegida !== null && String(elegida).length < 8) {
+    throw new HttpsError('invalid-argument', 'La contraseña tiene que tener al menos 8 caracteres.');
   }
 
   if (!request.auth || request.auth.token.platform !== true) {

@@ -15,18 +15,17 @@ const AuthContext = createContext();
 
 /**
  * ============================================================================
- * MIGRACIÓN EN CURSO — de dónde salen los permisos
+ * De dónde salen los permisos
  * ============================================================================
- * Objetivo: los permisos vienen de los CUSTOM CLAIMS del token de Firebase,
- * que solo se escriben desde el servidor y son lo que verifican las Security
- * Rules. Ver FIREBASE_SETUP.md, paso 6.
+ * De los CUSTOM CLAIMS del token de Firebase, y de ningún otro lado. Solo los
+ * escribe el servidor (Cloud Functions con el Admin SDK) y son lo que
+ * verifican las Security Rules.
  *
- * Mientras tanto, todavía no hay claims asignados (faltan desplegar las Cloud
- * Functions y correr el bootstrap). Así que hay un fallback: si el token no
- * trae claims, se usan `platform.js` y `authorizedAdmins` como antes.
- *
- * El fallback es TRANSITORIO y NO es seguridad: se puede falsificar desde el
- * browser. Sacarlo en cuanto los claims estén andando.
+ * Hubo un fallback (lista de mails en `platform.js` + registro de admins)
+ * mientras las Functions no estaban desplegadas. Se sacó: con el dueño de la
+ * plataforma ya entrando con claims, era un camino de más para razonar y un
+ * rol que se podía "dibujar" en la UI sin que el servidor lo respalde.
+ * `platform.js` queda solo como comodidad de UI en algún redirect.
  * ============================================================================
  */
 
@@ -128,12 +127,9 @@ export function AuthProvider({ children }) {
   const buildUser = (fbUser, claims = {}) => {
     const email = (fbUser.email || '').toLowerCase();
 
-    // Fuente definitiva: claims firmados por el servidor.
+    // Única fuente: claims firmados por el servidor.
     const hasClaims = Boolean(claims.platform || claims.businessId);
-
-    // Fallback transitorio mientras no haya claims asignados.
-    const match = authorizedAdmins.find((a) => a.email.toLowerCase() === email);
-    const platformOwner = claims.platform === true || (!hasClaims && isPlatformOwner(email));
+    const platformOwner = claims.platform === true;
 
     // Moderador: equipo de soporte de la plataforma. Entra al panel global, ve
     // todo y atiende tickets, pero no toca plata, cuentas ni suspensiones. Va
@@ -150,20 +146,14 @@ export function AuthProvider({ children }) {
         ? 'owner'
         : moderator
           ? 'moderator'
-          : (hasClaims ? claims.role : match?.role) || 'client',
-      businessId: platformOwner || moderator
-        ? null
-        : (hasClaims ? claims.businessId : match?.businessId) || null,
-      professionalId: platformOwner || moderator
-        ? null
-        : (hasClaims ? claims.professionalId : match?.professionalId) || null,
+          : (hasClaims ? claims.role : null) || 'client',
+      businessId: platformOwner || moderator ? null : (claims.businessId || null),
+      professionalId: platformOwner || moderator ? null : (claims.professionalId || null),
       isPlatformOwner: platformOwner,
       isModerator: moderator,
       // Dueño o moderador: quien puede entrar al panel global.
       isPlatformTeam: platformOwner || moderator,
-      // Con qué se resolvieron los permisos. Útil para saber si el bootstrap
-      // de claims ya surtió efecto.
-      permissionSource: hasClaims ? 'claims' : 'local',
+      permissionSource: hasClaims ? 'claims' : 'none',
       isActive: true,
     };
   };
@@ -194,31 +184,8 @@ export function AuthProvider({ children }) {
         dispatch({ type: 'LOGIN', payload: buildUser(fbUser) });
       }
     });
-    // Se suscribe una sola vez; buildUser lee lo último vía closure en cada evento.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Se suscribe una sola vez.
   }, []);
-
-  // Revalidar permisos cuando cambia la lista local de admins.
-  // Solo aplica al fallback: si los permisos vinieron de claims, mandan ellos.
-  useEffect(() => {
-    if (!state.user || state.user.permissionSource === 'claims') return;
-    if (isPlatformOwner(state.user.email)) return;
-
-    const match = authorizedAdmins.find(
-      (a) => a.email.toLowerCase() === state.user.email.toLowerCase()
-    );
-    const role = match?.role || 'client';
-    const professionalId = match?.professionalId || null;
-    const businessId = match?.businessId || null;
-
-    if (
-      state.user.role !== role ||
-      state.user.professionalId !== professionalId ||
-      state.user.businessId !== businessId
-    ) {
-      dispatch({ type: 'UPDATE_USER', payload: { role, professionalId, businessId } });
-    }
-  }, [authorizedAdmins, state.user]);
 
   /** Login real con Google, vía Firebase. */
   const loginWithGoogle = async () => {

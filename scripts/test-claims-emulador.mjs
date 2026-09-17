@@ -22,9 +22,9 @@ const auth = getAuth();
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
-async function crearUsuario(email, claims) {
+async function crearUsuario(email, claims, { verificado = true } = {}) {
   try { await auth.deleteUser((await auth.getUserByEmail(email)).uid); } catch { /* no existía */ }
-  const u = await auth.createUser({ email, emailVerified: true });
+  const u = await auth.createUser({ email, emailVerified: verificado });
   if (claims) await auth.setCustomUserClaims(u.uid, claims);
   return u.uid;
 }
@@ -245,6 +245,24 @@ chequear('alguien que nunca entro queda pendiente', r.ok?.status === 'pending', 
 const uidNuevoMod = await crearUsuario('nunca-entro@sacia.tech', null);
 r = await llamar('applyPendingClaims', await idToken(uidNuevoMod), {});
 chequear('y en su primer login le toma el rol', r.ok?.status === 'applied' && r.ok?.platform === 'moderator', JSON.stringify(r));
+
+// ── Robo de permisos pendientes con una cuenta sin verificar ───────────────
+// Con la API pública de Auth cualquiera crea una cuenta email+contraseña con el
+// mail que quiera (sin verificar). Si eso alcanzara para reclamar un pendiente,
+// se robaba el rol de un barbero, un dueño o un moderador.
+console.log('\n-- Cuentas sin verificar --');
+r = await llamar('setBusinessAdmin', tPlataforma, { email: 'victima@gmail.com', businessId: B1, role: 'admin', professionalId: 'prof-1' });
+chequear('la plataforma deja pendiente a victima@gmail.com', r.ok?.status === 'pending', JSON.stringify(r));
+const uidIntruso = await crearUsuario('victima@gmail.com', null, { verificado: false });
+r = await llamar('applyPendingClaims', await idToken(uidIntruso), {});
+chequear('una cuenta sin verificar NO reclama el pendiente', r.ok?.status === 'email-no-verificado', JSON.stringify(r));
+chequear('  (y sigue sin claims)', !(await auth.getUser(uidIntruso)).customClaims?.businessId, JSON.stringify((await auth.getUser(uidIntruso)).customClaims));
+chequear('  (y el pendiente sigue ahi)', (await db.doc('pendingAdmins/victima@gmail.com').get()).exists, '');
+r = await llamar('setBusinessAdmin', tPlataforma, { email: 'victima@gmail.com', businessId: B1, role: 'admin', professionalId: 'prof-1' });
+chequear('ni la plataforma le da permisos a una cuenta sin verificar', r.error === 'FAILED_PRECONDITION', JSON.stringify(r));
+await auth.updateUser(uidIntruso, { emailVerified: true });
+r = await llamar('applyPendingClaims', await idToken(uidIntruso), {});
+chequear('verificada, si lo reclama', r.ok?.status === 'applied', JSON.stringify(r));
 
 // ── Borrar una barbería entera ──────────────────────────────────────────────
 console.log('\n-- deleteBusiness --');

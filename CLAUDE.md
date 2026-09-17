@@ -146,10 +146,8 @@ curl -s -o /dev/null -w "%{http_code}\n" https://southamerica-east1-barberos-1d6
 
 `400`/`401` = desplegada y validando. `404` = se cayó el deploy.
 
-Del checklist post-Blaze quedan hechos los pasos 1 a 3. **Falta el 4**: sacar el
-fallback de permisos de `AuthContext`. Se dejó a propósito hasta que un dueño
-real entre con claims de verdad — sacarlo antes es quedarse sin red por una
-mejora que no cambia la seguridad (las Rules ya exigen el claim real).
+El checklist post-Blaze está completo: el fallback de permisos de
+`AuthContext` se sacó en la auditoría de seguridad. Sin claims, sos cliente.
 
 ### Moderadores
 
@@ -319,6 +317,76 @@ Citas) escribe directo a Firestore, NO por la function: la function cuenta los
 turnos del uid que llama, y frenaría al barbero en el cuarto que cargue. Las
 Rules ya permiten al staff crear en su propia agenda. Nace `pendiente` y se
 confirma acto seguido. Lleva `type: 'manual'` y `userId` del que lo cargó.
+
+---
+
+## Seguridad — modelo y auditoría (17/09/2026)
+
+**Modelo.** Los permisos son custom claims escritos solo por Functions con el
+Admin SDK; las Rules los verifican en cada lectura y escritura; el frontend
+solo esconde. Ya **no hay fallback** de permisos en `AuthContext`: sin claims,
+sos cliente. Todo lo que un cliente puede escribir sobre la agenda pasa por
+`createAppointment`. Los datos públicos (negocio, staff, catálogo, horarios)
+no tienen nada personal; lo personal (contacto del staff, facturación, turnos)
+está cerrado por rol.
+
+**Qué se auditó y qué se arregló:**
+
+- **Prueba gratis editable por el dueño (alta).** `runBilling` lee
+  `trialEndsAt` del documento público del negocio, y ese campo no estaba en la
+  lista de campos que el dueño no puede tocar: con la consola abierta se ponía
+  la prueba en 2099 y no pagaba nunca. Protegido en Rules (`trialEndsAt`,
+  `createdAt`, `maxBarbers`).
+- **Robo de permisos pendientes (alta).** La API pública de Firebase Auth deja
+  crear cuentas de email+contraseña con cualquier mail, sin verificarlo.
+  `applyPendingClaims` entregaba el rol pendiente a quien tuviera ese mail en
+  el token, y `setBusinessAdmin` se lo daba directo a una cuenta ya existente.
+  Ahora los dos exigen `email_verified` (Google verifica; las cuentas que crea
+  la plataforma nacen verificadas; las de un intruso, no).
+- El staff no puede crear turnos con el `userId` de otra cuenta (le aparecían
+  en "Mis citas" a esa persona).
+- El cliente solo cancela turnos vivos (`pendiente`/`confirmada`); antes podía
+  pasar uno `completada` a `cancelada` y tocar la caja.
+- `clientEmail` del turno sale del token, no del cuerpo de la llamada.
+- Contraseñas que crea la plataforma: mínimo 8 (era 6).
+- Cabeceras en Vercel: HSTS, nosniff, X-Frame-Options DENY, Referrer-Policy,
+  Permissions-Policy. Sin CSP todavía (Firebase + fuentes de Google lo hacen
+  delicado; hacerlo en modo report-only primero).
+- Dependencias: `functions/` subido a firebase-admin 14 y firebase-functions 7,
+  con `overrides` de `uuid` → **0 vulnerabilidades** en las dos raíces.
+- Verificado: no hay secretos en el repo ni en su historia (`.env` y
+  `serviceAccountKey.json` ignorados; la API key web es pública por diseño);
+  el bypass de login de desarrollo no está en el bundle de producción; no hay
+  `innerHTML`/`eval`; los `from` del login son estado interno, no URL.
+
+**Lo que hace falta hacer a mano en la consola de Firebase (Authentication →
+Settings):**
+
+1. **User actions → desactivar "Enable create (sign-up)"**: nadie se registra
+   solo, las cuentas las crea la plataforma o entran con Google. Es la
+   barrera de primer orden contra el robo de pendientes (el `email_verified`
+   es la de segundo).
+2. **Activar "Email enumeration protection"**: sin eso, el endpoint de login
+   dice si un mail existe o no.
+3. **Password policy**: mínimo 8, mayúscula y número, para las cuentas con
+   contraseña.
+
+**Lo que queda, en orden:**
+
+- **App Check (reCAPTCHA v3)** sobre los callables: hoy `getBusySlots` es
+  pública y `createAppointment` exige login pero no que la llamada venga de
+  la web real. `maxInstances: 10` acota el costo, no el abuso.
+- **Cancelación del cliente**: `minCancelHours` se hace cumplir solo en el
+  front (las Rules no pueden comparar strings de fecha con `request.time`).
+  Si importa, mover la cancelación a un callable.
+- **Bloquear cliente** desde el panel, para la cuenta que se porta mal.
+- CSP en report-only.
+
+Cómo repetir la auditoría técnica: las cuatro suites del emulador (92 casos
+de Rules cubren aislamiento, auto-beneficio, robo de pendientes y batches),
+`npm audit --omit=dev` en la raíz y en `functions/`,
+`git grep -nE "AIza|PRIVATE KEY|GOCSPX"`, y `grep -c "ACCESO R" dist/assets/*.js`
+después de un build (tiene que dar 0).
 
 ---
 
@@ -512,8 +580,7 @@ curl -s "https://barberos.sacia.tech$B" | grep -c "TEXTO_A_BUSCAR"
 2. **Ensayo en producción.** Todas las suites corren contra emulador; el
    recorrido completo en producción real (alta con días de prueba → dueño
    carga servicios/barberos/horarios → cliente reserva desde incógnito → se ve
-   en el panel y en "Mis citas") nunca se hizo. Es la condición para sacar el
-   fallback de permisos de `AuthContext` (punto 10 de abajo).
+   en el panel y en "Mis citas") nunca se hizo.
 
 Ya resueltos y verificados: dominio `barberos.sacia.tech` autorizado,
 Email/Password habilitado, alcance del barbero cerrado en Rules.
@@ -553,8 +620,8 @@ Email/Password habilitado, alcance del barbero cerrado en Rules.
    `FloatingActionWidget.jsx` (generados por Antigravity, sin auditar).
 9. Monitoreo global de turnos: hoy la pestaña del panel global solo muestra el
    negocio activo. Necesita `collectionGroup` + regla nueva.
-10. Sacar el fallback de permisos de `AuthContext` (paso 4 del checklist
-   post-Blaze). Se dejó hasta ver a un dueño real entrando con claims.
+10. ~~Sacar el fallback de permisos de `AuthContext`~~ Hecho en la auditoría
+    de seguridad.
 11. Los 3 errores de lint que quedan son `react-refresh/only-export-components`
    en los contexts: mover los hooks a otro archivo toca todos los imports y no
    cambia el comportamiento. Con eso el lint queda en cero y se puede poner CI.
@@ -578,7 +645,7 @@ node scripts/test-billing-emulador.mjs     # cobro, suspensión y prueba gratis
 node scripts/auditar-rules-emulador.mjs    # aislamiento entre barberías
 ```
 
-Hoy: claims 58, reservas 35, facturación 11, rules 84. Todo en verde.
+Hoy: claims 64, reservas 35, facturación 11, rules 92. Todo en verde.
 
 ---
 

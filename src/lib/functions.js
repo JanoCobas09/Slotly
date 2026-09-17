@@ -102,7 +102,7 @@ export function getBusySlots({ businessId, professionalId, appointmentDate }) {
  * Crea la cuenta de un dueño con email y contraseña, y le asigna los permisos.
  * Para el barbero que no usa Gmail o no quiere mezclarlo con lo personal.
  *
- * Si se pasa `password`, se usa esa (mínimo 6 caracteres). Si no, la genera el
+ * Si se pasa `password`, se usa esa (mínimo 8 caracteres). Si no, la genera el
  * servidor.
  *
  * Devuelve `{ status: 'created', email, password }`. **La contraseña viene una
