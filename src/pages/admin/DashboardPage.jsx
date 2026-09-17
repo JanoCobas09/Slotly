@@ -6,6 +6,7 @@ import { createAppointment, updateAppointment } from '../../lib/repository';
 import { calculateStats } from '../../utils/statsCalculator';
 import { formatPrice, formatDate, toDateString } from '../../utils/dateUtils';
 import NuevoTurnoModal from '../../components/admin/NuevoTurnoModal';
+import AgendaDelDia from '../../components/admin/AgendaDelDia';
 
 const STATUS_BADGES = {
   pendiente:  'badge-warning',
@@ -108,6 +109,31 @@ export default function DashboardPage() {
     ? appointments
     : appointments.filter(a => a.professionalId === user?.professionalId);
 
+  // Acciones sobre un turno desde la agenda: confirmar, completar, no asistió,
+  // cancelar. Completar y "no asistió" recién cuando el turno ya empezó.
+  const cambiarEstado = (apt, status) => {
+    if (status === 'cancelada' && !window.confirm('¿Cancelar este turno?')) return;
+    updateAppointment(businessId, apt.id, { status }).catch((err) => {
+      console.error('[Dashboard] No se pudo actualizar el turno:', err);
+      alert('No se pudo actualizar el turno: ' + err.message);
+    });
+  };
+  const yaEmpezo = (apt) => new Date(`${apt.appointmentDate}T${apt.startTime}:00`) <= new Date();
+  const accionesDeTurno = (apt) => {
+    if (apt.status !== 'pendiente' && apt.status !== 'confirmada') return null;
+    const empezo = yaEmpezo(apt);
+    return (
+      <>
+        {apt.status === 'pendiente' && (
+          <button className="btn btn-ghost btn-sm" title="Confirmar" onClick={() => cambiarEstado(apt, 'confirmada')}>✔️</button>
+        )}
+        <button className="btn btn-ghost btn-sm" title={empezo ? 'Marcar como completada' : 'Todavía no empezó'} disabled={!empezo} style={!empezo ? { opacity: 0.35 } : undefined} onClick={() => cambiarEstado(apt, 'completada')}>✅</button>
+        <button className="btn btn-ghost btn-sm" title={empezo ? 'No asistió' : 'Todavía no empezó'} disabled={!empezo} style={!empezo ? { opacity: 0.35 } : undefined} onClick={() => cambiarEstado(apt, 'no_asistio')}>👻</button>
+        <button className="btn btn-ghost btn-sm" title="Cancelar" onClick={() => cambiarEstado(apt, 'cancelada')}>❌</button>
+      </>
+    );
+  };
+
   // ══════════════════════════════════════════════════════════════════════════
   // VISTA PELUQUERO
   // ══════════════════════════════════════════════════════════════════════════
@@ -175,82 +201,16 @@ export default function DashboardPage() {
 
         {agendando && <NuevoTurnoModal onClose={() => setAgendando(false)} />}
 
-        {/* Lista de turnos próximos */}
+        {/* La agenda del día, como calendario. Es lo que mira entre corte y corte. */}
         <div className="card">
-          <h3 style={{ marginBottom: 'var(--space-md)' }}>📋 Turnos próximos</h3>
-
-          {upcomingPending.length === 0 ? (
-            <div className="empty-state" style={{ padding: 'var(--space-xl)' }}>
-              <p>No tenés turnos pendientes próximos 🎉</p>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
-              {upcomingPending.map(apt => {
-                const srv        = services.find(s => s.id === apt.serviceId);
-                const isWalkin   = apt.type === 'walkin';
-                const isAptToday = apt.appointmentDate === today;
-
-                return (
-                  <div
-                    key={apt.id}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 'var(--space-md)',
-                      padding: 'var(--space-md)',
-                      background: isAptToday ? 'var(--primary-light)' : 'var(--bg-secondary)',
-                      borderRadius: 'var(--radius-md)',
-                      borderLeft: `4px solid ${isAptToday ? 'var(--primary)' : 'var(--border-color)'}`,
-                    }}
-                  >
-                    {/* Hora */}
-                    <div style={{ minWidth: 72, textAlign: 'center' }}>
-                      <div style={{
-                        fontSize: 20,
-                        fontWeight: 700,
-                        color: isAptToday ? 'var(--primary)' : 'var(--text-primary)',
-                        lineHeight: 1.1,
-                      }}>
-                        {apt.startTime}
-                      </div>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-                        {isAptToday ? 'Hoy' : formatDate(apt.appointmentDate).split(',')[0]}
-                      </div>
-                    </div>
-
-                    {/* Info */}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      {isWalkin ? (
-                        <div className="flex items-center gap-sm">
-                          <span style={{ fontWeight: 600 }}>✂️ Servicio sin turno</span>
-                          <span className="badge badge-neutral" style={{ fontSize: 11 }}>bloqueado</span>
-                        </div>
-                      ) : (
-                        <>
-                          <div style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {apt.clientName || 'Cliente'}
-                          </div>
-                          <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-                            {srv?.name || '—'} &nbsp;·&nbsp; {apt.startTime}–{apt.endTime}
-                          </div>
-                          {apt.clientPhone && (
-                            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                              📞 {apt.clientPhone}
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-
-                    {/* Badge estado */}
-                    <span className={`badge ${STATUS_BADGES[apt.status]}`} style={{ flexShrink: 0 }}>
-                      {STATUS_LABELS[apt.status]}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          <AgendaDelDia
+            appointments={visibleAppointments}
+            professionals={professionals}
+            services={services}
+            business={business}
+            professionalId={user.professionalId}
+            renderAcciones={accionesDeTurno}
+          />
         </div>
 
         {showWalkinModal && (
@@ -267,10 +227,6 @@ export default function DashboardPage() {
   // VISTA DUEÑO
   // ══════════════════════════════════════════════════════════════════════════
   const stats = calculateStats(visibleAppointments, professionals, services);
-
-  const todayAppointments = visibleAppointments
-    .filter(a => a.appointmentDate === today && (a.status === 'pendiente' || a.status === 'confirmada'))
-    .sort((a, b) => a.startTime.localeCompare(b.startTime));
 
   const maxRevProf = Math.max(...stats.ingresosPorProfesional.map(p => p.total), 1);
   const maxRevSrv  = Math.max(...stats.ingresosPorServicio.map(s => s.total), 1);
@@ -452,52 +408,15 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Citas de hoy */}
-      <div className="upcoming-table">
-        <h3>📅 Citas de Hoy ({todayAppointments.length})</h3>
-        {todayAppointments.length === 0 ? (
-          <div className="empty-state" style={{ padding: 'var(--space-xl)' }}>
-            <p>No hay citas programadas para hoy</p>
-          </div>
-        ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Hora</th>
-                <th>Profesional</th>
-                <th>Cliente</th>
-                <th>Teléfono</th>
-                <th>Servicio</th>
-                <th>Estado</th>
-              </tr>
-            </thead>
-            <tbody>
-              {todayAppointments.map(apt => {
-                const prof = professionals.find(p => p.id === apt.professionalId);
-                const srv  = services.find(s => s.id === apt.serviceId);
-                return (
-                  <tr key={apt.id}>
-                    <td><strong>{apt.startTime}</strong></td>
-                    <td>{prof?.name}</td>
-                    <td>{apt.clientName || apt.userId}</td>
-                    <td>{apt.clientPhone || '—'}</td>
-                    <td>
-                      {apt.type === 'walkin'
-                        ? <span className="badge badge-neutral">Sin turno ✂️</span>
-                        : (srv?.name || '—')
-                      }
-                    </td>
-                    <td>
-                      <span className={`badge ${apt.status === 'confirmada' ? 'badge-success' : 'badge-warning'}`}>
-                        {apt.status}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
+      {/* Agenda del día, con todos los barberos o filtrada por uno. */}
+      <div className="card">
+        <AgendaDelDia
+          appointments={visibleAppointments}
+          professionals={professionals}
+          services={services}
+          business={business}
+          renderAcciones={accionesDeTurno}
+        />
       </div>
     </div>
   );

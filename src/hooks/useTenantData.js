@@ -43,6 +43,12 @@ export function useProfessionalServices() {
   return state.professionalServices || [];
 }
 
+/** Notificaciones del staff (las escribe un trigger de Functions). */
+export function useNotifications() {
+  const { state } = useBusiness();
+  return state.notifications || [];
+}
+
 /**
  * Admins del negocio activo.
  * Es el registro que muestra la UI: el permiso real son los custom claims.

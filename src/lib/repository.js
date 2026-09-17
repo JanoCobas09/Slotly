@@ -31,6 +31,7 @@ import {
   query,
   where,
   orderBy,
+  limit,
   setDoc,
   updateDoc,
   deleteDoc,
@@ -290,11 +291,40 @@ export async function updateAppointment(businessId, id, cambios) {
 }
 
 /** Cancelar. Los turnos no se borran nunca: así queda historial. */
-export async function cancelAppointment(businessId, id, motivo = '') {
+export async function cancelAppointment(businessId, id, motivo = '', quien = 'staff') {
   await updateDoc(doc(db, 'businesses', businessId, 'appointments', id), {
     status: 'cancelada',
     cancelledAt: new Date().toISOString(),
     cancellationReason: motivo,
+    // 'client' o 'staff'. El trigger onTurnoCancelado avisa a la barbería solo
+    // cuando canceló el cliente.
+    cancelledBy: quien,
+  });
+}
+
+// ============================================================================
+// NOTIFICACIONES AL STAFF
+// ============================================================================
+// Las crea un trigger de Functions cuando entra o se cancela un turno. Desde
+// acá solo se leen y se marcan leídas.
+
+/** Todas las del negocio (dueño), o solo las del profesional (barbero). */
+export function subscribeNotifications(businessId, { professionalId = null } = {}, cb, onError) {
+  const base = subCol(businessId, 'notifications');
+  // Sin orderBy cuando hay where: la combinación pediría un índice compuesto.
+  // Se ordena en memoria, son pocas.
+  const q = professionalId
+    ? query(base, where('professionalId', '==', professionalId))
+    : query(base, orderBy('createdAt', 'desc'), limit(60));
+  return onSnapshot(q, (snap) => {
+    const filas = rows(snap).sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+    cb(filas.slice(0, 60));
+  }, onError);
+}
+
+export async function markNotificationRead(businessId, id, uid) {
+  await updateDoc(doc(db, 'businesses', businessId, 'notifications', id), {
+    [`leidaPor.${uid}`]: true,
   });
 }
 

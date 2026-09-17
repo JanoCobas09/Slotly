@@ -61,7 +61,7 @@ export default function MyAppointments() {
 
   const handleCancel = (id) => {
     if (window.confirm('¿Estás seguro de que querés cancelar esta cita?')) {
-      cancelAppointment(businessId, id).catch((err) => {
+      cancelAppointment(businessId, id, '', 'client').catch((err) => {
         console.error('[MyAppointments] No se pudo cancelar:', err);
         alert('No se pudo cancelar el turno: ' + err.message);
       });

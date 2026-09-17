@@ -9,6 +9,7 @@ import {
   subscribeSubcollection,
   subscribeAppointmentsDeProfesional,
   subscribeMyAppointments,
+  subscribeNotifications,
   getBusinessIdBySlug,
 } from '../lib/repository';
 
@@ -26,7 +27,7 @@ const COLECCIONES = [
 // necesita para armar la grilla.
 const PUBLICAS = ['professionals', 'services', 'schedules', 'professionalServices'];
 
-const VACIO = Object.fromEntries(COLECCIONES.map((c) => [c, []]));
+const VACIO = { ...Object.fromEntries(COLECCIONES.map((c) => [c, []])), notifications: [] };
 
 /**
  * Puente entre Firestore y el estado de negocios de la app.
@@ -228,6 +229,13 @@ export default function BusinessSync() {
     const offs = colecciones.map((col) =>
       subscribeSubcollection(businessId, col, cb(col), onError(col))
     );
+
+    // La campanita: el dueño ve todas las del negocio, el barbero las suyas.
+    if (esStaffCompleto) {
+      offs.push(subscribeNotifications(businessId, {}, cb('notifications'), onError('notifications')));
+    } else if (esBarbero) {
+      offs.push(subscribeNotifications(businessId, { professionalId: profId }, cb('notifications'), onError('notifications')));
+    }
 
     if (esBarbero) {
       offs.push(subscribeAppointmentsDeProfesional(businessId, profId, cb('appointments'), onError('appointments')));

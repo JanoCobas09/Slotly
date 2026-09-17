@@ -75,7 +75,7 @@ export default function HeroMotionMockup() {
             <span className="dot dot-yellow" />
             <span className="dot dot-green" />
           </div>
-          <div className="landing-window-url">barberos.app/admin/dashboard</div>
+          <div className="landing-window-url">barberos.sacia.tech/admin</div>
           <div className="landing-window-badge">
             <span className="live-pulse" /> Panel en Vivo
           </div>
@@ -197,7 +197,7 @@ export default function HeroMotionMockup() {
             {/* App Header */}
             <div className="phone-header">
               <div className="phone-brand">LA BARBERÍA</div>
-              <div className="phone-url">barberos.app/labarberia</div>
+              <div className="phone-url">barberos.sacia.tech/labarberia</div>
             </div>
 
             {/* Stepper Indicator */}

@@ -239,11 +239,28 @@ service cloud.firestore {
                               && resource.data.userId == request.auth.uid
                               && request.resource.data.status == 'cancelada'
                               && request.resource.data.diff(resource.data).affectedKeys()
-                                   .hasOnly(['status', 'cancelledAt', 'cancellationReason'])
+                                   .hasOnly(['status', 'cancelledAt', 'cancellationReason', 'cancelledBy'])
                             );
 
         // Los turnos no se borran: se cancelan. Así queda historial.
         allow delete: if false;
+      }
+
+      // ── Notificaciones al staff ──────────────────────────────────────────
+      // Las escribe un trigger de Functions (Admin SDK, no pasa por acá).
+      // El dueño ve todas; el barbero las de sus turnos (la query TIENE que
+      // filtrar por professionalId, igual que la agenda). Lo único que se
+      // edita desde el browser es `leidaPor`, para marcar leída.
+      match /notifications/{notifId} {
+        // (Antes había un segundo match para esta misma ruta, pensado como log
+        // de WhatsApp, que le daba lectura a todo el staff. Dos match sobre la
+        // misma ruta se suman: con cualquiera que permita, pasa. Quedó uno.)
+        allow get, list: if isBusinessOwner(bizId)
+                            || esEquipoPlataforma()
+                            || (esBarbero(bizId) && esSuTurno());
+        allow update: if (isBusinessOwner(bizId) || (esBarbero(bizId) && esSuTurno()))
+                         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['leidaPor']);
+        allow create, delete: if false;
       }
 
       // ── Admins del negocio ───────────────────────────────────────────────
@@ -254,12 +271,6 @@ service cloud.firestore {
       match /admins/{adminId} {
         allow read: if isBusinessStaff(bizId) || esEquipoPlataforma();
         allow write: if canManage(bizId);
-      }
-
-      // Log de notificaciones enviadas. Lo escribe el backend, no el browser.
-      match /notifications/{notifId} {
-        allow read: if isBusinessStaff(bizId) || esEquipoPlataforma();
-        allow write: if false;
       }
     }
 

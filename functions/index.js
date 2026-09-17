@@ -17,6 +17,7 @@
 
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
+const { onDocumentCreated, onDocumentUpdated } = require('firebase-functions/v2/firestore');
 const { setGlobalOptions } = require('firebase-functions/v2');
 const { initializeApp } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
@@ -633,6 +634,68 @@ exports.getBusySlots = onCall(async (request) => {
     .map((a) => ({ startTime: a.startTime, endTime: a.endTime || a.startTime }));
 
   return { ocupados };
+});
+
+// ============================================================================
+// 4b. NOTIFICACIONES AL STAFF
+// ============================================================================
+// Cuando entra un turno nuevo (o un cliente cancela), la barbería se entera
+// por la campanita del panel. Se escribe desde acá, con un trigger, y no
+// desde el browser: el cliente no tiene permiso de escribir en
+// /notifications (y no debería tenerlo), y así también cubre los turnos que
+// entran por cualquier camino.
+//
+// Por ahora es solo in-app. Cuando Meta apruebe WhatsApp, el mismo trigger
+// manda el mensaje: el punto de entrada ya está.
+
+function fechaLinda(fechaISO) {
+  const d = new Date(`${fechaISO}T12:00:00Z`);
+  const dias = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+  return `${dias[d.getUTCDay()]} ${d.getUTCDate()}/${d.getUTCMonth() + 1}`;
+}
+
+async function notificar(bizId, datos) {
+  const ref = db.collection(`businesses/${bizId}/notifications`).doc();
+  await ref.set({
+    id: ref.id,
+    leidaPor: {},
+    createdAt: FieldValue.serverTimestamp(),
+    ...datos,
+  });
+}
+
+exports.onNuevoTurno = onDocumentCreated('businesses/{bizId}/appointments/{aptId}', async (event) => {
+  const a = event.data?.data();
+  if (!a) return;
+  // Lo cargó el propio staff (walk-in o a mano): ya lo sabe.
+  if (a.type === 'walkin' || a.type === 'manual') return;
+
+  await notificar(event.params.bizId, {
+    type: 'nuevo_turno',
+    title: 'Nuevo turno',
+    body: `${a.clientName || 'Un cliente'} reservó ${a.serviceName || 'un servicio'} · ${fechaLinda(a.appointmentDate)} ${a.startTime}`,
+    professionalId: a.professionalId || null,
+    appointmentId: event.params.aptId,
+    appointmentDate: a.appointmentDate,
+  });
+});
+
+exports.onTurnoCancelado = onDocumentUpdated('businesses/{bizId}/appointments/{aptId}', async (event) => {
+  const antes = event.data?.before?.data();
+  const ahora = event.data?.after?.data();
+  if (!antes || !ahora) return;
+  if (antes.status === 'cancelada' || ahora.status !== 'cancelada') return;
+  // Solo si canceló el cliente. Si lo canceló el barbero, ya lo sabe.
+  if (ahora.cancelledBy !== 'client') return;
+
+  await notificar(event.params.bizId, {
+    type: 'turno_cancelado',
+    title: 'Turno cancelado',
+    body: `${ahora.clientName || 'Un cliente'} canceló ${ahora.serviceName || 'su turno'} · ${fechaLinda(ahora.appointmentDate)} ${ahora.startTime}`,
+    professionalId: ahora.professionalId || null,
+    appointmentId: event.params.aptId,
+    appointmentDate: ahora.appointmentDate,
+  });
 });
 
 // ============================================================================

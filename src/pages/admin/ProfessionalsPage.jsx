@@ -220,9 +220,9 @@ export default function ProfessionalsPage() {
           <thead>
             <tr>
               <th>Profesional</th>
-              <th>Especialidad</th>
+              <th className="oculta-mobile">Especialidad</th>
               <th>Servicios</th>
-              <th>Días</th>
+              <th className="oculta-mobile">Días</th>
               <th>Estado</th>
               <th>Acciones</th>
             </tr>
@@ -241,7 +241,7 @@ export default function ProfessionalsPage() {
                       <strong>{prof.name}</strong>
                     </div>
                   </td>
-                  <td>{prof.specialty}</td>
+                  <td className="oculta-mobile">{prof.specialty}</td>
                   <td>
                     <span className="text-sm text-secondary">
                       {srvNames.length > 0 ? `${srvNames.length} servicio${srvNames.length !== 1 ? 's' : ''}` : (
@@ -249,7 +249,7 @@ export default function ProfessionalsPage() {
                       )}
                     </span>
                   </td>
-                  <td><span className="text-sm">{days}</span></td>
+                  <td className="oculta-mobile"><span className="text-sm">{days}</span></td>
                   <td>
                     <span className={`badge ${prof.isActive ? 'badge-success' : 'badge-neutral'}`}>
                       {prof.isActive ? 'Activo' : 'Inactivo'}

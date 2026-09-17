@@ -22,6 +22,7 @@ const val = (v) =>
   v === null ? { nullValue: null }
   : typeof v === 'boolean' ? { booleanValue: v }
   : typeof v === 'number' ? (Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v })
+  : typeof v === 'object' ? { mapValue: enc(v) }
   : { stringValue: String(v) };
 const enc = (o) => ({ fields: Object.fromEntries(Object.entries(o).map(([k, v]) => [k, val(v)])) });
 
@@ -93,6 +94,8 @@ await db.doc(`businesses/${A}/professionals/p2`).set({ name: 'Lucas', specialty:
 await db.doc(`businesses/${A}/schedules/sch-p1`).set({ professionalId: 'p1', dayOfWeek: 0, startTime: '09:00', endTime: '18:00', isActive: true });
 await db.doc(`businesses/${A}/schedules/sch-p1b`).set({ professionalId: 'p1', dayOfWeek: 2, startTime: '09:00', endTime: '18:00', isActive: true });
 await db.doc(`businesses/${A}/schedules/sch-p2`).set({ professionalId: 'p2', dayOfWeek: 0, startTime: '09:00', endTime: '18:00', isActive: true });
+await db.doc(`businesses/${A}/notifications/n-p1`).set({ type: 'nuevo_turno', title: 'Nuevo turno', body: 'x', professionalId: 'p1', leidaPor: {} });
+await db.doc(`businesses/${A}/notifications/n-p2`).set({ type: 'nuevo_turno', title: 'Nuevo turno', body: 'y', professionalId: 'p2', leidaPor: {} });
 await db.doc(`businesses/${A}/staffContacts/p1`).set({ phone: '+54 11 6666-7777', email: 'martin.personal@gmail.com' });
 await db.doc('tickets/tk-alfa').set({ businessId: A, subject: 'Alfa', status: 'abierto' });
 await db.doc('tickets/tk-beta').set({ businessId: B, subject: 'Beta', status: 'abierto' });
@@ -163,6 +166,17 @@ await esperar('barbero NO crea horario de otro',         crear(barberoA, `busine
 await esperar('barbero borra SU horario',                borrar(barberoA, `businesses/${A}/schedules/sch-p1`), 'permitido');
 await esperar('barbero NO borra el horario de otro',     borrar(barberoA, `businesses/${A}/schedules/sch-p2`), 'denegado');
 await esperar('barbero NO cambia su horario a otro',     editar(barberoA, `businesses/${A}/schedules/sch-p1b`, { professionalId: 'p2' }), 'denegado');
+
+console.log('\n-- Notificaciones --');
+await esperar('dueno lista sus notificaciones',           consultar(duenoA, `businesses/${A}`, 'notifications'), 'permitido');
+await esperar('barbero lista las suyas (filtradas)',      consultar(barberoA, `businesses/${A}`, 'notifications', ['professionalId', 'p1']), 'permitido');
+await esperar('barbero NO lista todas',                   consultar(barberoA, `businesses/${A}`, 'notifications'), 'denegado');
+await esperar('barbero NO lee la de otro barbero',        leer(barberoA, `businesses/${A}/notifications/n-p2`), 'denegado');
+await esperar('barbero marca leída la suya',              editar(barberoA, `businesses/${A}/notifications/n-p1`, { leidaPor: { [barberoA.uid]: true } }), 'permitido');
+await esperar('dueno NO edita otra cosa que leidaPor',    editar(duenoA, `businesses/${A}/notifications/n-p1`, { title: 'x' }), 'denegado');
+await esperar('nadie crea notificaciones desde el browser', crear(duenoA, `businesses/${A}/notifications`, { title: 'x' }), 'denegado');
+await esperar('cliente NO lee notificaciones',            leer(cliente, `businesses/${A}/notifications/n-p1`), 'denegado');
+await esperar('dueno de B NO lee las de A',               leer(duenoB, `businesses/${A}/notifications/n-p1`), 'denegado');
 await esperar('barbero NO crea turno para otro',         crear(barberoA, `businesses/${A}/appointments`, { businessId:A, userId:barberoA.uid, status:'pendiente', professionalId:'p9', appointmentDate:'2026-09-03', startTime:'09:00', endTime:'09:30' }), 'denegado');
 await esperar('barbero SI crea su walk-in',              crear(barberoA, `businesses/${A}/appointments`, { businessId:A, userId:barberoA.uid, status:'pendiente', professionalId:'p1', type:'walkin', appointmentDate:'2026-09-03', startTime:'09:00', endTime:'09:30' }), 'permitido');
 await esperar('el dueno SI ve toda la agenda',           consultar(duenoA, `businesses/${A}`, 'appointments'), 'permitido');

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import CampanaNotificaciones from '../admin/CampanaNotificaciones';
 import { NavLink, Outlet, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCurrentBusiness } from '../../hooks/useCurrentBusiness';
@@ -201,6 +202,7 @@ export default function AdminLayout() {
             </button>
           </div>
           <div className="admin-topbar-right">
+            <CampanaNotificaciones />
             <div className="flex items-center gap-sm">
               {user?.avatarUrl
                 ? <img src={user.avatarUrl} alt={user.name} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />

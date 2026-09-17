@@ -109,6 +109,22 @@ Google.
   (confirmar / completar / no asistió / cancelar / agendar) y abre tickets.
 - El cliente puede cancelar solo hasta `minCancelHours` antes (Configuración);
   después tiene que escribir a la barbería. Se hace cumplir en el front.
+- **Agenda del día** (`AgendaDelDia`): el inicio del panel, para dueño y
+  barbero, es un calendario vertical del día — hora grande a la izquierda,
+  cliente/servicio/teléfono a la derecha, acciones en cada turno, navegación
+  por día y filtro por barbero. Pensado para leerse en el celular.
+- **Notificaciones in-app** (campanita en el topbar): `onNuevoTurno` y
+  `onTurnoCancelado` (triggers de Firestore en Functions) escriben en
+  `businesses/{id}/notifications`; el dueño ve todas, el barbero las suyas;
+  se marcan leídas por `leidaPor.{uid}`. Con permiso, también avisa por
+  notificación del navegador. Cuando llegue WhatsApp, sale del mismo trigger.
+  No se notifica lo que cargó el propio staff (`type` walkin/manual) ni lo
+  que canceló el staff (`cancelledBy !== 'client'`).
+- **Mobile**: todo el panel, la reserva y la landing verificados a 375px sin
+  desborde horizontal. En el celular las citas son tarjetas (no tabla), las
+  tablas de gestión esconden columnas secundarias (`.oculta-mobile`), las
+  grillas inline de dos columnas pasan a una, y el stepper de reserva se
+  reparte el ancho.
 - Sistema de tickets de soporte (chat barbería ↔ plataforma).
 - Landing pública de venta en la raíz.
 - Identidad visual de SACIA aplicada.
@@ -119,8 +135,9 @@ Google.
 
 Desplegadas en `southamerica-east1`: `setBusinessAdmin`, `revokeBusinessAdmin`,
 `applyPendingClaims`, `createAppointment`, `createOwnerWithPassword`,
-`resetOwnerPassword`, `setPlatformModerator` y `runBilling` (3 AM, hora de
-Buenos Aires). Quedó puesta la política que borra imágenes de contenedor de más de un
+`resetOwnerPassword`, `setPlatformModerator`, `getBusySlots`, los triggers
+`onNuevoTurno` / `onTurnoCancelado` y `runBilling` (3 AM, hora de Buenos
+Aires). Quedó puesta la política que borra imágenes de contenedor de más de un
 día, para que no se acumule costo de almacenamiento.
 
 ```bash
@@ -355,6 +372,9 @@ src/
   /staffContacts/{profId}         🔒 teléfono y mail del staff — NO va en
                                      /professionals, que es de lectura pública
   /appointments                   🔒 staff + dueño del turno
+  /notifications                  🔒 dueño todas; barbero las suyas. Las
+                                     escribe un trigger; el browser solo
+                                     marca leídas
   /admins/{email}                 🔒 registro para UI, NO otorga permiso
 /tickets/{id}                     🔒 su barbería + plataforma
   /messages/{id}
@@ -429,6 +449,14 @@ global los liste con una query simple, sin `collectionGroup` ni su índice.
   fechas locales, `toDateString(new Date())` de `dateUtils`.
 - **Los Timestamps de Firestore no son fechas de JS.** `new Date(timestamp)` da
   `Invalid Date`. Es `timestamp.toDate()`.
+- **El primer deploy de un trigger de Firestore falla con "Permission denied
+  while using the Eventarc Service Agent".** Es la primera vez que el
+  proyecto usa Eventarc y los permisos tardan unos minutos en propagarse.
+  Esperar 2 minutos y repetir `firebase deploy --only functions:<nombre>`.
+- **Dos `match` sobre la misma ruta se SUMAN.** Si cualquiera permite, pasa.
+  Había un `match /notifications` viejo (log de WhatsApp que nunca existió)
+  que le daba lectura a todo el staff, y anulaba el nuevo que filtra por
+  barbero. Antes de agregar un match, `grep "match /"` para ver si ya existe.
 - **Los turnos guardan la fecha en `appointmentDate`, NO en `date`.** Todo el
   código lo usa así (`BookingPage`, `AppointmentsPage`, `DashboardPage`,
   `MyAppointments`, `availabilityEngine`). Sembrar datos de prueba con `date`
@@ -547,7 +575,7 @@ node scripts/test-billing-emulador.mjs     # cobro, suspensión y prueba gratis
 node scripts/auditar-rules-emulador.mjs    # aislamiento entre barberías
 ```
 
-Hoy: claims 45, reservas 35, facturación 11, rules 75. Todo en verde.
+Hoy: claims 45, reservas 35, facturación 11, rules 84. Todo en verde.
 
 ---
 

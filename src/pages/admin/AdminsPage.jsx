@@ -132,10 +132,10 @@ export default function AdminsPage() {
           <thead>
             <tr>
               <th>Email autorizado</th>
-              <th>Nombre</th>
+              <th className="oculta-mobile">Nombre</th>
               <th>Rol</th>
-              <th>Profesional vinculado</th>
-              <th>Agregado</th>
+              <th className="oculta-mobile">Profesional vinculado</th>
+              <th className="oculta-mobile">Agregado</th>
               <th>Acciones</th>
             </tr>
           </thead>
@@ -152,14 +152,14 @@ export default function AdminsPage() {
                       {isMe && <span className="badge badge-primary" style={{ fontSize: 10 }}>Vos</span>}
                     </div>
                   </td>
-                  <td>{admin.name || '—'}</td>
+                  <td className="oculta-mobile">{admin.name || '—'}</td>
                   <td>
                     <span className={`badge ${admin.role === 'owner' ? 'badge-primary' : 'badge-success'}`}>
                       {admin.role === 'owner' ? 'Dueño' : 'Peluquero'}
                     </span>
                   </td>
-                  <td>{prof?.name || (admin.role === 'owner' ? '—' : <span className="text-muted">Sin asignar</span>)}</td>
-                  <td className="text-sm text-secondary">
+                  <td className="oculta-mobile">{prof?.name || (admin.role === 'owner' ? '—' : <span className="text-muted">Sin asignar</span>)}</td>
+                  <td className="text-sm text-secondary oculta-mobile">
                     {/* Viene como Timestamp de Firestore; new Date(timestamp) da Invalid Date. */}
                     {admin.addedAt?.toDate ? admin.addedAt.toDate().toLocaleDateString('es-AR')
                       : admin.addedAt ? new Date(admin.addedAt).toLocaleDateString('es-AR') : '—'}

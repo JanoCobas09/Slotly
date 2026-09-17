@@ -100,9 +100,9 @@ export default function ServicesPage() {
           <thead>
             <tr>
               <th>Servicio</th>
-              <th>Duración</th>
+              <th className="oculta-mobile">Duración</th>
               <th>Precio</th>
-              <th>Profesionales</th>
+              <th className="oculta-mobile">Profesionales</th>
               <th>Estado</th>
               <th>Acciones</th>
             </tr>
@@ -121,9 +121,9 @@ export default function ServicesPage() {
                       {srv.category && <div className="text-sm text-muted">{srv.category}</div>}
                     </div>
                   </td>
-                  <td>{srv.durationMinutes} min</td>
+                  <td className="oculta-mobile">{srv.durationMinutes} min</td>
                   <td><strong>{formatPrice(srv.price, business?.currency)}</strong></td>
-                  <td><span className="text-sm text-secondary">{srvProfs.join(', ')}</span></td>
+                  <td className="oculta-mobile"><span className="text-sm text-secondary">{srvProfs.join(', ')}</span></td>
                   <td><span className={`badge ${srv.isActive ? 'badge-success' : 'badge-neutral'}`}>{srv.isActive ? 'Activo' : 'Inactivo'}</span></td>
                   <td>
                     <div className="table-actions">

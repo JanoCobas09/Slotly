@@ -86,6 +86,38 @@ export default function AppointmentsPage() {
     }
   };
 
+  // Los mismos botones para la tabla (escritorio) y las tarjetas (celular).
+  const accionesDe = (apt) => {
+    const started = isAppointmentStarted(apt);
+    const blockedMsg = 'El turno todavía no comenzó';
+    return (
+      <div className="table-actions">
+        {(apt.status === 'pendiente' || apt.status === 'confirmada') && (
+          <>
+            <button
+              className="btn btn-ghost btn-sm"
+              title={started ? 'Marcar como completada' : blockedMsg}
+              onClick={() => started && updateStatus(apt.id, 'completada')}
+              disabled={!started}
+              style={!started ? { opacity: 0.35, cursor: 'not-allowed' } : {}}
+            >✅</button>
+            <button
+              className="btn btn-ghost btn-sm"
+              title={started ? 'No asistió' : blockedMsg}
+              onClick={() => started && updateStatus(apt.id, 'no_asistio')}
+              disabled={!started}
+              style={!started ? { opacity: 0.35, cursor: 'not-allowed' } : {}}
+            >👻</button>
+            <button className="btn btn-ghost btn-sm" title="Cancelar" onClick={() => handleCancel(apt.id)}>❌</button>
+          </>
+        )}
+        {apt.status === 'pendiente' && (
+          <button className="btn btn-ghost btn-sm" title="Confirmar" onClick={() => updateStatus(apt.id, 'confirmada')}>✔️</button>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div>
       <div className="admin-page-header">
@@ -144,7 +176,40 @@ export default function AppointmentsPage() {
         )}
       </div>
 
-      <div className="card" style={{ padding: 0, overflow: 'auto' }}>
+      {/* En el celular, tarjetas: una tabla de nueve columnas en 375px no se
+          lee y deja las acciones fuera de la pantalla. */}
+      <div className="citas-tarjetas solo-mobile">
+        {filtered.map(apt => {
+          const prof = professionals.find(p => p.id === apt.professionalId);
+          const srv  = services.find(s => s.id === apt.serviceId);
+          const isWalkin = apt.type === 'walkin';
+          return (
+            <div key={apt.id} className={`card cita-tarjeta estado-${apt.status}`}>
+              <div className="cita-tarjeta-fila">
+                <div>
+                  <div className="cita-tarjeta-hora">{apt.startTime}<span> — {apt.endTime}</span></div>
+                  <div className="text-sm text-secondary">{formatDate(apt.appointmentDate).split(',')[0]}</div>
+                </div>
+                <span className={`badge ${STATUS_BADGES[apt.status]}`}>{STATUS_LABELS[apt.status] || apt.status}</span>
+              </div>
+              <div className="cita-tarjeta-cliente">{isWalkin ? '✂️ Servicio sin turno' : (apt.clientName || 'Cliente')}</div>
+              <div className="text-sm text-secondary">
+                {isWalkin ? 'Horario bloqueado' : `${srv?.name || '—'} · ${formatPrice(apt.price, business?.currency)}`}
+                {isOwner && prof && <> · {prof.name}</>}
+              </div>
+              {apt.clientPhone && !isWalkin && (
+                <a className="text-sm" href={`tel:${apt.clientPhone}`} style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>📞 {apt.clientPhone}</a>
+              )}
+              {accionesDe(apt)}
+            </div>
+          );
+        })}
+        {filtered.length === 0 && (
+          <div className="empty-state"><p>No se encontraron citas con estos filtros</p></div>
+        )}
+      </div>
+
+      <div className="card solo-desktop" style={{ padding: 0, overflow: 'auto' }}>
         <table className="data-table">
           <thead>
             <tr>
@@ -163,11 +228,7 @@ export default function AppointmentsPage() {
             {filtered.map(apt => {
               const prof    = professionals.find(p => p.id === apt.professionalId);
               const srv     = services.find(s => s.id === apt.serviceId);
-              const started = isAppointmentStarted(apt);
               const isWalkin = apt.type === 'walkin';
-
-              // Tooltips para botones temporalmente bloqueados
-              const blockedMsg = 'El turno todavía no comenzó';
 
               return (
                 <tr key={apt.id} style={isWalkin ? { background: 'var(--bg-secondary)', fontStyle: 'italic' } : {}}>
@@ -195,47 +256,7 @@ export default function AppointmentsPage() {
                       {STATUS_LABELS[apt.status] || apt.status}
                     </span>
                   </td>
-                  <td>
-                    <div className="table-actions">
-                      {(apt.status === 'pendiente' || apt.status === 'confirmada') && (
-                        <>
-                          {/* ✅ Completar — solo si el turno ya empezó */}
-                          <button
-                            className="btn btn-ghost btn-sm"
-                            title={started ? 'Marcar como completada' : blockedMsg}
-                            onClick={() => started && updateStatus(apt.id, 'completada')}
-                            disabled={!started}
-                            style={!started ? { opacity: 0.35, cursor: 'not-allowed' } : {}}
-                          >✅</button>
-
-                          {/* 👻 No asistió — solo si el turno ya empezó */}
-                          <button
-                            className="btn btn-ghost btn-sm"
-                            title={started ? 'No asistió' : blockedMsg}
-                            onClick={() => started && updateStatus(apt.id, 'no_asistio')}
-                            disabled={!started}
-                            style={!started ? { opacity: 0.35, cursor: 'not-allowed' } : {}}
-                          >👻</button>
-
-                          {/* ❌ Cancelar — siempre disponible */}
-                          <button
-                            className="btn btn-ghost btn-sm"
-                            title="Cancelar"
-                            onClick={() => handleCancel(apt.id)}
-                          >❌</button>
-                        </>
-                      )}
-
-                      {/* ✔️ Confirmar — solo para pendientes, siempre disponible */}
-                      {apt.status === 'pendiente' && (
-                        <button
-                          className="btn btn-ghost btn-sm"
-                          title="Confirmar"
-                          onClick={() => updateStatus(apt.id, 'confirmada')}
-                        >✔️</button>
-                      )}
-                    </div>
-                  </td>
+                  <td>{accionesDe(apt)}</td>
                 </tr>
               );
             })}
