@@ -12,6 +12,7 @@ import {
   upgradePlan,
   savePlatformConfig,
 } from '../../lib/repository';
+import { deleteBusiness } from '../../lib/functions';
 import NewBusinessModal from './NewBusinessModal';
 import TicketsPanel from './TicketsPanel';
 
@@ -57,6 +58,9 @@ export default function SuperAdminDashboard() {
   const [selectedBusiness, setSelectedBusiness] = useState(null);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [debtAmount, setDebtAmount] = useState('');
+  const [deleteName, setDeleteName] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   // Upgrade Plan fields
   const [selectedPlan, setSelectedPlan] = useState('basico');
@@ -142,6 +146,31 @@ export default function SuperAdminDashboard() {
     setSelectedBusiness(biz);
     setDebtAmount(String(biz.debt ?? 0));
     setModalType('debt');
+  };
+
+  const handleOpenDeleteModal = (biz) => {
+    setSelectedBusiness(biz);
+    setDeleteName('');
+    setDeleteError('');
+    setModalType('delete');
+  };
+
+  const handleDeleteBusiness = async () => {
+    if (!selectedBusiness || deleting) return;
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      // La function borra todo en cascada y les saca el acceso a los usuarios.
+      // La lista se actualiza sola por la suscripción de BusinessSync.
+      const r = await deleteBusiness({ businessId: selectedBusiness.id, confirmName: deleteName.trim() });
+      setModalType(null);
+      alert(`Listo. Se borró ${selectedBusiness.name}: ${r.usuarios} usuario(s) sin acceso, ${r.tickets} ticket(s) eliminados.`);
+    } catch (err) {
+      console.error('[SuperAdmin] No se pudo borrar la barbería:', err);
+      setDeleteError(err.message);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const handleOpenUpgradeModal = (biz) => {
@@ -776,6 +805,13 @@ export default function SuperAdminDashboard() {
                     >
                       ✏️ Editar Saldo
                     </button>
+                    <button
+                      onClick={() => handleOpenDeleteModal(b)}
+                      className="btn btn-ghost"
+                      style={{ padding: '8px', fontSize: 12, justifyContent: 'center', gridColumn: '1 / -1', color: 'var(--danger)' }}
+                    >
+                      🗑️ Eliminar barbería
+                    </button>
                     </>)}
                   </div>
                 </div>
@@ -1190,6 +1226,58 @@ export default function SuperAdminDashboard() {
               <button className="btn btn-outline" onClick={() => setModalType(null)}>Cancelar</button>
               <button className="btn btn-primary" onClick={handleEditDebt}>
                 Guardar Saldo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL: ELIMINAR BARBERÍA --- */}
+      {modalType === 'delete' && selectedBusiness && (
+        <div className="modal-overlay" onClick={() => !deleting && setModalType(null)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 440 }}>
+            <div className="modal-header">
+              <h3>Eliminar barbería</h3>
+              <button className="modal-close" onClick={() => setModalType(null)} disabled={deleting}>✕</button>
+            </div>
+            <div className="modal-body">
+              <div className="notice notice-danger" style={{ marginBottom: 'var(--space-md)' }}>
+                <strong>Esto no se puede deshacer.</strong> Se borran la cuenta de{' '}
+                <strong>{selectedBusiness.name}</strong>, todos sus turnos, su equipo,
+                sus servicios, sus tickets y su link público. El dueño y los barberos
+                pierden el acceso al instante.
+              </div>
+              <p className="text-secondary text-sm" style={{ marginBottom: 'var(--space-sm)' }}>
+                Si solo querés cortarle el servicio, usá <strong>Suspender</strong>: la
+                agenda queda y se puede volver a habilitar.
+              </p>
+              <div className="form-group">
+                <label className="form-label">
+                  Para confirmar, escribí el nombre: <code>{selectedBusiness.name}</code>
+                </label>
+                <input
+                  className="form-input"
+                  value={deleteName}
+                  onChange={e => setDeleteName(e.target.value)}
+                  placeholder={selectedBusiness.name}
+                  autoFocus
+                  disabled={deleting}
+                />
+              </div>
+              {deleteError && (
+                <div className="badge badge-danger" style={{ display: 'block', padding: '8px 12px', borderRadius: 8 }}>
+                  {deleteError}
+                </div>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-outline" onClick={() => setModalType(null)} disabled={deleting}>Cancelar</button>
+              <button
+                className="btn btn-danger"
+                onClick={handleDeleteBusiness}
+                disabled={deleting || deleteName.trim() !== String(selectedBusiness.name).trim()}
+              >
+                {deleting ? 'Eliminando…' : 'Eliminar definitivamente'}
               </button>
             </div>
           </div>

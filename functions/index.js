@@ -841,6 +841,68 @@ exports.resetOwnerPassword = onCall(async (request) => {
 });
 
 // ============================================================================
+// 5b. BORRAR UNA BARBERÍA
+// ============================================================================
+// Firestore no borra en cascada: eliminar /businesses/{id} desde el browser
+// dejaba huérfanas todas las subcolecciones, el slug, los tickets, los
+// pendientes y —lo peor— los claims de los usuarios, que seguían con acceso a
+// un negocio que ya no existía. Va acá, con el Admin SDK, para hacerlo entero
+// y en un solo lugar. Solo el dueño de la plataforma; un moderador, no.
+//
+// Es definitivo. La confirmación (escribir el nombre) la pide el panel.
+
+exports.deleteBusiness = onCall(async (request) => {
+  assertPlatformOwner(request);
+
+  const { businessId, confirmName } = request.data || {};
+  if (!businessId) throw new HttpsError('invalid-argument', 'Falta el id del negocio.');
+
+  const ref = db.doc(`businesses/${businessId}`);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError('not-found', 'Ese negocio no existe.');
+  const negocio = snap.data();
+
+  // Segunda barrera, del lado del servidor: el nombre tal cual.
+  if (String(confirmName || '').trim() !== String(negocio.name || '').trim()) {
+    throw new HttpsError('failed-precondition', 'El nombre no coincide.');
+  }
+
+  const resumen = { usuarios: 0, tickets: 0, pendientes: 0 };
+
+  // 1. Claims: todos los usuarios cuyo businessId sea este. Se buscan en Auth
+  //    y no solo en /admins, porque el registro de /admins puede estar
+  //    incompleto y el claim es lo que da acceso.
+  let pageToken;
+  do {
+    const page = await getAuth().listUsers(1000, pageToken);
+    for (const u of page.users) {
+      if (u.customClaims?.businessId === businessId) {
+        await getAuth().setCustomUserClaims(u.uid, {});
+        await getAuth().revokeRefreshTokens(u.uid);
+        resumen.usuarios++;
+      }
+    }
+    pageToken = page.pageToken;
+  } while (pageToken);
+
+  // 2. Pendientes que apuntaban acá.
+  const pendientes = await db.collection('pendingAdmins').where('businessId', '==', businessId).get();
+  for (const d of pendientes.docs) { await d.ref.delete(); resumen.pendientes++; }
+
+  // 3. Tickets (con sus mensajes).
+  const tickets = await db.collection('tickets').where('businessId', '==', businessId).get();
+  for (const d of tickets.docs) { await db.recursiveDelete(d.ref); resumen.tickets++; }
+
+  // 4. El slug.
+  if (negocio.slug) await db.doc(`slugs/${negocio.slug}`).delete().catch(() => {});
+
+  // 5. El negocio con todas sus subcolecciones.
+  await db.recursiveDelete(ref);
+
+  return { status: 'deleted', ...resumen };
+});
+
+// ============================================================================
 // 6. EQUIPO DE LA PLATAFORMA
 // ============================================================================
 // El dueño de la plataforma puede sumar moderadores: gente de soporte que entra

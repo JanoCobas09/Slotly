@@ -143,14 +143,8 @@ export async function setBusinessFrozen(businessId, isFrozen) {
   await updateDoc(businessDoc(businessId), { isFrozen });
 }
 
-export async function deleteBusinessRecord(businessId, slug) {
-  // Nota: esto borra el documento y su slug, no las subcolecciones. Firestore
-  // no borra en cascada; para limpiar todo hace falta una Cloud Function.
-  const batch = writeBatch(db);
-  batch.delete(businessDoc(businessId));
-  if (slug) batch.delete(slugDoc(slug));
-  await batch.commit();
-}
+// Borrar un negocio es `deleteBusiness` en lib/functions.js: en cascada, con
+// el Admin SDK. Desde el browser no se puede hacer entero.
 
 // ============================================================================
 // FACTURACIÓN (privada — solo dueño de plataforma)

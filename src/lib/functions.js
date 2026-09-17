@@ -137,3 +137,13 @@ export function setPlatformModerator({ email, enabled = true, name = '' }) {
 export function applyPendingClaims() {
   return llamar('applyPendingClaims', {});
 }
+
+/**
+ * Borra una barbería entera: negocio, subcolecciones, slug, tickets,
+ * pendientes, y les saca el acceso a sus usuarios. Solo el dueño de la
+ * plataforma. `confirmName` tiene que ser el nombre exacto del negocio.
+ * Devuelve { status: 'deleted', usuarios, tickets, pendientes }.
+ */
+export function deleteBusiness({ businessId, confirmName }) {
+  return llamar('deleteBusiness', { businessId, confirmName });
+}

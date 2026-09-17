@@ -135,7 +135,7 @@ Google.
 
 Desplegadas en `southamerica-east1`: `setBusinessAdmin`, `revokeBusinessAdmin`,
 `applyPendingClaims`, `createAppointment`, `createOwnerWithPassword`,
-`resetOwnerPassword`, `setPlatformModerator`, `getBusySlots`, los triggers
+`resetOwnerPassword`, `setPlatformModerator`, `deleteBusiness`, `getBusySlots`, los triggers
 `onNuevoTurno` / `onTurnoCancelado` y `runBilling` (3 AM, hora de Buenos
 Aires). Quedó puesta la política que borra imágenes de contenedor de más de un
 día, para que no se acumule costo de almacenamiento.
@@ -558,8 +558,11 @@ Email/Password habilitado, alcance del barbero cerrado en Rules.
 11. Los 3 errores de lint que quedan son `react-refresh/only-export-components`
    en los contexts: mover los hooks a otro archivo toca todos los imports y no
    cambia el comportamiento. Con eso el lint queda en cero y se puede poner CI.
-12. Borrado en cascada al eliminar un negocio (`deleteBusinessRecord` deja
-    huérfanas las subcolecciones y los claims de los admins).
+12. ~~Borrado en cascada~~ Hecho: `deleteBusiness` (solo dueño de plataforma,
+    con el nombre exacto como confirmación) borra negocio, subcolecciones,
+    slug, tickets, pendientes, y les vacía los claims a todos los usuarios
+    del negocio. Botón "Eliminar barbería" en el panel global.
+    `deleteBusinessRecord` de repository.js quedó sin uso.
 13. Subir logo por barbería (Firebase Storage).
 14. PWA.
 
@@ -575,7 +578,7 @@ node scripts/test-billing-emulador.mjs     # cobro, suspensión y prueba gratis
 node scripts/auditar-rules-emulador.mjs    # aislamiento entre barberías
 ```
 
-Hoy: claims 45, reservas 35, facturación 11, rules 84. Todo en verde.
+Hoy: claims 58, reservas 35, facturación 11, rules 84. Todo en verde.
 
 ---
 

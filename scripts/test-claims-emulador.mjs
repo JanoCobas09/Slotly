@@ -246,6 +246,39 @@ const uidNuevoMod = await crearUsuario('nunca-entro@sacia.tech', null);
 r = await llamar('applyPendingClaims', await idToken(uidNuevoMod), {});
 chequear('y en su primer login le toma el rol', r.ok?.status === 'applied' && r.ok?.platform === 'moderator', JSON.stringify(r));
 
+// ── Borrar una barbería entera ──────────────────────────────────────────────
+console.log('\n-- deleteBusiness --');
+const BX = 'biz-borrar';
+await db.doc(`businesses/${BX}`).set({ name: 'Para Borrar', slug: 'para-borrar', isFrozen: false });
+await db.doc('slugs/para-borrar').set({ businessId: BX });
+await db.doc(`businesses/${BX}/professionals/p1`).set({ name: 'x' });
+await db.doc(`businesses/${BX}/appointments/a1`).set({ businessId: BX, status: 'pendiente' });
+await db.doc(`businesses/${BX}/private/billing`).set({ debt: 0 });
+await db.doc('tickets/tk-borrar').set({ businessId: BX, subject: 'x', status: 'abierto' });
+await db.doc('tickets/tk-borrar/messages/m1').set({ text: 'x' });
+await db.doc('pendingAdmins/pend-borrar@gmail.com').set({ businessId: BX, role: 'admin' });
+const uidDuenoX = await crearUsuario('dueno-borrar@gmail.com', { businessId: BX, role: 'owner' });
+const uidBarbX = await crearUsuario('barbero-borrar@gmail.com', { businessId: BX, role: 'admin', professionalId: 'p1' });
+
+r = await llamar('deleteBusiness', tMod, { businessId: BX, confirmName: 'Para Borrar' });
+chequear('un moderador NO borra barberias', r.error === 'PERMISSION_DENIED', JSON.stringify(r));
+r = await llamar('deleteBusiness', tDuenoB1, { businessId: BX, confirmName: 'Para Borrar' });
+chequear('un dueno NO borra barberias', r.error === 'PERMISSION_DENIED', JSON.stringify(r));
+r = await llamar('deleteBusiness', tPlataforma, { businessId: BX, confirmName: 'Otro nombre' });
+chequear('con el nombre equivocado, no borra', r.error === 'FAILED_PRECONDITION', JSON.stringify(r));
+chequear('  (y el negocio sigue ahi)', (await db.doc(`businesses/${BX}`).get()).exists, '');
+r = await llamar('deleteBusiness', tPlataforma, { businessId: BX, confirmName: 'Para Borrar' });
+chequear('la plataforma borra con el nombre exacto', r.ok?.status === 'deleted' && r.ok?.usuarios === 2 && r.ok?.tickets === 1, JSON.stringify(r));
+chequear('  el negocio ya no existe', !(await db.doc(`businesses/${BX}`).get()).exists, '');
+chequear('  ni sus subcolecciones', (await db.collection(`businesses/${BX}/appointments`).get()).empty && !(await db.doc(`businesses/${BX}/private/billing`).get()).exists, '');
+chequear('  ni el slug', !(await db.doc('slugs/para-borrar').get()).exists, '');
+chequear('  ni el ticket con sus mensajes', !(await db.doc('tickets/tk-borrar').get()).exists && !(await db.doc('tickets/tk-borrar/messages/m1').get()).exists, '');
+chequear('  ni el pendiente', !(await db.doc('pendingAdmins/pend-borrar@gmail.com').get()).exists, '');
+chequear('  y el dueno quedo sin claims', Object.keys((await auth.getUser(uidDuenoX)).customClaims || {}).length === 0, JSON.stringify((await auth.getUser(uidDuenoX)).customClaims));
+chequear('  y el barbero tambien', Object.keys((await auth.getUser(uidBarbX)).customClaims || {}).length === 0, '');
+r = await llamar('deleteBusiness', tPlataforma, { businessId: BX, confirmName: 'Para Borrar' });
+chequear('borrar dos veces da not-found', r.error === 'NOT_FOUND', JSON.stringify(r));
+
 r = await llamar('setPlatformModerator', tPlataforma, { email: 'moderador@sacia.tech', enabled: false });
 chequear('la plataforma le quita el rol', r.ok?.status === 'revoked', JSON.stringify(r));
 chequear('le quedan los claims vacios', Object.keys((await auth.getUser(uidMod)).customClaims || {}).length === 0, '');
