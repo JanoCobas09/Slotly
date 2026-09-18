@@ -57,9 +57,11 @@ export default function LoginPage() {
       navigate(from);
     } else {
       // Entró por "Iniciar Sesión" desde la landing y no tiene negocio. Antes
-      // se lo mandaba de vuelta a la landing sin decirle nada, y quedaba
-      // pensando que no había funcionado.
-      navigate('/cuenta');
+      // se lo mandaba a /cuenta (solo la opción de WhatsApp) o, más atrás
+      // todavía, de vuelta a la landing sin decirle nada. Ahora arranca el
+      // alta self-service — /cuenta sigue existiendo como salida para quien
+      // prefiere que se lo armen a mano (link dentro de OnboardingPage).
+      navigate('/onboarding');
     }
   };
 

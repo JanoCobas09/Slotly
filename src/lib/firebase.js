@@ -13,6 +13,7 @@ import { getAuth, GoogleAuthProvider, connectAuthEmulator } from 'firebase/auth'
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 import { getMessaging, isSupported as isMessagingSupported } from 'firebase/messaging';
+import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -78,6 +79,32 @@ export async function getMessagingIfSupported() {
   } catch {
     return null;
   }
+}
+
+/**
+ * App Check (reCAPTCHA v3) protege únicamente `createBusinessSelfService`
+ * (ver functions/index.js, sección 5a): es el único callable que cualquier
+ * cuenta de Google puede llamar sin tener ya un negocio, así que es el que
+ * más conviene frenar de bots. El resto de los callables no lo exige — ya
+ * requieren un businessId o el claim `platform`, que un bot no fabrica solo.
+ *
+ * Sin VITE_RECAPTCHA_SITE_KEY (Firebase Console → App Check → registrar la
+ * app web, con un site key de reCAPTCHA v3 de google.com/recaptcha/admin) esto
+ * queda sin inicializar: el resto de la app sigue funcionando igual, y
+ * createBusinessSelfService simplemente rechaza la llamada por falta de
+ * token — mismo criterio que faltanVariables/VAPID, nunca rompe en silencio.
+ */
+if (app && import.meta.env.VITE_RECAPTCHA_SITE_KEY) {
+  // Token fijo para desarrollo local: sin esto, probar el alta self-service
+  // contra el emulador exigiría igual un site key real. Se registra en la
+  // consola del browser la primera vez; ver CLAUDE.md.
+  if (import.meta.env.DEV) {
+    self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+  }
+  initializeAppCheck(app, {
+    provider: new ReCaptchaV3Provider(import.meta.env.VITE_RECAPTCHA_SITE_KEY),
+    isTokenAutoRefreshEnabled: true,
+  });
 }
 
 export const googleProvider = app ? new GoogleAuthProvider() : null;

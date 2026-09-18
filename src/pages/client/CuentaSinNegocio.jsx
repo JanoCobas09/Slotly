@@ -17,9 +17,10 @@ const LINK_WA = `https://wa.me/${WHATSAPP}?text=${mensaje}`;
  * justamente el curioso que entró a probar, o sea el lead que menos conviene
  * perder en silencio.
  *
- * No hay registro self-service y es a propósito (ver CLAUDE.md): la cuenta la
- * prepara la plataforma con el equipo, los servicios y los horarios ya cargados.
- * Así que esto no es un error, es el paso siguiente de la venta.
+ * El destino por defecto de ese login pasó a ser /onboarding (alta
+ * self-service, con prueba gratis) — ver LoginPage. Esta pantalla queda como
+ * salida para quien prefiere que se lo armen a mano en vez de completarlo
+ * solo, y como fallback por si alguien llega acá por un link viejo.
  */
 export default function CuentaSinNegocio() {
   const { user } = useAuth();
@@ -36,14 +37,16 @@ export default function CuentaSinNegocio() {
       )}
 
       <p>
-        Las cuentas las activamos nosotros: te la dejamos andando con tu
-        equipo, tus servicios y tus horarios ya cargados. No tenés que
-        configurar nada.
+        Podés armarlo vos en un par de minutos, con prueba gratis, o pedirnos
+        que te lo dejemos listo nosotros.
       </p>
 
-      <div style={{ marginTop: 'var(--space-lg)' }}>
-        <a href={LINK_WA} target="_blank" rel="noreferrer" className="btn btn-primary btn-lg">
-          Hablemos por WhatsApp →
+      <div style={{ marginTop: 'var(--space-lg)', display: 'flex', gap: 'var(--space-sm)', justifyContent: 'center', flexWrap: 'wrap' }}>
+        <Link to="/onboarding" className="btn btn-primary btn-lg">
+          Empezar mi prueba gratis →
+        </Link>
+        <a href={LINK_WA} target="_blank" rel="noreferrer" className="btn btn-outline btn-lg">
+          Prefiero que lo armen ustedes
         </a>
       </div>
 

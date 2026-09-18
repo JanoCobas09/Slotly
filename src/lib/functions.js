@@ -139,6 +139,25 @@ export function applyPendingClaims() {
 }
 
 /**
+ * Alta self-service: la persona que llama se convierte en dueña de un
+ * negocio nuevo, con ~48 hs de prueba gratis. A diferencia del alta manual
+ * (super-admin/NewBusinessModal, que escribe directo a Firestore porque está
+ * protegida por Rules para que solo la plataforma la use), esto SÍ tiene que
+ * pasar por una Function: quien crea el negocio se da el rol de dueño a sí
+ * mismo, y los custom claims solo los puede escribir el Admin SDK.
+ *
+ * Requiere App Check (ver src/lib/firebase.js) — sin `VITE_RECAPTCHA_SITE_KEY`
+ * configurada, el callable rechaza la llamada.
+ *
+ * No aplica los claims nuevos sola: quien llama tiene que refrescar el token
+ * después (`refreshClaims()` de AuthContext) para que el panel vea el negocio
+ * recién creado.
+ */
+export function createBusinessSelfService({ name, professionCategory = '', customProfession = '', primaryColor = null, planId }) {
+  return llamar('createBusinessSelfService', { name, professionCategory, customProfession, primaryColor, planId });
+}
+
+/**
  * Borra una barbería entera: negocio, subcolecciones, slug, tickets,
  * pendientes, y les saca el acceso a sus usuarios. Solo el dueño de la
  * plataforma. `confirmName` tiene que ser el nombre exacto del negocio.

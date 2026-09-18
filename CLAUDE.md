@@ -59,18 +59,80 @@ clave para no repetir el análisis:
 
 **BarberOS es el producto. SACIA es el estudio que lo desarrolla.** No mezclar.
 
-### Modelo de venta: onboarding MANUAL
+### Modelo de venta: dos puertas de alta (18/09/2026 en adelante)
 
-No hay registro self-service **y es a propósito**. El cliente se contacta, se
-cierra la venta, y Santiago prepara la cuenta desde `/super-admin` →
-"Nueva barbería".
+Hasta acá el onboarding era 100% manual: el cliente se contactaba, se cerraba
+la venta, y la plataforma preparaba la cuenta desde `/super-admin` →
+"Nuevo negocio". **Esa puerta sigue existiendo tal cual** (para quien prefiere
+que se lo armen, o no tiene Gmail), pero ahora convive con una segunda:
+**alta self-service** con prueba gratis, para quien quiere arrancar solo.
 
-Consecuencias que ordenan el diseño:
+- **Manual** (`super-admin/NewBusinessModal.jsx` → `repository.js/createBusiness`,
+  protegido en `firestore.rules` con `allow create: if isPlatform()`): la
+  plataforma completa el formulario y entrega la cuenta lista.
+- **Self-service** (`client/OnboardingPage.jsx` → Cloud Function
+  `createBusinessSelfService`): quien entra con Google por primera vez y
+  todavía no tiene negocio (antes caía en `/cuenta` sin más opción) ahora
+  arranca ahí un asistente — mismas preguntas que el alta manual (rubro,
+  color, plan) — y se convierte en dueño de un negocio nuevo con
+  **~48 hs de prueba gratis** (aproximadas a 2 días corridos: el trial
+  reutiliza el motor de facturación diario, que compara fechas calendario,
+  no timestamps — no hay corrida más frecuente que una vez por día).
+  `/cuenta` (`CuentaSinNegocio.jsx`) sigue existiendo como salida para quien
+  prefiere WhatsApp en vez de autoservicio.
 
-- No construir pantallas de "creá tu cuenta", checkout de suscripción ni
-  pricing con autoservicio.
-- El CTA de la landing va a **WhatsApp**, nunca a un registro.
-- El alta tiene que dejar la cuenta lista para entregar.
+  Por qué esto SÍ necesita una Cloud Function (a diferencia del alta manual,
+  que escribe directo a Firestore protegida por Rules): acá quien crea el
+  negocio y quien se vuelve su dueño son la misma persona. El rol (`role:
+  'owner'` + `businessId` en los custom claims) solo lo puede otorgar el
+  Admin SDK — nunca un documento de Firestore, nunca el browser. Ver sección
+  5a de `functions/index.js`.
+
+  **Qué pasa si nunca se paga:** al vencer el trial, el motor de facturación
+  normal (`runBilling`, ver más abajo) la suspende igual que a cualquier
+  cuenta impaga. Si sigue suspendida **7 días** sin haber registrado nunca un
+  pago (`billing.lastPaymentDate`), se borra sola —
+  `procesarFacturacion` llama a `borrarNegocioInterno` (el mismo motor de
+  borrado de `deleteBusiness`, factorizado para esto). **Esto SOLO alcanza a
+  negocios con `signupSource: 'self_service'` que jamás pagaron ni un peso**:
+  un cliente real que se atrasa con una factura nunca se toca por acá, eso lo
+  decide una persona a mano desde el panel global.
+
+  **Habilitar una cuenta** (self-service o manual) es el mismo camino que ya
+  existía: el cliente avisa por WhatsApp que pagó, la plataforma registra el
+  pago desde `/super-admin` (`recordPayment`, que descongela solo si la deuda
+  queda en cero) o usa el botón "Habilitar" a mano. No hubo que construir
+  nada nuevo para esta parte.
+
+  **App Check (reCAPTCHA v3).** `createBusinessSelfService` es el único
+  callable con `enforceAppCheck: true`: de todos, es el único que cualquier
+  cuenta de Google puede llamar sin tener ya un negocio, así que es el que
+  más conviene frenar de bots. Requiere generar un site key en
+  [google.com/recaptcha/admin](https://google.com/recaptcha/admin) (tipo
+  "reCAPTCHA v3"), registrarlo en Firebase Console → App Check → agregar app
+  web, y poner ese site key en `VITE_RECAPTCHA_SITE_KEY` (local y Vercel).
+  **Sin esa variable, el alta self-service rechaza toda llamada con
+  "Tenés que iniciar sesión"** (así es como Firebase reporta un App Check
+  faltante cuando `enforceAppCheck` está activo — no es un bug, es el
+  comportamiento esperado sin la clave puesta). Verificado localmente
+  desactivando `enforceAppCheck` de forma temporal (nunca commiteado): el
+  resto de la lógica —negocio, slug, billing, claims, tema, horarios por
+  defecto— funciona de punta a punta. Sin site key real no hay forma de
+  probar la verificación de App Check en sí, ni siquiera con el emulador.
+
+Consecuencias que siguen ordenando el diseño:
+
+- No hay checkout de tarjeta ni cobro automático en ningún lado — ni acá ni
+  en el alta manual. "Elegir un plan" en el asistente self-service anota una
+  intención, no cobra nada.
+- El CTA de la landing sigue yendo a **WhatsApp**: la puerta self-service se
+  abre recién después de loguearse, no es el camino principal de venta.
+- El alta (cualquiera de las dos) tiene que dejar la cuenta lista para tomar
+  turnos — de ahí que el alta self-service ya cargue horarios por defecto
+  (`HORARIO_POR_DEFECTO`, mismo horario que `DEFAULT_BUSINESS_HOURS` de
+  `plans.js`, duplicado en `functions/index.js` por el mismo motivo que
+  `timeToMinutes`/`slugify`/`PLANS`: `functions/` se despliega aparte de
+  `src/` y no puede importar de ahí).
 
 ---
 
@@ -232,22 +294,25 @@ method → Email/Password. Sin eso, el login con contraseña falla con
 Los permisos no cambian en nada: son los mismos custom claims, y no saben con
 qué proveedor entró la persona.
 
-### Quien entra y no tiene barbería
+### Quien entra y no tiene negocio
 
-No hay registro self-service **y es a propósito**, pero antes eso dejaba un
-agujero: el barbero curioso que entraba a la landing, tocaba "Iniciar Sesión" y
-se logueaba con su Google volvía a la landing **sin ningún mensaje**. Quedaba
-pensando que había fallado, y era justo el lead más caliente.
+Originalmente esto no tenía salida propia: el curioso que entraba a la
+landing, tocaba "Iniciar Sesión" y se logueaba con Google volvía a la landing
+**sin ningún mensaje**. Quedaba pensando que había fallado, y era justo el
+lead más caliente.
 
-Ahora cae en `/cuenta`, que le explica que las cuentas las activa la plataforma
-y le da el botón de WhatsApp.
+Primero se arregló con `/cuenta` (solo WhatsApp). Ahora (ver "Modelo de venta"
+más arriba) el destino por defecto es `/onboarding`, el alta self-service con
+prueba gratis; `/cuenta` quedó como salida para quien prefiere que se lo
+armen a mano.
 
-Ojo con el detalle que casi lo rompe: `Header` es compartido entre la landing y
-la página de cada barbería. Si el link a `/login` no lleva `state.from`, un
-cliente parado en `/su-barberia` que toca "Iniciar Sesión" también terminaría en
-`/cuenta` en vez de volver a reservar. Por eso `Header` y `MyAppointments` pasan
-su `pathname`, y `LoginPage` descarta `/` y `/login` como orígenes — volver ahí
-es justamente el problema que esto resuelve.
+Ojo con el detalle que casi rompe esto la primera vez: `Header` es compartido
+entre la landing y la página de cada negocio. Si el link a `/login` no lleva
+`state.from`, un cliente parado en `/su-negocio` que toca "Iniciar Sesión"
+también terminaría en `/onboarding` en vez de volver a reservar. Por eso
+`Header` y `MyAppointments` pasan su `pathname`, y `LoginPage` descarta `/` y
+`/login` como orígenes — volver ahí es justamente el problema que esto
+resuelve.
 
 ### Límite de barberos por plan
 
@@ -478,8 +543,9 @@ src/
 
 ```
 /slugs/{slug}                     → { businessId }        ⚠️ lectura pública
-/businesses/{id}                  → marca, horarios, isFrozen  ⚠️ pública
-  /private/billing                → deuda, abono           🔒 solo plataforma
+/businesses/{id}                  → marca, horarios, isFrozen, trialEndsAt,
+                                     signupSource, frozenAt  ⚠️ pública
+  /private/billing                → deuda, abono, lastPaymentDate 🔒 solo plataforma
   /professionals /services /schedules /professionalServices   ⚠️ públicas
   /staffContacts/{profId}         🔒 teléfono y mail del staff — NO va en
                                      /professionals, que es de lectura pública
@@ -637,6 +703,16 @@ curl -s "https://barberos.sacia.tech$B" | grep -c "TEXTO_A_BUSCAR"
     esté. Messaging no tiene emulador: no se puede probar en local con
     `VITE_USE_EMULATORS=true`, solo contra un deploy real (o `npm run dev`
     apuntando a Firebase real).
+2c. **Site key de reCAPTCHA v3 para App Check** — sin esto, el alta
+    self-service (`/onboarding`) no funciona ni en producción ni contra el
+    emulador: `createBusinessSelfService` exige `enforceAppCheck` y rechaza
+    toda llamada con "Tenés que iniciar sesión" (así reporta Firebase un App
+    Check faltante). Generar un site key en
+    [google.com/recaptcha/admin](https://google.com/recaptcha/admin) (tipo
+    "reCAPTCHA v3", con el dominio de producción), registrarlo en Firebase
+    Console → App Check → agregar app web, y poner ese site key en
+    `VITE_RECAPTCHA_SITE_KEY` (local y Vercel). Ver "Modelo de venta" más
+    arriba para el detalle completo.
 
 Ya resueltos y verificados: dominio `barberos.sacia.tech` autorizado,
 Email/Password habilitado, alcance del barbero cerrado en Rules.
@@ -715,7 +791,12 @@ Hoy: claims 64, reservas 35, facturación 11, rules 92. Todo en verde.
 
 ## Qué NO hacer
 
-- ❌ NO construir registro self-service ni checkout de suscripción
+- ❌ NO construir checkout de tarjeta ni cobro automático — el alta
+  self-service (ver "Modelo de venta") existe, pero "elegir un plan" ahí
+  anota una intención, nunca cobra
+- ❌ NO dejar que `createBusinessSelfService` (o cualquier función nueva que
+  otorgue un rol) escriba el claim desde un documento de Firestore en vez del
+  Admin SDK — es la escalada de privilegios que todo este modelo evita
 - ❌ NO leer Firestore desde un componente: siempre por `repository.js`
 - ❌ NO abrir `onSnapshot` fuera de `BusinessSync`
 - ❌ NO tocar `availabilityEngine.js` ni `statsCalculator.js`

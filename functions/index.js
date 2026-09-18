@@ -269,12 +269,33 @@ function sumarUnMes(fechaISO) {
   return `${anio}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
 }
 
+/** 'YYYY-MM-DD' + n días, en UTC. Para la prueba gratis self-service (48 hs ≈ 2 días). */
+function sumarDiasArg(fechaISO, n) {
+  const [y, m, d] = fechaISO.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + n);
+  return dt.toISOString().slice(0, 10);
+}
+
+/** Días corridos entre dos 'YYYY-MM-DD' (b - a). Para medir hace cuánto está congelada una cuenta. */
+function diasEntre(aISO, bISO) {
+  const [ay, am, ad] = aISO.split('-').map(Number);
+  const [by, bm, bd] = bISO.split('-').map(Number);
+  const a = Date.UTC(ay, am - 1, ad);
+  const b = Date.UTC(by, bm - 1, bd);
+  return Math.round((b - a) / 86400000);
+}
+
 /**
  * Cobro mensual y suspensión por deuda. Todos los días a las 3 AM.
  *
  * Reemplaza al motor que hoy corre en el browser: ese solo se ejecuta cuando
  * alguien abre la app, así que una cuenta impaga podía seguir funcionando
  * indefinidamente si nadie entraba al panel.
+ *
+ * También barre las altas self-service (ver sección 5a) que se congelaron por
+ * falta de pago y llevan una semana así sin haber pagado nunca: esas se
+ * borran solas. Es el único lugar que borra algo sin que una persona lo pida.
  */
 /**
  * El cuerpo de la facturación, aparte del disparador.
@@ -303,6 +324,7 @@ async function procesarFacturacion() {
   // y encima el error no decía cuál era el problema real.
   const LIMITE = 450;
   const escrituras = [];
+  const aBorrar = [];
 
   let enPrueba = 0;
 
@@ -351,8 +373,34 @@ async function procesarFacturacion() {
     // `isFrozen` vive en el documento público porque las Rules y la página de
     // reservas lo necesitan para bloquear el link.
     const shouldFreeze = debt > 0;
-    if (Boolean(biz.isFrozen) !== shouldFreeze) {
-      escrituras.push({ ref: doc.ref, datos: { isFrozen: shouldFreeze }, merge: true });
+    const wasFrozen = Boolean(biz.isFrozen);
+    if (wasFrozen !== shouldFreeze) {
+      // `frozenAt` solo lo usa el borrado automático de abajo: cuánto tiempo
+      // lleva congelada. Se limpia al descongelar, así que si se vuelve a
+      // congelar más adelante por otra deuda, la cuenta arranca de nuevo y no
+      // desde la primera vez que pasó.
+      escrituras.push({
+        ref: doc.ref,
+        datos: { isFrozen: shouldFreeze, frozenAt: shouldFreeze ? today : FieldValue.delete() },
+        merge: true,
+      });
+    }
+
+    // Alta self-service (prueba de ~48 hs, ver sección 5a) que nunca pagó ni
+    // un peso y sigue congelada hace una semana: se borra sola. Esto NUNCA
+    // toca una cuenta que alguna vez registró un pago (billing.lastPaymentDate)
+    // ni una que no vino de esta puerta de alta — un cliente real que se
+    // atrasa lo suspende y, si hace falta, lo borra una persona a mano desde
+    // el panel global, nunca un cron.
+    const frozenAt = shouldFreeze ? (wasFrozen ? biz.frozenAt : today) : null;
+    if (
+      biz.signupSource === 'self_service' &&
+      shouldFreeze &&
+      frozenAt &&
+      !billing.lastPaymentDate &&
+      diasEntre(frozenAt, today) >= 7
+    ) {
+      aBorrar.push({ id: doc.id, negocio: biz });
     }
   });
 
@@ -364,9 +412,19 @@ async function procesarFacturacion() {
     await batch.commit();
   }
 
+  for (const { id, negocio } of aBorrar) {
+    try {
+      await borrarNegocioInterno(id, negocio);
+      console.log(`[billing] ${id} (self-service, nunca pagó) borrado tras una semana congelada.`);
+    } catch (err) {
+      console.error(`[billing] No se pudo borrar ${id}:`, err);
+    }
+  }
+
   console.log(
     `[billing] ${today}: ${escrituras.length} cambios sobre ${businesses.size} negocios` +
-    (enPrueba ? `, ${enPrueba} en período de prueba.` : '.')
+    (enPrueba ? `, ${enPrueba} en período de prueba.` : '.') +
+    (aBorrar.length ? ` ${aBorrar.length} negocios self-service borrados por inactividad.` : '')
   );
 }
 
@@ -915,6 +973,203 @@ exports.resetOwnerPassword = onCall(async (request) => {
 });
 
 // ============================================================================
+// 5a. ALTA SELF-SERVICE (prueba gratis)
+// ============================================================================
+// Hasta acá un negocio SIEMPRE lo daba de alta la plataforma a mano (ver
+// sección 5 arriba y CLAUDE.md: "no hay registro self-service y es a
+// propósito"). Esto abre una segunda puerta: quien entra con Google y todavía
+// no tiene negocio arma el suyo solo, con ~48 hs de prueba gratis, y elige un
+// plan para pagar después.
+//
+// Por qué esto NO puede ser un batch de Firestore desde el browser —como sí
+// lo es el alta manual en repository.js/createBusiness, protegida en las
+// Rules para que solo la plataforma la use—: acá quien crea el negocio y
+// quien se vuelve su dueño son la MISMA persona, sin que la plataforma
+// intervenga. El permiso (custom claim businessId + role owner) SOLO lo puede
+// escribir el Admin SDK — si saliera de un documento de Firestore, cualquiera
+// podría escribírselo a mano. Por eso el alta y el otorgamiento del rol de
+// dueño pasan por acá, atómicos (o lo más atómico que da Auth + Firestore).
+//
+// `enforceAppCheck` exige un token de App Check (reCAPTCHA v3 del browser)
+// además del login: de todos los callables, este es el único que cualquier
+// cuenta de Google puede llamar SIN tener ya un negocio — el resto ya exige
+// un businessId o el claim platform, que un bot no puede fabricarse solo.
+// Requiere configurar un site key de reCAPTCHA v3 y registrarlo en Firebase
+// Console → App Check (ver CLAUDE.md, "Próximos pasos"); sin esa clave el
+// browser no manda token y esta función rechaza la llamada.
+//
+// Las 48 hs son aproximadas (~2 días corridos), no exactas al minuto: se
+// apoyan en el mismo motor de facturación diario (`procesarFacturacion`, que
+// compara fechas calendario) para no duplicar infraestructura. La ventana
+// real varía entre 24 y 72 hs según la hora del día en que se dio de alta.
+
+const CATEGORIAS_VALIDAS = new Set([
+  'beauty', 'healthcare', 'wellness', 'automotive', 'education',
+  'professional_services', 'pet_services',
+]);
+
+const COLOR_HEX = /^#[0-9a-fA-F]{6}$/;
+
+// Mismo algoritmo que src/utils/slug.js. Duplicado a propósito: functions/ se
+// empaqueta y despliega aparte de src/, y un require relativo hacia afuera de
+// esta carpeta no viaja en el deploy (mismo motivo por el que timeToMinutes /
+// minutesToTime también están duplicadas acá, ver más abajo en esta sección).
+const RESERVED_SLUGS = ['login', 'admin', 'super-admin', 'confirmacion', 'mis-citas', 'cuenta', 'onboarding'];
+
+function slugify(text) {
+  return String(text || '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/ñ/gi, 'n')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 50);
+}
+
+// Duplicado de src/config/plans.js (solo lo que hace falta acá). Si cambian
+// los precios o los IDs de los planes, hay que tocar los dos lugares.
+const PLANS_SERVIDOR = {
+  basico: { monthlyFee: 12000, whatsappQuota: 100 },
+  pro: { monthlyFee: 22000, whatsappQuota: 500 },
+  business: { monthlyFee: 35000, whatsappQuota: 2000 },
+};
+const DEFAULT_PLAN_ID = 'basico';
+
+// Duplicado de DEFAULT_BUSINESS_HOURS en src/config/plans.js: sin esto un
+// negocio recién creado por acá aparece "cerrado" todos los días y nadie
+// puede reservarle un turno hasta que el dueño cargue horarios a mano.
+const HORARIO_POR_DEFECTO = [
+  { dayOfWeek: 0, startTime: '09:00', endTime: '20:00', isActive: true },
+  { dayOfWeek: 1, startTime: '09:00', endTime: '20:00', isActive: true },
+  { dayOfWeek: 2, startTime: '09:00', endTime: '20:00', isActive: true },
+  { dayOfWeek: 3, startTime: '09:00', endTime: '20:00', isActive: true },
+  { dayOfWeek: 4, startTime: '09:00', endTime: '20:00', isActive: true },
+  { dayOfWeek: 5, startTime: '09:00', endTime: '18:00', isActive: true },
+  { dayOfWeek: 6, startTime: '', endTime: '', isActive: false },
+];
+
+exports.createBusinessSelfService = onCall({ enforceAppCheck: true }, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Tenés que iniciar sesión.');
+  }
+
+  const token = request.auth.token;
+
+  // Una cuenta, un negocio propio. Si ya tiene businessId o es plataforma, no
+  // pasa por acá — ni para armar uno nuevo ni para "reintentar": un reintento
+  // legítimo (por ejemplo un error de red a mitad de camino) se resuelve
+  // desde soporte, no dejando que la misma cuenta duplique altas.
+  if (token.businessId || token.platform) {
+    throw new HttpsError('already-exists', 'Esta cuenta ya tiene un negocio asociado.');
+  }
+  // Mismo chequeo que applyPendingClaims/setBusinessAdmin: la API pública de
+  // Auth deja crear cuentas de email+contraseña sin verificar el mail. Acá no
+  // debería disparar nunca con Google (siempre viene verificado), pero si el
+  // día de mañana se habilita otro proveedor, esto ya está.
+  if (!token.email_verified) {
+    throw new HttpsError('failed-precondition', 'Tu cuenta no tiene el mail verificado.');
+  }
+
+  const {
+    name = '',
+    professionCategory = '',
+    customProfession = '',
+    primaryColor = null,
+    planId = DEFAULT_PLAN_ID,
+  } = request.data || {};
+
+  const nombre = String(name).trim().slice(0, 80);
+  if (!nombre) throw new HttpsError('invalid-argument', 'Falta el nombre del negocio.');
+
+  const categoria = CATEGORIAS_VALIDAS.has(professionCategory) ? professionCategory : 'general';
+  const profesionPropia = categoria === 'general' ? String(customProfession).trim().slice(0, 80) : '';
+
+  const plan = PLANS_SERVIDOR[planId] ? planId : DEFAULT_PLAN_ID;
+  const { monthlyFee, whatsappQuota } = PLANS_SERVIDOR[plan];
+
+  const color = primaryColor && COLOR_HEX.test(primaryColor) ? primaryColor : null;
+
+  // Slug único a partir del nombre. No se acepta uno elegido por quien llama:
+  // es la única pieza de esta función que queda pública para siempre (la URL
+  // del negocio), así que sale del nombre y no de un campo libre sin validar.
+  const base = slugify(nombre) || 'negocio';
+  let slug = base;
+  let intento = 1;
+  // Tope defensivo: 200 vueltas ya es spam de altas con el mismo nombre, no
+  // una carrera legítima entre dos personas.
+  while (intento < 200) {
+    if (!RESERVED_SLUGS.includes(slug)) {
+      const libre = !(await db.doc(`slugs/${slug}`).get()).exists;
+      if (libre) break;
+    }
+    intento++;
+    slug = `${base}-${intento}`;
+  }
+  if (intento >= 200) {
+    throw new HttpsError('resource-exhausted', 'No se pudo generar un link único. Probá con otro nombre.');
+  }
+
+  const today = hoyEnArgentina();
+  const trialEndsAt = sumarDiasArg(today, 2);
+
+  const ref = db.collection('businesses').doc();
+  const businessId = ref.id;
+  const email = String(token.email || '').toLowerCase();
+
+  const batch = db.batch();
+  batch.set(ref, {
+    id: businessId,
+    name: nombre,
+    slug,
+    context: { professionCategory: categoria, customProfession: profesionPropia || null },
+    ...(color ? { primaryColor: color } : {}),
+    businessHours: HORARIO_POR_DEFECTO,
+    planId: plan,
+    whatsappQuota,
+    trialEndsAt,
+    isFrozen: false,
+    signupSource: 'self_service',
+    createdAt: FieldValue.serverTimestamp(),
+  });
+  batch.set(db.doc(`slugs/${slug}`), { businessId });
+  batch.set(db.doc(`businesses/${businessId}/private/billing`), {
+    debt: 0,
+    monthlyFee,
+    planId: plan,
+    // Mismo patrón que el alta manual (NewBusinessModal): el primer
+    // vencimiento cae el mismo día que termina la prueba, así que al día
+    // siguiente entra a cobrarse sola por el camino normal de
+    // procesarFacturacion y, si no se paga, se congela — sin este campo, la
+    // función le regalaría además un mes entero de gracia extra.
+    nextBillingDate: trialEndsAt,
+  });
+  batch.set(db.doc(`businesses/${businessId}/admins/${email}`), {
+    email,
+    name: token.name || '',
+    role: 'owner',
+    businessId,
+    professionalId: null,
+    addedAt: FieldValue.serverTimestamp(),
+  });
+  await batch.commit();
+
+  try {
+    await getAuth().setCustomUserClaims(request.auth.uid, { businessId, role: 'owner' });
+  } catch (err) {
+    // Compensación: si no se pudo dar el permiso, no queda un negocio
+    // huérfano que nadie puede administrar y que el borrado automático
+    // tampoco va a alcanzar nunca (isFrozen arranca en false). Mejor que
+    // falle limpio acá y la persona pueda reintentar.
+    await db.doc(`slugs/${slug}`).delete().catch(() => {});
+    await db.recursiveDelete(ref).catch(() => {});
+    throw new HttpsError('internal', 'No se pudo terminar el alta. Probá de nuevo.');
+  }
+
+  return { status: 'created', businessId, slug, trialEndsAt };
+});
+
+// ============================================================================
 // 5b. BORRAR UNA BARBERÍA
 // ============================================================================
 // Firestore no borra en cascada: eliminar /businesses/{id} desde el browser
@@ -925,23 +1180,17 @@ exports.resetOwnerPassword = onCall(async (request) => {
 //
 // Es definitivo. La confirmación (escribir el nombre) la pide el panel.
 
-exports.deleteBusiness = onCall(async (request) => {
-  assertPlatformOwner(request);
-
-  const { businessId, confirmName } = request.data || {};
-  if (!businessId) throw new HttpsError('invalid-argument', 'Falta el id del negocio.');
-
-  const ref = db.doc(`businesses/${businessId}`);
-  const snap = await ref.get();
-  if (!snap.exists) throw new HttpsError('not-found', 'Ese negocio no existe.');
-  const negocio = snap.data();
-
-  // Segunda barrera, del lado del servidor: el nombre tal cual.
-  if (String(confirmName || '').trim() !== String(negocio.name || '').trim()) {
-    throw new HttpsError('failed-precondition', 'El nombre no coincide.');
-  }
-
+/**
+ * Borra un negocio entero: claims de sus usuarios, pendientes, tickets, slug
+ * y el documento con todas sus subcolecciones. Compartido por el callable de
+ * abajo (borrado a mano, con confirmación, desde el panel global) y por la
+ * limpieza automática de pruebas self-service que nunca convirtieron (ver
+ * `procesarFacturacion`, sección 2). Sin auth ni confirmación acá adentro:
+ * eso lo resuelve quien llama, antes de invocarlo.
+ */
+async function borrarNegocioInterno(businessId, negocio) {
   const resumen = { usuarios: 0, tickets: 0, pendientes: 0 };
+  const ref = db.doc(`businesses/${businessId}`);
 
   // 1. Claims: todos los usuarios cuyo businessId sea este. Se buscan en Auth
   //    y no solo en /admins, porque el registro de /admins puede estar
@@ -973,6 +1222,26 @@ exports.deleteBusiness = onCall(async (request) => {
   // 5. El negocio con todas sus subcolecciones.
   await db.recursiveDelete(ref);
 
+  return resumen;
+}
+
+exports.deleteBusiness = onCall(async (request) => {
+  assertPlatformOwner(request);
+
+  const { businessId, confirmName } = request.data || {};
+  if (!businessId) throw new HttpsError('invalid-argument', 'Falta el id del negocio.');
+
+  const ref = db.doc(`businesses/${businessId}`);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError('not-found', 'Ese negocio no existe.');
+  const negocio = snap.data();
+
+  // Segunda barrera, del lado del servidor: el nombre tal cual.
+  if (String(confirmName || '').trim() !== String(negocio.name || '').trim()) {
+    throw new HttpsError('failed-precondition', 'El nombre no coincide.');
+  }
+
+  const resumen = await borrarNegocioInterno(businessId, negocio);
   return { status: 'deleted', ...resumen };
 });
 

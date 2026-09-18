@@ -26,6 +26,7 @@ const LandingPage      = lazy(() => import('./pages/LandingPage'));
 const BookingPage      = lazy(() => import('./pages/client/BookingPage'));
 const ConfirmationPage = lazy(() => import('./pages/client/ConfirmationPage'));
 const MyAppointments   = lazy(() => import('./pages/client/MyAppointments'));
+const OnboardingPage   = lazy(() => import('./pages/client/OnboardingPage'));
 
 // Panel del negocio
 const DashboardPage       = lazy(() => import('./pages/admin/DashboardPage'));
@@ -171,9 +172,20 @@ export default function App() {
         {/* Redirigir la vieja URL del admin login al login unificado */}
         <Route path="/admin/login" element={<Navigate to="/login" replace />} />
 
-        {/* Adónde cae quien se logueó pero no tiene barbería. Antes volvía a la
-            landing sin explicación y parecía que el login había fallado. */}
+        {/* Adónde cae quien se logueó pero no tiene negocio. Antes volvía a la
+            landing sin explicación y parecía que el login había fallado.
+            Ahora es el fallback de "prefiero que me lo armen"; el destino
+            por defecto de ese login es /onboarding (ver LoginPage). */}
         <Route path="/cuenta" element={<ClientLayout><CuentaSinNegocio /></ClientLayout>} />
+
+        {/* Alta self-service: la completa quien se logueó con Google y
+            todavía no tiene negocio. Ver OnboardingPage y
+            functions/index.js → createBusinessSelfService. */}
+        <Route path="/onboarding" element={
+          <ProtectedRoute>
+            <ClientLayout><OnboardingPage /></ClientLayout>
+          </ProtectedRoute>
+        } />
 
         {/* ── Rutas de admin ──────────────────────────────────────── */}
         <Route path="/admin" element={

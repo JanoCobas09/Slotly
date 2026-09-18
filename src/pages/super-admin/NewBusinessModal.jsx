@@ -6,15 +6,12 @@ import { slugify, isReservedSlug } from '../../utils/slug';
 import { createBusiness, isSlugAvailable } from '../../lib/repository';
 import { setBusinessAdmin, createOwnerWithPassword } from '../../lib/functions';
 import {
-  listProfessionCategories,
   getProfessionPreset,
   matchProfessionCategory,
   DEFAULT_PROFESSION_CATEGORY,
 } from '../../config/professionPresets';
 import Icon from '../../components/Icon';
-
-const PROFESSION_CATEGORIES = listProfessionCategories();
-const OTHER_OPTION = 'other';
+import ProfessionCategoryPicker, { OTHER_OPTION } from '../../components/ProfessionCategoryPicker';
 
 // Onboarding manual: el cliente se contacta, se cierra la venta, y la cuenta se
 // prepara desde acá. No hay registro self-service a propósito.
@@ -428,105 +425,14 @@ export default function NewBusinessModal({ onClose, onCreated }) {
 
           {/* Rubro: la variable que después alimenta terminología, tema y
               servicios sugeridos (ver professionPresets.js). */}
-          <div className="form-group">
-            <label className="form-label">¿Qué tipo de negocio o servicio ofrece? <span className="required">*</span></label>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 8 }}>
-              {PROFESSION_CATEGORIES.map((cat) => (
-                <label
-                  key={cat.value}
-                  className="card card-selectable"
-                  style={{
-                    padding: '8px 12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    cursor: 'pointer',
-                    border: form.professionOption === cat.value ? '2px solid var(--primary)' : '1px solid var(--border-color)',
-                    margin: 0,
-                  }}
-                >
-                  <input
-                    type="radio"
-                    name="professionOption"
-                    checked={form.professionOption === cat.value}
-                    onChange={() => handleProfessionOptionChange(cat.value)}
-                  />
-                  <span
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      width: 28,
-                      height: 28,
-                      borderRadius: 8,
-                      background: 'var(--bg-secondary)',
-                      color: 'var(--primary)',
-                      fontSize: 15,
-                      flexShrink: 0,
-                    }}
-                  >
-                    <Icon name={cat.icon} />
-                  </span>
-                  <div>
-                    <div style={{ fontWeight: 'bold', fontSize: 12 }}>{cat.label}</div>
-                    <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{cat.examples}</div>
-                  </div>
-                </label>
-              ))}
-              <label
-                className="card card-selectable"
-                style={{
-                  padding: '8px 12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  cursor: 'pointer',
-                  border: form.professionOption === OTHER_OPTION ? '2px solid var(--primary)' : '1px solid var(--border-color)',
-                  margin: 0,
-                }}
-              >
-                <input
-                  type="radio"
-                  name="professionOption"
-                  checked={form.professionOption === OTHER_OPTION}
-                  onChange={() => handleProfessionOptionChange(OTHER_OPTION)}
-                />
-                <span
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: 28,
-                    height: 28,
-                    borderRadius: 8,
-                    background: 'var(--bg-secondary)',
-                    color: 'var(--primary)',
-                    fontSize: 15,
-                    flexShrink: 0,
-                  }}
-                >
-                  <Icon name="question" />
-                </span>
-                <div>
-                  <div style={{ fontWeight: 'bold', fontSize: 12 }}>No encuentro mi profesión</div>
-                  <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Escribila y la configuramos igual</div>
-                </div>
-              </label>
-            </div>
-            {errors.professionOption && <div className="form-error">{errors.professionOption}</div>}
-
-            {form.professionOption === OTHER_OPTION && (
-              <div style={{ marginTop: 8 }}>
-                <input
-                  className={`form-input ${errors.customProfession ? 'error' : ''}`}
-                  value={form.customProfession}
-                  onChange={(e) => handleCustomProfessionChange(e.target.value)}
-                  placeholder="Ej: Restaurador de instrumentos musicales"
-                />
-                {errors.customProfession && <div className="form-error">{errors.customProfession}</div>}
-              </div>
-            )}
-          </div>
+          <ProfessionCategoryPicker
+            value={form.professionOption}
+            onChange={handleProfessionOptionChange}
+            customProfession={form.customProfession}
+            onCustomProfessionChange={handleCustomProfessionChange}
+            error={errors.professionOption}
+            customError={errors.customProfession}
+          />
 
           <div className="form-group">
             <label className="form-label">URL pública <span className="required">*</span></label>
