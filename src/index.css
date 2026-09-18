@@ -3113,6 +3113,38 @@ select.form-input {
   background: var(--primary);
 }
 
+/* Resumen de una corrida larga de franjas libres seguidas (ver
+   UMBRAL_COLAPSO en AgendaDelDia.jsx) — una fila angosta en vez de una fila
+   completa por cada media hora vacía, para que un día sin turnos no sea un
+   scroll interminable. */
+.agenda-franja.bloque-libre {
+  min-height: 30px;
+  background: repeating-linear-gradient(
+    135deg,
+    var(--bg-secondary),
+    var(--bg-secondary) 6px,
+    transparent 6px,
+    transparent 12px
+  );
+}
+
+.agenda-franja.bloque-libre .agenda-hora {
+  padding-top: 6px;
+  padding-bottom: 6px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.agenda-franja.bloque-libre .agenda-celda {
+  justify-content: center;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.agenda-franja.bloque-libre .agenda-libre {
+  padding: 0;
+}
+
 .agenda-hora {
   font-family: var(--font-mono);
   font-size: 0.95rem;

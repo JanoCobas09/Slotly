@@ -44,6 +44,21 @@ function rangoDelDia(business, fechaISO) {
 const pad = (n) => String(n).padStart(2, '0');
 const aHora = (min) => `${pad(Math.floor(min / 60))}:${pad(min % 60)}`;
 
+/** "1 h 30 min", "45 min", "2 h" — para el resumen de un hueco libre largo. */
+function aDuracion(min) {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  if (h === 0) return `${m} min`;
+  if (m === 0) return `${h} h`;
+  return `${h} h ${m} min`;
+}
+
+// A partir de esta cantidad de franjas libres SEGUIDAS, se muestran como un
+// solo resumen en vez de una fila por franja. Con turnos cada 15 min y el
+// local abierto todo el día, sin esto la agenda es scroll infinito de filas
+// que dicen "libre" una debajo de la otra.
+const UMBRAL_COLAPSO = 3;
+
 export default function AgendaDelDia({
   appointments,
   professionals,
@@ -95,6 +110,60 @@ export default function AgendaDelDia({
     return d.getHours() * 60 + d.getMinutes();
   })();
 
+  // Una entrada por franja, con todo lo que ya calculaba el render antes de
+  // agruparlas (turnos, si sigue un turno anterior, si es "ahora", si ya
+  // pasó). Separado del agrupamiento de abajo para no calcularlo dos veces.
+  const infoFranjas = useMemo(() => franjas.map((m) => {
+    const turnos = delDia.filter((a) => {
+      const ini = timeToMinutes(a.startTime);
+      return ini >= m && ini < m + paso;
+    });
+    // Un turno largo (60 min con paso de 30) ocupa también las franjas
+    // siguientes: no están libres, sigue el mismo cliente.
+    const enCurso = turnos.length === 0 ? delDia.find((a) => {
+      const ini = timeToMinutes(a.startTime);
+      const fin = a.endTime ? timeToMinutes(a.endTime) : ini + paso;
+      return ini < m && fin > m;
+    }) : null;
+    const esAhora = ahoraMin !== null && ahoraMin >= m && ahoraMin < m + paso;
+    const yaPaso = ahoraMin !== null && m + paso <= ahoraMin;
+    return { m, turnos, enCurso, esAhora, yaPaso };
+  }), [franjas, delDia, paso, ahoraMin]);
+
+  // Agrupa corridas largas de franjas libres seguidas en un solo resumen
+  // ("09:00–13:00 · libre") en vez de una fila por cada media hora vacía.
+  // "Ahora" y las franjas con turno cortan la corrida: siempre quedan
+  // visibles como filas propias.
+  const filas = useMemo(() => {
+    const out = [];
+    let corrida = [];
+    const flush = () => {
+      if (corrida.length === 0) return;
+      if (corrida.length < UMBRAL_COLAPSO) {
+        for (const info of corrida) out.push({ tipo: 'franja', info });
+      } else {
+        out.push({
+          tipo: 'bloque',
+          desde: corrida[0].m,
+          hasta: corrida[corrida.length - 1].m + paso,
+          pasada: corrida.every((info) => info.yaPaso),
+        });
+      }
+      corrida = [];
+    };
+    for (const info of infoFranjas) {
+      const esLibre = info.turnos.length === 0 && !info.enCurso && !info.esAhora;
+      if (esLibre) {
+        corrida.push(info);
+      } else {
+        flush();
+        out.push({ tipo: 'franja', info });
+      }
+    }
+    flush();
+    return out;
+  }, [infoFranjas, paso]);
+
   const nombreProf = (id) => professionals.find((p) => p.id === id)?.name || '—';
   const nombreSrv = (a) => a.serviceName || services.find((s) => s.id === a.serviceId)?.name || (a.type === 'walkin' ? 'Servicio sin turno' : '—');
 
@@ -139,20 +208,21 @@ export default function AgendaDelDia({
         </div>
       ) : (
         <div className="agenda-franjas">
-          {franjas.map((m) => {
-            const turnos = delDia.filter((a) => {
-              const ini = timeToMinutes(a.startTime);
-              return ini >= m && ini < m + paso;
-            });
-            // Un turno largo (60 min con paso de 30) ocupa también las franjas
-            // siguientes: no están libres, sigue el mismo cliente.
-            const enCurso = turnos.length === 0 ? delDia.find((a) => {
-              const ini = timeToMinutes(a.startTime);
-              const fin = a.endTime ? timeToMinutes(a.endTime) : ini + paso;
-              return ini < m && fin > m;
-            }) : null;
-            const esAhora = ahoraMin !== null && ahoraMin >= m && ahoraMin < m + paso;
-            const yaPaso = ahoraMin !== null && m + paso <= ahoraMin;
+          {filas.map((fila) => {
+            if (fila.tipo === 'bloque') {
+              return (
+                <div key={`bloque-${fila.desde}`} className={`agenda-franja bloque-libre ${fila.pasada ? 'pasada' : ''}`}>
+                  <div className="agenda-hora">{aHora(fila.desde)}</div>
+                  <div className="agenda-celda">
+                    <span className="agenda-libre">
+                      libre hasta las {aHora(fila.hasta)} · {aDuracion(fila.hasta - fila.desde)}
+                    </span>
+                  </div>
+                </div>
+              );
+            }
+
+            const { m, turnos, enCurso, esAhora, yaPaso } = fila.info;
             return (
               <div key={m} className={`agenda-franja ${turnos.length ? 'con-turno' : enCurso ? 'ocupada' : 'libre'} ${esAhora ? 'ahora' : ''} ${yaPaso ? 'pasada' : ''}`}>
                 <div className="agenda-hora">{aHora(m)}</div>
