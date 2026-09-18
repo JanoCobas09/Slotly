@@ -1,10 +1,12 @@
 import { useLocation, Link } from 'react-router-dom';
 import { useTenant } from '../../hooks/useTenantData';
 import { formatDate, formatPrice } from '../../utils/dateUtils';
+import { useBusinessContext } from '../../hooks/useBusinessContext';
 
 export default function ConfirmationPage() {
   const location = useLocation();
   const { professionals, services, business, slug } = useTenant();
+  const { terminology } = useBusinessContext();
   const appointment = location.state?.appointment;
   const home = `/${slug}`;
 
@@ -26,10 +28,10 @@ export default function ConfirmationPage() {
   return (
     <div className="confirmation-container">
       <div className="confirmation-icon">✓</div>
-      {/* Nace 'pendiente': la barbería lo confirma. Decir "confirmada" acá y
-          que el barbero lo vea como pendiente confundía a los dos. */}
-      <h1>¡Turno reservado!</h1>
-      <p className="text-secondary mt-sm mb-lg">Quedó agendado en la barbería. Si hay algún cambio, te van a avisar.</p>
+      {/* Nace 'pendiente': el negocio lo confirma. Decir "confirmada" acá y
+          que el staff lo vea como pendiente confundía a los dos. */}
+      <h1>¡{terminology.appointmentNoun.charAt(0).toUpperCase()}{terminology.appointmentNoun.slice(1)} reservado!</h1>
+      <p className="text-secondary mt-sm mb-lg">{terminology.confirmationMsg}</p>
 
       <div className="summary-card" style={{ textAlign: 'left' }}>
         <div className="summary-body">
@@ -38,7 +40,7 @@ export default function ConfirmationPage() {
             <span className="summary-value">{professional?.name}</span>
           </div>
           <div className="summary-row">
-            <span className="summary-label">✂️ Servicio</span>
+            <span className="summary-label">📋 Servicio</span>
             <span className="summary-value">{service?.name}</span>
           </div>
           <div className="summary-row">

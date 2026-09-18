@@ -8,10 +8,12 @@ import {
 } from '../../lib/repository';
 import { useTenant } from '../../hooks/useTenantData';
 import { getDayName, generateId } from '../../utils/dateUtils';
+import { useBusinessContext } from '../../hooks/useBusinessContext';
 
 export default function ProfileSettingsPage() {
   const { user } = useAuth();
   const { professionals, schedules, businessId } = useTenant();
+  const { terminology } = useBusinessContext();
   const [guardando, setGuardando] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -73,7 +75,7 @@ export default function ProfileSettingsPage() {
         <div style={{ fontSize: '3rem', marginBottom: 'var(--space-md)' }}>⚠️</div>
         <h3>Perfil No Vinculado</h3>
         <p className="text-secondary mt-sm">
-          Esta cuenta de administrador no está vinculada a ningún perfil de profesional (barbero/estilista). 
+          Esta cuenta de administrador no está vinculada a ningún perfil de profesional.
           Contacta al dueño del negocio para asociar tu correo de Google a tu perfil.
         </p>
       </div>
@@ -126,7 +128,7 @@ export default function ProfileSettingsPage() {
         <div>
           <h1>Mi Configuración</h1>
           <p className="text-secondary text-sm" style={{ marginTop: 4 }}>
-            Tus datos personales y tus horarios de trabajo en la barbería.
+            Tus datos personales y tus horarios de trabajo.
           </p>
         </div>
         {saved && <span className="badge badge-success">✅ Cambios Guardados</span>}
@@ -154,7 +156,7 @@ export default function ProfileSettingsPage() {
                   className="form-input"
                   value={form.specialty}
                   onChange={e => editar({ specialty: e.target.value })}
-                  placeholder="Ej: Barbero Senior / Fade Master"
+                  placeholder={`Ej: ${terminology.professionalNoun.charAt(0).toUpperCase()}${terminology.professionalNoun.slice(1)} Senior`}
                 />
               </div>
 

@@ -4,17 +4,17 @@ import { useAuth } from '../../contexts/AuthContext';
 // Mismo número que la landing y el panel. Si cambia, cambia en los tres.
 const WHATSAPP = '5492257529684';
 const mensaje = encodeURIComponent(
-  'Hola! Entré a BarberOS con mi cuenta y me dice que todavía no tengo barbería. Quiero saber cómo activarla.'
+  'Hola! Entré con mi cuenta y me dice que todavía no tengo un negocio asociado. Quiero saber cómo activarlo.'
 );
 const LINK_WA = `https://wa.me/${WHATSAPP}?text=${mensaje}`;
 
 /**
- * Adónde va alguien que inició sesión y no tiene ninguna barbería asociada.
+ * Adónde va alguien que inició sesión y no tiene ningún negocio asociado.
  *
  * Antes se lo devolvía a la landing sin decirle nada: entraba, se logueaba bien,
  * y volvía al mismo lugar. Quedaba pensando que no había funcionado — y es
- * justamente el barbero curioso que entró a probar, o sea el lead que menos
- * conviene perder en silencio.
+ * justamente el curioso que entró a probar, o sea el lead que menos conviene
+ * perder en silencio.
  *
  * No hay registro self-service y es a propósito (ver CLAUDE.md): la cuenta la
  * prepara la plataforma con el equipo, los servicios y los horarios ya cargados.
@@ -25,8 +25,8 @@ export default function CuentaSinBarberia() {
 
   return (
     <div className="empty-state" style={{ maxWidth: 560, margin: '0 auto' }}>
-      <div className="empty-state-icon">💈</div>
-      <h2>Tu cuenta todavía no tiene una barbería</h2>
+      <div className="empty-state-icon">🏢</div>
+      <h2>Tu cuenta todavía no tiene un negocio</h2>
 
       {user?.email && (
         <p className="text-secondary" style={{ marginBottom: 'var(--space-md)' }}>
@@ -35,8 +35,8 @@ export default function CuentaSinBarberia() {
       )}
 
       <p>
-        Las cuentas de BarberOS las activamos nosotros: te la dejamos andando con
-        tu equipo, tus servicios y tus horarios ya cargados. No tenés que
+        Las cuentas las activamos nosotros: te la dejamos andando con tu
+        equipo, tus servicios y tus horarios ya cargados. No tenés que
         configurar nada.
       </p>
 
@@ -57,7 +57,7 @@ export default function CuentaSinBarberia() {
           <strong>¿Venías a reservar un turno?</strong>
         </p>
         <p className="text-sm text-secondary">
-          Pedile a tu barbería el link que te compartieron: cada una tiene su
+          Pedile al negocio el link que te compartieron: cada uno tiene su
           propia dirección.
         </p>
       </div>

@@ -11,27 +11,31 @@ import {
 } from '../../lib/repository';
 import { getDayName, generateId } from '../../utils/dateUtils';
 import { getPlan } from '../../config/plans';
+import { useBusinessContext } from '../../hooks/useBusinessContext';
 
 // Mismo número que la landing y el resto del panel.
 const LINK_AMPLIAR = 'https://wa.me/5492257529684?text=' +
-  encodeURIComponent('Hola! Necesito sumar más barberos a mi cuenta de BarberOS.');
+  encodeURIComponent('Hola! Necesito sumar más profesionales a mi cuenta.');
 
 export default function ProfessionalsPage() {
   const { professionals, schedules, professionalServices, services, businessId, business } = useTenant();
+  const { terminology } = useBusinessContext();
+  const profesionalPlural = `${terminology.professionalNoun}s`;
 
-  // Límite de barberos del plan contratado. `maxBarbers: null` = sin tope.
+  // Límite de profesionales del plan contratado. `maxProfessionals: null` = sin
+  // tope. `maxBarbers` es el nombre viejo del mismo campo (ver plans.js).
   //
-  // Se cuentan solo los activos: un barbero que se fue no debería ocuparle un
-  // lugar al que entra. Y se compara al AGREGAR, no al editar, para que una
-  // barbería que ya está por encima del límite —porque le bajaron el plan—
-  // pueda seguir administrando a los que tiene en vez de quedar trabada.
+  // Se cuentan solo los activos: uno que se fue no debería ocuparle un lugar
+  // al que entra. Y se compara al AGREGAR, no al editar, para que un negocio
+  // que ya está por encima del límite —porque le bajaron el plan— pueda
+  // seguir administrando a los que tiene en vez de quedar trabado.
   //
   // Esto es un límite comercial, no una barrera de seguridad: vive en la
   // interfaz. Alguien con la consola abierta podría saltearlo, igual que
   // cualquier tope de plan en una app de browser. Lo que protege los datos son
   // las Rules, y este número no es un dato a proteger.
   const plan = getPlan(business?.planId);
-  const topeBarberos = plan?.maxBarbers ?? null;
+  const topeBarberos = plan?.maxProfessionals ?? plan?.maxBarbers ?? null;
   const activos = professionals.filter((p) => p.isActive !== false).length;
   const llegoAlTope = topeBarberos !== null && activos >= topeBarberos;
 
@@ -206,7 +210,7 @@ export default function ProfessionalsPage() {
       {llegoAlTope && (
         <div className="notice notice-info" style={{ marginBottom: 'var(--space-md)' }}>
           <strong>Llegaste al tope de tu plan.</strong> Incluye{' '}
-          {topeBarberos === 1 ? '1 barbero' : `${topeBarberos} barberos`} y ya los
+          {topeBarberos === 1 ? `1 ${terminology.professionalNoun}` : `${topeBarberos} ${profesionalPlural}`} y ya los
           tenés cargados. Para sumar más,{' '}
           <a href={LINK_AMPLIAR} target="_blank" rel="noreferrer" style={{ fontWeight: 700 }}>
             escribinos y ampliamos tu cuenta
@@ -309,7 +313,7 @@ export default function ProfessionalsPage() {
                     className="form-input"
                     value={form.specialty}
                     onChange={e => setForm({ ...form, specialty: e.target.value })}
-                    placeholder="Ej: Barbero Senior"
+                    placeholder={`Ej: ${terminology.professionalNoun.charAt(0).toUpperCase()}${terminology.professionalNoun.slice(1)} Senior`}
                   />
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>

@@ -9,7 +9,7 @@ import { useBusinessContext } from '../../hooks/useBusinessContext';
 const ownerNavItems = [
   { to: '/admin',               icon: '📊', label: 'Dashboard',        end: true },
   { to: '/admin/profesionales', icon: '👥', label: 'Profesionales' },
-  { to: '/admin/servicios',     icon: '✂️', label: 'Servicios' },
+  { to: '/admin/servicios',     icon: '🧾', label: 'Servicios' },
   { to: '/admin/citas',         icon: '📅', label: 'Citas' },
   { to: '/admin/admins',        icon: '🛡️', label: 'Administradores' },
   { to: '/admin/configuracion', icon: '⚙️', label: 'Configuración' },

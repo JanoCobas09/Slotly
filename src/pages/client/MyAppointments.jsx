@@ -112,7 +112,7 @@ export default function MyAppointments() {
                     </button>
                   ) : (
                     <span className="text-sm text-muted" title={`Se puede cancelar hasta ${horasMinimas} h antes`}>
-                      Para cancelar, escribile a la barbería
+                      Para cancelar, escribile al negocio
                     </span>
                   )
                 )}

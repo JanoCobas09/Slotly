@@ -3,15 +3,21 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../hooks/useTenantData';
 import { setBusinessAdmin, revokeBusinessAdmin } from '../../lib/functions';
+import { useBusinessContext } from '../../hooks/useBusinessContext';
 
-const ROLE_ADMIN = { value: 'admin', label: '✂️ Peluquero — solo sus citas' };
-const ROLE_OWNER = { value: 'owner', label: '👑 Dueño — acceso total' };
+const ROLE_OWNER = { value: 'owner', label: '👑 Dueño/a — acceso total' };
 
 const EMPTY_FORM = { email: '', role: 'admin', professionalId: '', name: '' };
+
+function cap(text) {
+  return text ? text.charAt(0).toUpperCase() + text.slice(1) : text;
+}
 
 export default function AdminsPage() {
   const { user } = useAuth();
   const { authorizedAdmins, professionals, businessId } = useTenant();
+  const { terminology } = useBusinessContext();
+  const roleAdmin = { value: 'admin', label: `🔖 ${terminology.professionalNoun} — solo sus citas` };
 
   const [showModal, setShowModal] = useState(false);
   const [editTarget, setEditTarget] = useState(null); // null = nuevo, id = editar
@@ -23,7 +29,7 @@ export default function AdminsPage() {
   // Designar dueños es exclusivo de la plataforma: el dueño es quien paga la
   // cuenta, así que quién lo es no se delega al tenant. La Cloud Function
   // rechaza el intento; acá directamente no se ofrece la opción.
-  const roleOptions = user?.isPlatformOwner ? [ROLE_OWNER, ROLE_ADMIN] : [ROLE_ADMIN];
+  const roleOptions = user?.isPlatformOwner ? [ROLE_OWNER, roleAdmin] : [roleAdmin];
 
   // Solo el dueño entra acá. El corte va DESPUÉS de los hooks: si va antes,
   // React ve una cantidad distinta de hooks entre renders y explota cuando el
@@ -52,7 +58,7 @@ export default function AdminsPage() {
   const handleSave = async () => {
     if (!form.email.trim()) return setError('El email es obligatorio.');
     if (!form.email.includes('@')) return setError('Ingresá un email válido.');
-    if (form.role === 'admin' && !form.professionalId) return setError('Los peluqueros deben tener un profesional asignado.');
+    if (form.role === 'admin' && !form.professionalId) return setError(`Los ${terminology.professionalNoun}s deben tener un profesional asignado.`);
 
     // Verificar duplicado de email (solo en creación nueva)
     if (!editTarget) {
@@ -147,7 +153,7 @@ export default function AdminsPage() {
                 <tr key={admin.id}>
                   <td>
                     <div className="flex items-center gap-sm">
-                      <span style={{ fontSize: 20 }}>{admin.role === 'owner' ? '👑' : '✂️'}</span>
+                      <span style={{ fontSize: 20 }}>{admin.role === 'owner' ? '👑' : '🔖'}</span>
                       <span>{admin.email}</span>
                       {isMe && <span className="badge badge-primary" style={{ fontSize: 10 }}>Vos</span>}
                     </div>
@@ -155,7 +161,7 @@ export default function AdminsPage() {
                   <td className="oculta-mobile">{admin.name || '—'}</td>
                   <td>
                     <span className={`badge ${admin.role === 'owner' ? 'badge-primary' : 'badge-success'}`}>
-                      {admin.role === 'owner' ? 'Dueño' : 'Peluquero'}
+                      {admin.role === 'owner' ? 'Dueño/a' : cap(terminology.professionalNoun)}
                     </span>
                   </td>
                   <td className="oculta-mobile">{prof?.name || (admin.role === 'owner' ? '—' : <span className="text-muted">Sin asignar</span>)}</td>
@@ -185,11 +191,11 @@ export default function AdminsPage() {
         <h4 style={{ color: 'var(--primary)', marginBottom: 'var(--space-sm)' }}>ℹ️ ¿Cómo funciona?</h4>
         <ul style={{ paddingLeft: 'var(--space-lg)', color: 'var(--text-secondary)', fontSize: 14, lineHeight: 1.8 }}>
           <li>Al agregar un email acá, el permiso queda escrito en su cuenta.</li>
-          <li><strong>Si ya usó BarberOS alguna vez</strong> → el acceso queda activo enseguida, pero tiene que cerrar sesión y volver a entrar para que le tome.</li>
+          <li><strong>Si ya inició sesión alguna vez</strong> → el acceso queda activo enseguida, pero tiene que cerrar sesión y volver a entrar para que le tome.</li>
           <li><strong>Si nunca entró</strong> → el permiso queda anotado y se activa solo, la primera vez que inicie sesión.</li>
           <li><strong>Quien no está en la lista</strong> → va al flujo normal de reserva de clientes.</li>
-          <li><strong>Dueño</strong>: ve todas las citas, estadísticas globales y puede modificar todo.</li>
-          <li><strong>Peluquero</strong>: solo ve las citas asignadas a su perfil de profesional.</li>
+          <li><strong>Dueño/a</strong>: ve todas las citas, estadísticas globales y puede modificar todo.</li>
+          <li><strong>{cap(terminology.professionalNoun)}</strong>: solo ve las citas asignadas a su perfil de profesional.</li>
         </ul>
       </div>
 
@@ -213,7 +219,7 @@ export default function AdminsPage() {
                 <input
                   className="form-input"
                   type="email"
-                  placeholder="peluquero@gmail.com"
+                  placeholder="nombre@gmail.com"
                   value={form.email}
                   onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
                   autoFocus
@@ -267,7 +273,7 @@ export default function AdminsPage() {
                     ))}
                   </select>
                   <p className="text-xs text-muted" style={{ marginTop: 4 }}>
-                    El peluquero solo verá las citas asignadas a este perfil.
+                    Solo va a ver las citas asignadas a este perfil.
                   </p>
                 </div>
               )}

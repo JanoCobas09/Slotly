@@ -91,7 +91,7 @@ export default function LoginPage() {
         <p className="auth-subtitle">
           {vieneDeReserva
             ? 'Entrá con tu cuenta para confirmar el turno'
-            : 'Entrá a tu panel, o al link de tu barbería para reservar'}
+            : 'Entrá a tu panel, o al link de tu negocio para reservar'}
         </p>
 
         {error && (
@@ -227,7 +227,7 @@ export default function LoginPage() {
               <div style={{ display: 'flex', gap: 6 }}>
                 <input
                   className="form-input"
-                  placeholder="otro mail (dueño de barbería, cliente...)"
+                  placeholder="otro mail (dueño de negocio, cliente...)"
                   style={{ fontSize: 13, margin: 0 }}
                   value={bypassEmail}
                   onChange={(e) => setBypassEmail(e.target.value)}

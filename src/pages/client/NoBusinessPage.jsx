@@ -4,8 +4,8 @@ import { useBusiness } from '../../contexts/BusinessContext';
 /**
  * Pantalla para cuando no se pudo resolver un negocio desde la URL.
  *
- * Por decisión de producto NO hay un selector público de barberías: cada
- * cliente entra por el link directo de su negocio (`/barberia-sacia`).
+ * Por decisión de producto NO hay un selector público de negocios: cada
+ * cliente entra por el link directo del suyo (`/mi-negocio`).
  * En desarrollo sí listamos los tenants para poder probar el aislamiento.
  */
 export default function NoBusinessPage({ reason = 'not-found' }) {
@@ -26,7 +26,7 @@ export default function NoBusinessPage({ reason = 'not-found' }) {
     'no-slug': {
       icon: '📅',
       title: 'Necesitás el link de tu negocio',
-      text: 'Para reservar un turno entrá con el link que te compartió tu barbería o salón.',
+      text: 'Para reservar un turno entrá con el link que te compartió el negocio.',
     },
   };
 

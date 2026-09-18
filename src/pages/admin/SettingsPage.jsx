@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { updateBusiness } from '../../lib/repository';
 import { useCurrentBusiness } from '../../hooks/useCurrentBusiness';
+import { useBusinessContext } from '../../hooks/useBusinessContext';
 import { getDayName } from '../../utils/dateUtils';
+import { applyTheme } from '../../config/theme';
 
 const defaultHours = [
   { dayOfWeek: 0, startTime: '09:00', endTime: '20:00', isActive: true },
@@ -17,6 +19,7 @@ const defaultHours = [
 export default function SettingsPage() {
   const { user } = useAuth();
   const { business, businessId } = useCurrentBusiness();
+  const { terminology } = useBusinessContext();
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
@@ -56,9 +59,9 @@ export default function SettingsPage() {
     // Guardado: los cambios ya son parte del negocio, así que el overlay se
     // vacía y el formulario vuelve a seguir el dato vivo.
     setCambios({});
-    // Apply colors
-    document.documentElement.style.setProperty('--primary', form.primaryColor);
-    document.documentElement.style.setProperty('--secondary', form.secondaryColor || form.primaryColor);
+    // Mismo camino que useBusinessContext(): un solo lugar que sabe pintar el
+    // tema, en vez de reescribir las custom properties acá también.
+    applyTheme(form);
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   };
@@ -158,7 +161,7 @@ export default function SettingsPage() {
                   </select>
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Cada cuánto se ofrece un turno</label>
+                  <label className="form-label">Cada cuánto se ofrece un{' '}{terminology.appointmentNoun}</label>
                   <select className="form-input" value={form.slotInterval} onChange={e => editar({ slotInterval: parseInt(e.target.value) })}>
                     <option value={15}>Cada 15 minutos</option>
                     <option value={30}>Cada 30 minutos</option>
@@ -166,13 +169,13 @@ export default function SettingsPage() {
                     <option value={60}>Cada 1 hora</option>
                   </select>
                   <p className="text-sm text-muted" style={{ marginTop: 6 }}>
-                    Es el paso de la grilla que ve el cliente. Con 30, ve 09:00, 09:30, 10:00…
-                    La duración de cada turno la define el servicio.
+                    Es el paso de la grilla que ve el {terminology.customerNoun}. Con 30, ve 09:00, 09:30, 10:00…
+                    La duración de cada {terminology.appointmentNoun} la define el servicio.
                   </p>
                 </div>
               </div>
               <div className="form-group">
-                <label className="form-label">Con cuánta anticipación puede cancelar el cliente</label>
+                <label className="form-label">Con cuánta anticipación puede cancelar el {terminology.customerNoun}</label>
                 <select className="form-input" value={form.minCancelHours || 2} onChange={e => editar({ minCancelHours: parseInt(e.target.value) })}>
                   <option value={1}>1 hora</option>
                   <option value={2}>2 horas</option>
@@ -181,7 +184,7 @@ export default function SettingsPage() {
                   <option value={24}>24 horas</option>
                 </select>
                 <p className="text-sm text-muted" style={{ marginTop: 6 }}>
-                  Más cerca del turno, el cliente ya no puede cancelarlo solo: te tiene que escribir.
+                  Más cerca del {terminology.appointmentNoun}, el {terminology.customerNoun} ya no puede cancelarlo solo: te tiene que escribir.
                 </p>
               </div>
               <div className="form-group">
@@ -196,8 +199,8 @@ export default function SettingsPage() {
           </div>
 
           <div className="card mt-md">
-            <h3 className="mb-lg">Horarios de la Barbería</h3>
-            <p className="text-secondary text-sm mb-md">Configura los días y horarios en los que la barbería se encuentra abierta al público.</p>
+            <h3 className="mb-lg">Horarios de atención</h3>
+            <p className="text-secondary text-sm mb-md">Configurá los días y horarios en los que tu negocio se encuentra abierto al público.</p>
             <div className="schedule-grid">
               {(form.businessHours || defaultHours).map((sch, idx) => (
                 <div key={idx} className="schedule-row">

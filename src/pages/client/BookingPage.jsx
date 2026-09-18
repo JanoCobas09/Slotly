@@ -6,6 +6,7 @@ import { useTenant } from '../../hooks/useTenantData';
 import { createAppointment, getBusySlots } from '../../lib/functions';
 import { calculateAvailableSlots, professionalWorksOnDate } from '../../utils/availabilityEngine';
 import { formatDate, formatPrice, toDateString, getMonthName } from '../../utils/dateUtils';
+import { useBusinessContext } from '../../hooks/useBusinessContext';
 
 // ---- STEPPER ----
 function Stepper({ step }) {
@@ -244,6 +245,7 @@ function telefonoValido(tel) {
 }
 
 function PersonalInfoStep({ user, phone, onPhoneChange }) {
+  const { terminology } = useBusinessContext();
   const tocado = phone.length > 0;
   const valido = telefonoValido(phone);
   return (
@@ -282,7 +284,7 @@ function PersonalInfoStep({ user, phone, onPhoneChange }) {
             </p>
           )}
           <p className="text-xs text-muted" style={{ marginTop: 4 }}>
-            Es por donde te va a contactar la barbería si hace falta.
+            Es por donde te va a contactar el negocio si hace falta.
           </p>
         </div>
       </div>
@@ -292,9 +294,10 @@ function PersonalInfoStep({ user, phone, onPhoneChange }) {
 
 // ---- SUMMARY ----
 function BookingSummary({ professional, service, date, timeSlot, price, currency, clientName, clientPhone }) {
+  const { terminology } = useBusinessContext();
   return (
     <div>
-      <h2 className="booking-step-title">Confirmar tu reserva</h2>
+      <h2 className="booking-step-title">Confirmar tu {terminology.appointmentNoun}</h2>
       <p className="booking-step-subtitle">Revisá los datos antes de confirmar</p>
       <div className="booking-summary">
         <div className="summary-card">
@@ -307,7 +310,7 @@ function BookingSummary({ professional, service, date, timeSlot, price, currency
           </div>
           <div className="summary-body">
             <div className="summary-row">
-              <span className="summary-label">✂️ Servicio</span>
+              <span className="summary-label">📋 Servicio</span>
               <span className="summary-value">{service.name}</span>
             </div>
             <div className="summary-row">

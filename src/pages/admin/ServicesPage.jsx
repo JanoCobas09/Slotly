@@ -7,10 +7,13 @@ import {
   replaceMatching,
 } from '../../lib/repository';
 import { formatPrice } from '../../utils/dateUtils';
+import { useBusinessContext } from '../../hooks/useBusinessContext';
 
 export default function ServicesPage() {
   const { services, professionals, professionalServices, business, businessId } = useTenant();
+  const { suggestedServices } = useBusinessContext();
   const [guardando, setGuardando] = useState(false);
+  const [cargandoSugeridos, setCargandoSugeridos] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ name: '', description: '', durationMinutes: 30, price: 0, category: '' });
@@ -73,6 +76,34 @@ export default function ServicesPage() {
       alert('No se pudo guardar el servicio: ' + err.message);
     } finally {
       setGuardando(false);
+    }
+  };
+
+  // Sugeridos según el rubro del negocio (professionPresets.js). Nunca
+  // obligatorio: el dueño los carga con un clic, o arranca de cero con
+  // "+ Agregar Servicio" como siempre. Quedan sin precio (0) porque el precio
+  // varía demasiado como para sugerirlo — hay que completarlo a mano.
+  const handleLoadSuggested = async () => {
+    if (!businessId || suggestedServices.length === 0) return;
+    setCargandoSugeridos(true);
+    try {
+      for (const [i, sug] of suggestedServices.entries()) {
+        await addToSubcollection(businessId, 'services', {
+          name: sug.name,
+          description: sug.description || '',
+          durationMinutes: sug.durationMinutes,
+          price: 0,
+          category: '',
+          imageUrl: null,
+          displayOrder: services.length + i + 1,
+          isActive: true,
+        });
+      }
+    } catch (err) {
+      console.error('[ServicesPage] No se pudieron cargar los sugeridos:', err);
+      alert('No se pudieron cargar los servicios sugeridos: ' + err.message);
+    } finally {
+      setCargandoSugeridos(false);
     }
   };
 
@@ -139,12 +170,24 @@ export default function ServicesPage() {
 
         {services.length === 0 && (
           <div className="empty-state">
-            <div className="empty-state-icon">✂️</div>
+            <div className="empty-state-icon">🧾</div>
             <p style={{ marginBottom: 'var(--space-md)' }}>
               Todavía no hay servicios en el catálogo. El cliente elige uno al
               reservar, así que sin servicios no se puede tomar ningún turno.
             </p>
-            <button className="btn btn-primary" onClick={openAdd}>+ Agregar el primero</button>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+              <button className="btn btn-primary" onClick={openAdd}>+ Agregar el primero</button>
+              {suggestedServices.length > 0 && (
+                <button className="btn btn-outline" onClick={handleLoadSuggested} disabled={cargandoSugeridos}>
+                  {cargandoSugeridos ? 'Cargando…' : `Cargar ${suggestedServices.length} sugeridos`}
+                </button>
+              )}
+            </div>
+            {suggestedServices.length > 0 && (
+              <p className="text-xs text-muted" style={{ marginTop: 'var(--space-sm)' }}>
+                Quedan sin precio y sin profesional asignado — los completás después de cargarlos.
+              </p>
+            )}
           </div>
         )}
       </div>
@@ -179,7 +222,7 @@ export default function ServicesPage() {
                 </div>
                 <div className="form-group">
                   <label className="form-label">Categoría</label>
-                  <input className="form-input" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} placeholder="Ej: Cortes, Barba, Tratamientos" />
+                  <input className="form-input" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} placeholder="Ej: Consultas, Mantenimiento, Tratamientos" />
                 </div>
 
                 <h3 style={{ marginTop: 'var(--space-sm)' }}>Asignar a Profesionales</h3>
