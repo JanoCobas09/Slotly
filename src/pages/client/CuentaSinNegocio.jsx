@@ -3,7 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import Icon from '../../components/Icon';
 
 // Mismo número que la landing y el panel. Si cambia, cambia en los tres.
-const WHATSAPP = '5492257529684';
+const WHATSAPP = '5492257660073';
 const mensaje = encodeURIComponent(
   'Hola! Entré con mi cuenta y me dice que todavía no tengo un negocio asociado. Quiero saber cómo activarlo.'
 );

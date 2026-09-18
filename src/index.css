@@ -2766,7 +2766,7 @@ select.form-input {
 }
 
 /* ============================================================================
-   FLOATING ACTION BUTTON (FAB) & AI CHAT WIDGET
+   FLOATING ACTION BUTTON — contacto por WhatsApp
    ============================================================================ */
 
 .fab-container {
@@ -2780,7 +2780,7 @@ select.form-input {
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: var(--primary);
+  background: #25D366;
   color: #fff;
   border: none;
   font-size: 1.4rem;
@@ -2789,25 +2789,19 @@ select.form-input {
   justify-content: center;
   cursor: pointer;
   box-shadow: var(--shadow-lg);
-  position: relative;
-  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s ease;
+  text-decoration: none;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .fab-main-btn:hover {
   transform: scale(1.08);
-  background: var(--primary-hover);
-}
-
-.fab-main-btn.active {
-  transform: rotate(90deg);
-  background: var(--text);
 }
 
 .fab-pulse-ring {
   position: absolute;
   inset: -4px;
   border-radius: 50%;
-  border: 2px solid var(--primary);
+  border: 2px solid #25D366;
   opacity: 0.6;
   animation: fabPulse 2s infinite;
 }
@@ -2816,218 +2810,6 @@ select.form-input {
   0% { transform: scale(0.95); opacity: 0.8; }
   50% { transform: scale(1.2); opacity: 0; }
   100% { transform: scale(0.95); opacity: 0; }
-}
-
-.fab-sub-buttons {
-  position: absolute;
-  bottom: 68px;
-  right: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  align-items: flex-end;
-}
-
-.fab-sub-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  text-decoration: none;
-  border: none;
-  background: none;
-  cursor: pointer;
-}
-
-.fab-tooltip {
-  background: var(--text);
-  color: #fff;
-  font-family: var(--font);
-  font-size: 0.8rem;
-  font-weight: 600;
-  padding: 6px 12px;
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-md);
-  white-space: nowrap;
-}
-
-.fab-icon {
-  width: 46px;
-  height: 46px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.2rem;
-  color: #fff;
-  box-shadow: var(--shadow-md);
-}
-
-.fab-whatsapp .fab-icon { background: #25D366; }
-.fab-ai .fab-icon { background: var(--primary); }
-
-/* Chat Modal Overlay & Card */
-.chat-modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(4px);
-  z-index: 10000;
-  display: flex;
-  align-items: flex-end;
-  justify-content: flex-end;
-  padding: 24px;
-}
-
-.chat-modal-card {
-  width: 380px;
-  max-width: 100%;
-  height: 520px;
-  max-height: 85vh;
-  background: var(--surface);
-  border-radius: var(--radius-xl);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-xl);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.chat-modal-header {
-  background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border);
-  padding: 12px 16px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.chat-bot-info {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.chat-bot-avatar {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: var(--primary-light);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.1rem;
-}
-
-.chat-bot-info strong { display: block; font-size: 0.875rem; }
-.chat-status { font-family: var(--font-mono); font-size: 9px; color: var(--success); font-weight: 700; }
-
-.chat-close-btn {
-  background: none;
-  border: none;
-  font-size: 1.1rem;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 4px 8px;
-}
-
-.chat-modal-messages {
-  flex: 1;
-  padding: 16px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  background: var(--bg);
-}
-
-.chat-bubble {
-  max-width: 85%;
-  padding: 10px 14px;
-  border-radius: 14px;
-  font-size: 0.85rem;
-  line-height: 1.5;
-  white-space: pre-line;
-}
-
-.bubble-bot {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  color: var(--text);
-  align-self: flex-start;
-  border-top-left-radius: 2px;
-}
-
-.bubble-user {
-  background: var(--primary);
-  color: #fff;
-  align-self: flex-end;
-  border-top-right-radius: 2px;
-}
-
-.chat-quick-chips {
-  padding: 8px 12px;
-  display: flex;
-  gap: 6px;
-  overflow-x: auto;
-  background: var(--surface);
-  border-top: 1px solid var(--border);
-}
-
-.chip-btn {
-  font-size: 0.725rem;
-  padding: 4px 10px;
-  border-radius: 99px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  color: var(--text-secondary);
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.chip-btn:hover {
-  background: var(--primary-light);
-  color: var(--primary);
-  border-color: var(--primary);
-}
-
-.chat-modal-footer {
-  padding: 10px;
-  display: flex;
-  gap: 8px;
-  background: var(--surface);
-}
-
-.chat-input {
-  flex: 1;
-  padding: 8px 12px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border);
-  font-size: 0.825rem;
-  outline: none;
-}
-
-.chat-send-btn {
-  background: var(--primary);
-  color: #fff;
-  border: none;
-  padding: 8px 14px;
-  border-radius: var(--radius-md);
-  font-weight: 700;
-  font-size: 0.8rem;
-  cursor: pointer;
-}
-
-.chat-wa-direct {
-  padding: 6px 12px;
-  background: #25D366;
-  text-align: center;
-}
-
-.chat-wa-direct a {
-  color: #fff;
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-decoration: none;
 }
 
 

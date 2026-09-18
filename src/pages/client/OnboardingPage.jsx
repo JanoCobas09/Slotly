@@ -8,7 +8,7 @@ import { createBusinessSelfService } from '../../lib/functions';
 import ProfessionCategoryPicker, { OTHER_OPTION } from '../../components/ProfessionCategoryPicker';
 
 // Mismo número que la landing, el panel y CuentaSinNegocio. Si cambia, cambia en los cuatro.
-const WHATSAPP = '5492257529684';
+const WHATSAPP = '5492257660073';
 const LINK_WA = `https://wa.me/${WHATSAPP}?text=${encodeURIComponent(
   'Hola! Prefiero que me armen la cuenta ustedes en vez de hacerlo yo.'
 )}`;

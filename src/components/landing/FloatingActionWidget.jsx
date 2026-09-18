@@ -1,200 +1,24 @@
-import { useState } from 'react';
 import Icon from '../Icon';
 
-const WHATSAPP_NUMBER = '5492257529684';
+// Mismo número que el resto del panel y la landing. Si cambia, cambia en todos.
+const WHATSAPP_NUMBER = '5492257660073';
 const WHATSAPP_LINK = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
   'Hola, quiero consultar sobre la plataforma para mi negocio.'
 )}`;
 
-const FAQ_RESPONSES = {
-  precios: `Nuestros planes mensuales en pesos argentinos son:
-• Plan Básico: $12.000/mes (Hasta 2 profesionales, 100 WhatsApp/mes)
-• Plan Pro: $22.000/mes (Hasta 5 profesionales, 500 WhatsApp/mes, estadísticas)
-• Plan Business: $35.000/mes (Profesionales ilimitados, 2000 WhatsApp/mes, soporte dedicado)
-
-Todos los planes incluyen tu propia agenda online con tu marca y sin permanencia.`,
-
-  alta: `¡El alta es súper rápida! No tenés que configurar nada vos solo.
-Nosotros cargamos tu equipo, tus servicios, horarios y precios el mismo día. Vos solo compartís el link en Instagram o WhatsApp y listo.`,
-
-  diferencias: `La diferencia principal entre planes radica en la cantidad de profesionales de tu equipo y el volumen de avisos por WhatsApp:
-• Básico: Ideal para 1 o 2 profesionales.
-• Pro: Para negocios de 3 a 5 profesionales + estadísticas de caja y servicios sin turno en vivo.
-• Business: Sin límite de profesionales + exportación de clientes y reportes avanzados.`,
-};
-
+/** Botón flotante de contacto por WhatsApp, fijo en la esquina de la landing. */
 export default function FloatingActionWidget() {
-  const [isOpen, setIsOpen] = useState(false);
-  const [isChatOpen, setIsChatOpen] = useState(false);
-  const [messages, setMessages] = useState([
-    {
-      sender: 'bot',
-      text: '¡Hola! Soy el asistente virtual de Slotly. ¿En qué puedo ayudarte hoy?',
-    },
-  ]);
-  const [inputText, setInputText] = useState('');
-
-  const handleSendMessage = (textToSend) => {
-    const text = textToSend || inputText;
-    if (!text.trim()) return;
-
-    // Add user message
-    const newMessages = [...messages, { sender: 'user', text }];
-    setMessages(newMessages);
-    if (!textToSend) setInputText('');
-
-    // Simulate AI bot response
-    setTimeout(() => {
-      const lower = text.toLowerCase();
-      let botReply = '';
-
-      if (lower.includes('precio') || lower.includes('cuanto') || lower.includes('costo') || lower.includes('plan')) {
-        botReply = FAQ_RESPONSES.precios;
-      } else if (lower.includes('alta') || lower.includes('como funciona') || lower.includes('configur')) {
-        botReply = FAQ_RESPONSES.alta;
-      } else if (lower.includes('diferencia') || lower.includes('compar') || lower.includes('pro') || lower.includes('business')) {
-        botReply = FAQ_RESPONSES.diferencias;
-      } else if (lower.includes('whatsapp') || lower.includes('hablar') || lower.includes('humano')) {
-        botReply = '¡Por supuesto! Podés contactarnos directamente por WhatsApp al +54 9 2257 529684 para atención personalizada.';
-      } else {
-        botReply = `Entendido. Para darte la mejor atención personalizada para tu negocio, te recomiendo hablar directamente con nuestro equipo por WhatsApp.`;
-      }
-
-      setMessages((prev) => [...prev, { sender: 'bot', text: botReply }]);
-    }, 600);
-  };
-
   return (
-    <div className="fab-container">
-      {/* ── EXPANDABLE SUB-BUTTONS ── */}
-      {isOpen && (
-        <div className="fab-sub-buttons animate-fade-in">
-          {/* Sub-button 1: WhatsApp */}
-          <a
-            href={WHATSAPP_LINK}
-            target="_blank"
-            rel="noreferrer"
-            className="fab-sub-btn fab-whatsapp"
-            title="Hablamos por WhatsApp"
-          >
-            <span className="fab-tooltip">Hablamos por WhatsApp</span>
-            <span className="fab-icon"><Icon name="chat" /></span>
-          </a>
-
-          {/* Sub-button 2: Asistente IA */}
-          <button
-            type="button"
-            className="fab-sub-btn fab-ai"
-            onClick={() => {
-              setIsChatOpen(true);
-              setIsOpen(false);
-            }}
-            title="Asistente Slotly IA"
-          >
-            <span className="fab-tooltip">Asistente IA</span>
-            <span className="fab-icon"><Icon name="robot" /></span>
-          </button>
-        </div>
-      )}
-
-      {/* ── MAIN FAB BUTTON ── */}
-      <button
-        type="button"
-        className={`fab-main-btn ${isOpen ? 'active' : ''}`}
-        onClick={() => setIsOpen(!isOpen)}
-        aria-label="Menú de ayuda y contacto"
-      >
-        <span className="fab-pulse-ring" />
-        <span className="fab-main-icon"><Icon name={isOpen ? 'x' : 'chat'} /></span>
-      </button>
-
-      {/* ── AI CHAT MODAL WINDOW ── */}
-      {isChatOpen && (
-        <div className="chat-modal-overlay">
-          <div className="chat-modal-card animate-slide-up">
-            {/* Header */}
-            <div className="chat-modal-header">
-              <div className="chat-bot-info">
-                <div className="chat-bot-avatar"><Icon name="robot" /></div>
-                <div>
-                  <strong>Asistente Slotly IA</strong>
-                  <span className="chat-status">• Online · Respuesta en vivo</span>
-                </div>
-              </div>
-              <button
-                type="button"
-                className="chat-close-btn"
-                onClick={() => setIsChatOpen(false)}
-              >
-                <Icon name="x" />
-              </button>
-            </div>
-
-            {/* Messages Body */}
-            <div className="chat-modal-messages">
-              {messages.map((m, idx) => (
-                <div
-                  key={idx}
-                  className={`chat-bubble ${m.sender === 'user' ? 'bubble-user' : 'bubble-bot'}`}
-                >
-                  <p>{m.text}</p>
-                </div>
-              ))}
-            </div>
-
-            {/* Quick Chips */}
-            <div className="chat-quick-chips">
-              <button
-                type="button"
-                className="chip-btn"
-                onClick={() => handleSendMessage('¿Cuáles son los precios?')}
-              >
-                <Icon name="money" /> Precios
-              </button>
-              <button
-                type="button"
-                className="chip-btn"
-                onClick={() => handleSendMessage('¿Cómo es el alta?')}
-              >
-                <Icon name="send" /> Cómo arranca
-              </button>
-              <button
-                type="button"
-                className="chip-btn"
-                onClick={() => handleSendMessage('¿Qué diferencia hay entre planes?')}
-              >
-                <Icon name="chart-bar" /> Diferencia de planes
-              </button>
-            </div>
-
-            {/* Footer Input Form */}
-            <form
-              className="chat-modal-footer"
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleSendMessage();
-              }}
-            >
-              <input
-                type="text"
-                className="chat-input"
-                placeholder="Escribí tu duda acá..."
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-              />
-              <button type="submit" className="chat-send-btn">
-                Enviar
-              </button>
-            </form>
-
-            <div className="chat-wa-direct">
-              <a href={WHATSAPP_LINK} target="_blank" rel="noreferrer">
-                <Icon name="chat" /> O preferís hablar directo por WhatsApp →
-              </a>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+    <a
+      href={WHATSAPP_LINK}
+      target="_blank"
+      rel="noreferrer"
+      className="fab-container fab-main-btn"
+      aria-label="Hablar por WhatsApp"
+      title="Hablamos por WhatsApp"
+    >
+      <span className="fab-pulse-ring" />
+      <Icon name="chat" />
+    </a>
   );
 }

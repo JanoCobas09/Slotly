@@ -16,7 +16,7 @@ import Icon from '../components/Icon';
 // producto: primero se reconoce en el problema, después ve la solución, después
 // pregunta el precio, y recién al final se le contestan las objeciones.
 
-const WHATSAPP = '5492257529684';
+const WHATSAPP = '5492257660073';
 const mensajeWA = encodeURIComponent(
   'Hola, vi la plataforma y quiero saber más para mi negocio.'
 );
@@ -320,7 +320,7 @@ export default function LandingPage() {
         </p>
       </section>
 
-      {/* Floating Action Buttons & AI Chat Assistant */}
+      {/* Botón flotante de contacto por WhatsApp */}
       <FloatingActionWidget />
     </div>
   );

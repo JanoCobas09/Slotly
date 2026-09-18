@@ -16,7 +16,7 @@ import { capitalize } from '../../utils/text';
 import Icon from '../../components/Icon';
 
 // Mismo número que la landing y el resto del panel.
-const LINK_AMPLIAR = 'https://wa.me/5492257529684?text=' +
+const LINK_AMPLIAR = 'https://wa.me/5492257660073?text=' +
   encodeURIComponent('Hola! Necesito sumar más profesionales a mi cuenta.');
 
 export default function ProfessionalsPage() {

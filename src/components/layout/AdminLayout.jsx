@@ -34,7 +34,7 @@ const ROLE_COLORS = {
 };
 
 // Mismo número que la landing y el widget flotante. Si cambia, cambia en los tres.
-const LINK_SOPORTE = 'https://wa.me/5492257529684?text=' +
+const LINK_SOPORTE = 'https://wa.me/5492257660073?text=' +
   encodeURIComponent('Hola! Te escribo por mi cuenta de Slotly.');
 
 /**
