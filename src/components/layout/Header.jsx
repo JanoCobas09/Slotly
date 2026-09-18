@@ -1,11 +1,16 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCurrentBusiness } from '../../hooks/useCurrentBusiness';
+import { useBusinessContext } from '../../hooks/useBusinessContext';
 
 export default function Header() {
   const location = useLocation();
   const { isAuthenticated, logout } = useAuth();
   const { business, slug } = useCurrentBusiness();
+  // Aplica el tema (color de marca) del negocio activo. Header está montado
+  // tanto en la landing como en toda página de cliente, así que es el punto
+  // que garantiza que el tema se pinte apenas se resuelve el negocio.
+  useBusinessContext();
 
   // Los links del cliente siempre viven bajo el slug del negocio actual.
   const home = slug ? `/${slug}` : '/';

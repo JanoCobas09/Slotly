@@ -3,6 +3,7 @@ import CampanaNotificaciones from '../admin/CampanaNotificaciones';
 import { NavLink, Outlet, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCurrentBusiness } from '../../hooks/useCurrentBusiness';
+import { useBusinessContext } from '../../hooks/useBusinessContext';
 
 // Items visibles solo para el dueño (owner)
 const ownerNavItems = [
@@ -25,10 +26,14 @@ const adminNavItems = [
   { to: '/admin/soporte', icon: '💬', label: 'Soporte' },
 ];
 
-const ROLE_LABELS = {
-  owner: { text: 'Dueño',  color: 'var(--primary)' },
-  admin: { text: 'Peluquero', color: 'var(--success)' },
+const ROLE_COLORS = {
+  owner: 'var(--primary)',
+  admin: 'var(--success)',
 };
+
+function capitalize(text) {
+  return text ? text.charAt(0).toUpperCase() + text.slice(1) : text;
+}
 
 // Mismo número que la landing y el widget flotante. Si cambia, cambia en los tres.
 const LINK_SOPORTE = 'https://wa.me/5492257529684?text=' +
@@ -55,10 +60,18 @@ export default function AdminLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { business, isPlatformOwner: platformOwner } = useCurrentBusiness();
+  const { terminology } = useBusinessContext();
 
   const isOwner = user?.role === 'owner';
   const navItems = isOwner ? ownerNavItems : adminNavItems;
-  const roleInfo = ROLE_LABELS[user?.role] || ROLE_LABELS.admin;
+  const roleLabels = {
+    owner: 'Dueño/a',
+    admin: capitalize(terminology.professionalNoun),
+  };
+  const roleInfo = {
+    text: roleLabels[user?.role] || roleLabels.admin,
+    color: ROLE_COLORS[user?.role] || ROLE_COLORS.admin,
+  };
 
   const handleLogout = () => {
     logout();
