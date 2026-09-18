@@ -734,8 +734,8 @@ Tomada de [sacia.tech](https://sacia.tech).
 - Naranja: `#e03d00` · variante clara `#ff5c1a`
 - Fondos: `#fafafa` base, `#f2f2f2` secciones alternadas, `#ffffff` tarjetas
 - Texto: `#0a0a0a` / `#555555` / `#aaaaaa`
-- Tipografías: **Space Grotesk** (títulos, peso 700, tracking negativo) y
-  **Space Mono** (etiquetas en mayúscula, tracking amplio)
+- Tipografías: **Inter** (todo el texto, pesos 400 a 800) y **Space Mono**
+  (etiquetas en mayúscula, tracking amplio)
 - Radio de esquinas: 8px parejo. Sin degradados en la marca.
 
 Todo sale de variables CSS en `:root` de `src/index.css`. Cambiar ahí, no en
