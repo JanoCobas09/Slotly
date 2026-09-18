@@ -4,6 +4,7 @@ import { NavLink, Outlet, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCurrentBusiness } from '../../hooks/useCurrentBusiness';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
+import { capitalize } from '../../utils/text';
 
 // Items visibles solo para el dueño (owner)
 const ownerNavItems = [
@@ -30,10 +31,6 @@ const ROLE_COLORS = {
   owner: 'var(--primary)',
   admin: 'var(--success)',
 };
-
-function capitalize(text) {
-  return text ? text.charAt(0).toUpperCase() + text.slice(1) : text;
-}
 
 // Mismo número que la landing y el widget flotante. Si cambia, cambia en los tres.
 const LINK_SOPORTE = 'https://wa.me/5492257529684?text=' +

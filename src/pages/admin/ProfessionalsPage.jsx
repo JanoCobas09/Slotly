@@ -12,6 +12,7 @@ import {
 import { getDayName, generateId } from '../../utils/dateUtils';
 import { getPlan } from '../../config/plans';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
+import { capitalize } from '../../utils/text';
 
 // Mismo número que la landing y el resto del panel.
 const LINK_AMPLIAR = 'https://wa.me/5492257529684?text=' +
@@ -23,7 +24,9 @@ export default function ProfessionalsPage() {
   const profesionalPlural = `${terminology.professionalNoun}s`;
 
   // Límite de profesionales del plan contratado. `maxProfessionals: null` = sin
-  // tope. `maxBarbers` es el nombre viejo del mismo campo (ver plans.js).
+  // tope. `plan` sale de la tabla estática PLANS (plans.js) por `planId`, no
+  // de un documento de Firestore, así que no hace falta un fallback a un
+  // nombre de campo viejo acá: alcanza con que PLANS use el nombre nuevo.
   //
   // Se cuentan solo los activos: uno que se fue no debería ocuparle un lugar
   // al que entra. Y se compara al AGREGAR, no al editar, para que un negocio
@@ -35,7 +38,7 @@ export default function ProfessionalsPage() {
   // cualquier tope de plan en una app de browser. Lo que protege los datos son
   // las Rules, y este número no es un dato a proteger.
   const plan = getPlan(business?.planId);
-  const topeBarberos = plan?.maxProfessionals ?? plan?.maxBarbers ?? null;
+  const topeBarberos = plan?.maxProfessionals ?? null;
   const activos = professionals.filter((p) => p.isActive !== false).length;
   const llegoAlTope = topeBarberos !== null && activos >= topeBarberos;
 
@@ -313,7 +316,7 @@ export default function ProfessionalsPage() {
                     className="form-input"
                     value={form.specialty}
                     onChange={e => setForm({ ...form, specialty: e.target.value })}
-                    placeholder={`Ej: ${terminology.professionalNoun.charAt(0).toUpperCase()}${terminology.professionalNoun.slice(1)} Senior`}
+                    placeholder={`Ej: ${capitalize(terminology.professionalNoun)} Senior`}
                   />
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>

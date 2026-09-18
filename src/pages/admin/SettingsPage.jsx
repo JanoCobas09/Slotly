@@ -19,7 +19,7 @@ const defaultHours = [
 export default function SettingsPage() {
   const { user } = useAuth();
   const { business, businessId } = useCurrentBusiness();
-  const { terminology } = useBusinessContext();
+  const { terminology, theme: resolvedTheme } = useBusinessContext();
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
@@ -61,7 +61,21 @@ export default function SettingsPage() {
     setCambios({});
     // Mismo camino que useBusinessContext(): un solo lugar que sabe pintar el
     // tema, en vez de reescribir las custom properties acá también.
-    applyTheme(form);
+    //
+    // OJO: no se le pasa `form` directo. `form` es el documento de negocio
+    // (solo primaryColor/secondaryColor/accentColor), nunca tuvo
+    // primaryHover/primaryLight — esos viven únicamente en el preset de la
+    // categoría (professionPresets.js). Pasarle `form` pisaba esos dos con el
+    // default de `theme.js` (naranja SACIA) para CUALQUIER categoría hasta el
+    // próximo re-render de useBusinessContext. Se mergea sobre el tema ya
+    // resuelto (preset + overrides previos) para conservar hover/light/accent
+    // correctos y solo actualizar lo que el formulario realmente edita.
+    applyTheme({
+      ...resolvedTheme,
+      primaryColor: form.primaryColor,
+      secondaryColor: form.secondaryColor,
+      accentColor: form.accentColor,
+    });
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   };

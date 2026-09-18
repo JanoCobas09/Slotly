@@ -19,10 +19,12 @@
 // WhatsApp, la cuota. Prometer una diferencia que no existe es peor que no
 // prometerla: el primer Pro que pregunte qué compró se entera solo.
 //
-// `maxBarbers` queda como alias de compatibilidad: negocios dados de alta
-// antes de la generalización a multi-rubro guardaron ese nombre de campo en
-// Firestore, y `getPlan`/`ProfessionalsPage` lo siguen leyendo como fallback
-// de `maxProfessionals`. No hace falta migrar datos viejos para esto.
+// `maxBarbers` se renombró a `maxProfessionals` en la generalización a
+// multi-rubro. No hizo falta migrar nada: esta tabla es código estático
+// indexado por `planId`, no un campo guardado en el documento de un negocio
+// en Firestore — no hay datos viejos que pudieran quedar con el nombre
+// anterior. `firestore.rules` sigue protegiendo el nombre viejo además del
+// nuevo en la lista de campos que el dueño no puede tocar, a modo defensivo.
 
 /** Lo que incluye cualquier plan. Se muestra una vez, debajo de los tres. */
 export const FEATURES_COMUNES = [

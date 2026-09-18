@@ -2,6 +2,7 @@ import { useLocation, Link } from 'react-router-dom';
 import { useTenant } from '../../hooks/useTenantData';
 import { formatDate, formatPrice } from '../../utils/dateUtils';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
+import { capitalize } from '../../utils/text';
 
 export default function ConfirmationPage() {
   const location = useLocation();
@@ -30,7 +31,7 @@ export default function ConfirmationPage() {
       <div className="confirmation-icon">✓</div>
       {/* Nace 'pendiente': el negocio lo confirma. Decir "confirmada" acá y
           que el staff lo vea como pendiente confundía a los dos. */}
-      <h1>¡{terminology.appointmentNoun.charAt(0).toUpperCase()}{terminology.appointmentNoun.slice(1)} reservado!</h1>
+      <h1>¡{capitalize(terminology.appointmentNoun)} reservado!</h1>
       <p className="text-secondary mt-sm mb-lg">{terminology.confirmationMsg}</p>
 
       <div className="summary-card" style={{ textAlign: 'left' }}>

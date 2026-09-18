@@ -1,4 +1,4 @@
-import { DEFAULT_PROFESSION_CATEGORY, getProfessionPreset } from '../config/professionPresets';
+import { DEFAULT_PROFESSION_CATEGORY, getProfessionPreset, isKnownProfessionCategory } from '../config/professionPresets';
 
 // ============================================================================
 // resolveBusinessContext
@@ -21,7 +21,7 @@ const LEGACY_DEFAULT_CATEGORY = 'beauty';
 
 export function resolveBusinessContext(business) {
   const context = business?.context || null;
-  const hasOwnCategory = context?.professionCategory && getProfessionPreset(context.professionCategory);
+  const hasOwnCategory = isKnownProfessionCategory(context?.professionCategory);
   const professionCategory = hasOwnCategory
     ? context.professionCategory
     : context

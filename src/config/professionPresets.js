@@ -280,6 +280,15 @@ export function getProfessionPreset(category) {
   return PROFESSION_PRESETS[category] || PROFESSION_PRESETS[DEFAULT_PROFESSION_CATEGORY];
 }
 
+/**
+ * ¿`category` es una clave real de `PROFESSION_PRESETS`? `getProfessionPreset`
+ * nunca devuelve falsy (cae a `general`), así que no sirve para esto: hace
+ * falta chequear la clave, no el resultado.
+ */
+export function isKnownProfessionCategory(category) {
+  return Boolean(category) && Object.prototype.hasOwnProperty.call(PROFESSION_PRESETS, category);
+}
+
 export function listProfessionCategories() {
   return Object.entries(PROFESSION_PRESETS)
     .filter(([key]) => key !== DEFAULT_PROFESSION_CATEGORY)

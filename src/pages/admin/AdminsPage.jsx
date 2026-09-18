@@ -4,14 +4,11 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../hooks/useTenantData';
 import { setBusinessAdmin, revokeBusinessAdmin } from '../../lib/functions';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
+import { capitalize as cap } from '../../utils/text';
 
 const ROLE_OWNER = { value: 'owner', label: '👑 Dueño/a — acceso total' };
 
 const EMPTY_FORM = { email: '', role: 'admin', professionalId: '', name: '' };
-
-function cap(text) {
-  return text ? text.charAt(0).toUpperCase() + text.slice(1) : text;
-}
 
 export default function AdminsPage() {
   const { user } = useAuth();

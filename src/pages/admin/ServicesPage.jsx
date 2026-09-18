@@ -87,18 +87,22 @@ export default function ServicesPage() {
     if (!businessId || suggestedServices.length === 0) return;
     setCargandoSugeridos(true);
     try {
-      for (const [i, sug] of suggestedServices.entries()) {
-        await addToSubcollection(businessId, 'services', {
-          name: sug.name,
-          description: sug.description || '',
-          durationMinutes: sug.durationMinutes,
-          price: 0,
-          category: '',
-          imageUrl: null,
-          displayOrder: services.length + i + 1,
-          isActive: true,
-        });
-      }
+      // Cada alta es independiente (no depende del resultado de la anterior),
+      // así que van en paralelo en vez de una tras otra.
+      await Promise.all(
+        suggestedServices.map((sug, i) =>
+          addToSubcollection(businessId, 'services', {
+            name: sug.name,
+            description: sug.description || '',
+            durationMinutes: sug.durationMinutes,
+            price: 0,
+            category: '',
+            imageUrl: null,
+            displayOrder: services.length + i + 1,
+            isActive: true,
+          })
+        )
+      );
     } catch (err) {
       console.error('[ServicesPage] No se pudieron cargar los sugeridos:', err);
       alert('No se pudieron cargar los servicios sugeridos: ' + err.message);

@@ -9,6 +9,7 @@ import {
 import { useTenant } from '../../hooks/useTenantData';
 import { getDayName, generateId } from '../../utils/dateUtils';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
+import { capitalize } from '../../utils/text';
 
 export default function ProfileSettingsPage() {
   const { user } = useAuth();
@@ -156,7 +157,7 @@ export default function ProfileSettingsPage() {
                   className="form-input"
                   value={form.specialty}
                   onChange={e => editar({ specialty: e.target.value })}
-                  placeholder={`Ej: ${terminology.professionalNoun.charAt(0).toUpperCase()}${terminology.professionalNoun.slice(1)} Senior`}
+                  placeholder={`Ej: ${capitalize(terminology.professionalNoun)} Senior`}
                 />
               </div>
 
