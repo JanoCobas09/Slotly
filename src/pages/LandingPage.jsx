@@ -9,7 +9,7 @@ import FloatingActionWidget from '../components/landing/FloatingActionWidget';
 // Decisión que ordena todo lo demás: el onboarding es MANUAL. No hay registro
 // self-service, así que el CTA no puede ser "creá tu cuenta gratis" — sería una
 // promesa que la app no cumple. Todos los CTA van a WhatsApp, que además es
-// donde un barbero realmente contesta.
+// donde el dueño del negocio realmente contesta.
 //
 // El orden de las secciones sigue el recorrido de alguien que no conoce el
 // producto: primero se reconoce en el problema, después ve la solución, después
@@ -17,15 +17,15 @@ import FloatingActionWidget from '../components/landing/FloatingActionWidget';
 
 const WHATSAPP = '5492257529684';
 const mensajeWA = encodeURIComponent(
-  'Hola, vi BarberOS y quiero saber más para mi barbería.'
+  'Hola, vi la plataforma y quiero saber más para mi negocio.'
 );
 const LINK_WA = `https://wa.me/${WHATSAPP}?text=${mensajeWA}`;
 
 const DOLORES = [
   {
     icono: '/img/icon-phone-interrupt.svg',
-    alt: 'Ícono de teléfono interrumpiendo un corte de pelo',
-    titulo: 'Cortás el corte para contestar',
+    alt: 'Ícono de teléfono interrumpiendo la atención de un cliente',
+    titulo: 'Frenás todo para contestar',
     texto: 'Cada mensaje que entra te saca de lo que estás haciendo. Y si no contestás en el momento, el cliente se va a otro lado.',
   },
   {
@@ -45,9 +45,9 @@ const DOLORES = [
 const BENEFICIOS = [
   {
     imagen: '/img/benefit-link.svg',
-    alt: 'Vista previa del enlace personalizado de la barbería',
+    alt: 'Vista previa del enlace personalizado del negocio',
     titulo: 'Tu link, tu agenda',
-    texto: 'Cada barbería tiene su propia dirección. La ponés en el perfil de Instagram y tus clientes reservan solos, a cualquier hora, sin instalar nada.',
+    texto: 'Cada negocio tiene su propia dirección. La ponés en el perfil de Instagram y tus clientes reservan solos, a cualquier hora, sin instalar nada.',
   },
   {
     imagen: '/img/benefit-whatsapp.svg',
@@ -58,15 +58,15 @@ const BENEFICIOS = [
   },
   {
     imagen: '/img/benefit-schedule.svg',
-    alt: 'Vista previa de la grilla de días y horarios de atención por barbero',
+    alt: 'Vista previa de la grilla de días y horarios de atención por profesional',
     titulo: 'Sabe quién trabaja cuándo',
-    texto: 'Cargás el horario de cada barbero, sus descansos y qué servicios hace. La agenda no ofrece turnos que no se pueden atender.',
+    texto: 'Cargás el horario de cada profesional, sus descansos y qué servicios hace. La agenda no ofrece turnos que no se pueden atender.',
   },
   {
     imagen: '/img/benefit-roles.svg',
-    alt: 'Vista previa de los roles de dueño y barberos',
+    alt: 'Vista previa de los roles de dueño y equipo',
     titulo: 'Cada uno ve lo suyo',
-    texto: 'El dueño ve todo: caja, estadísticas, el equipo completo. Cada barbero ve solo sus propios turnos del día.',
+    texto: 'El dueño ve todo: caja, estadísticas, el equipo completo. Cada profesional ve solo sus propios turnos del día.',
   },
   {
     imagen: '/img/benefit-stats.svg',
@@ -76,14 +76,14 @@ const BENEFICIOS = [
   },
   {
     imagen: '/img/benefit-branding.svg',
-    alt: 'Vista previa del encabezado personalizado con la marca de la barbería',
+    alt: 'Vista previa del encabezado personalizado con la marca del negocio',
     titulo: 'Con tu cara, no la nuestra',
-    texto: 'Tu nombre y tus colores. Para tu cliente es la agenda de tu barbería, no la de un proveedor.',
+    texto: 'Tu nombre y tus colores. Para tu cliente es la agenda de tu negocio, no la de un proveedor.',
   },
 ];
 
 const PASOS = [
-  { n: '01', img: '/img/step-talk.svg', alt: 'Charla inicial de asesoramiento', t: 'Hablamos', d: 'Nos contás cómo trabajás: cuántos barberos, qué servicios, qué horarios.' },
+  { n: '01', img: '/img/step-talk.svg', alt: 'Charla inicial de asesoramiento', t: 'Hablamos', d: 'Nos contás cómo trabajás: a qué te dedicás, cuántos profesionales, qué servicios, qué horarios.' },
   { n: '02', img: '/img/step-setup.svg', alt: 'Configuración llave en mano', t: 'Te la dejamos lista', d: 'Configuramos todo nosotros: tu equipo, tus precios, tus horarios. Vos no tocás nada.' },
   { n: '03', img: '/img/step-share.svg', alt: 'Publicación del link en Instagram', t: 'Compartís el link', d: 'Lo ponés en Instagram y en tu estado de WhatsApp. Esa misma tarde entra el primer turno.' },
 ];
@@ -95,7 +95,11 @@ const FAQ = [
   },
   {
     q: 'Mis clientes son grandes, ¿lo van a poder usar?',
-    a: 'Son cuatro pasos: barbero, servicio, día y hora. Nada de formularios ni contraseñas nuevas. Y el que prefiere llamarte, te sigue llamando: vos cargás ese turno a mano en dos toques.',
+    a: 'Son cuatro pasos: profesional, servicio, día y hora. Nada de formularios ni contraseñas nuevas. Y el que prefiere llamarte, te sigue llamando: vos cargás ese turno a mano en dos toques.',
+  },
+  {
+    q: '¿Sirve para cualquier tipo de negocio?',
+    a: 'Sí. Al armar la cuenta nos contás a qué te dedicás — barbería, consultorio, taller, estudio, lo que sea — y dejamos la terminología, los servicios sugeridos y los colores acomodados a tu rubro.',
   },
   {
     q: '¿Y si ya tengo turnos anotados?',
@@ -111,12 +115,12 @@ const FAQ = [
   },
   {
     q: '¿Qué pasa con la información de mis clientes?',
-    a: 'Es tuya. Cada barbería está separada de las demás y nadie ve tus turnos. Si algún día te vas, te la exportamos.',
+    a: 'Es tuya. Cada negocio está separado de los demás y nadie ve tus turnos. Si algún día te vas, te la exportamos.',
   },
 ];
 
 // Días de prueba que se ofrecen en la landing. Tiene que coincidir con lo que
-// cargues en "Días de prueba sin cargo" al dar de alta la barbería.
+// cargues en "Días de prueba sin cargo" al dar de alta el negocio.
 const DIAS_DEMO = 10;
 
 function CTAWhatsApp({ children = 'Hablemos por WhatsApp', clase = 'btn-primary btn-lg' }) {
@@ -132,7 +136,7 @@ export default function LandingPage() {
     <div className="landing">
       {/* ── HERO ─────────────────────────────────────────────────────────── */}
       <section className="landing-hero" id="inicio">
-        <span className="eyebrow">• Turnos para barberías · Argentina</span>
+        <span className="eyebrow">• Turnos y reservas para tu negocio · Argentina</span>
 
         <h1 className="landing-title">
           Tu agenda no vive
@@ -143,7 +147,7 @@ export default function LandingPage() {
         </h1>
 
         <p className="landing-lead">
-          Tus clientes reservan solos desde un link. Vos cortás el pelo. El
+          Tus clientes reservan solos desde un link. Vos atendés. El
           sistema se acuerda del resto.
         </p>
 
@@ -242,7 +246,7 @@ export default function LandingPage() {
         <h2 className="landing-h2">Sin letra chica</h2>
         <p className="landing-sub">
           Mes a mes, sin permanencia. La diferencia entre planes es la capacidad
-          de tu barbería: cuántos barberos y qué tan lejos llegan las
+          de tu negocio: cuántos profesionales y qué tan lejos llegan las
           estadísticas.
         </p>
 

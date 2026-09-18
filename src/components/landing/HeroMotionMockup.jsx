@@ -4,14 +4,14 @@ const STEPS_DATA = [
   {
     num: 1,
     title: 'Profesional',
-    sub: 'Seleccioná tu barbero',
+    sub: 'Seleccioná tu profesional',
     actionText: 'Mateo seleccionado',
   },
   {
     num: 2,
     title: 'Servicio',
-    sub: 'Elegí lo que querés hacerte',
-    actionText: 'Corte + Barba',
+    sub: 'Elegí qué servicio querés',
+    actionText: 'Sesión Completa',
   },
   {
     num: 3,
@@ -66,7 +66,7 @@ export default function HeroMotionMockup() {
 
   return (
     <div className="landing-motion-container">
-      {/* ── STAGE BACKDROP (DESKTOP BARBER DASHBOARD) ── */}
+      {/* ── STAGE BACKDROP (DESKTOP ADMIN DASHBOARD) ── */}
       <div className="landing-desktop-window">
         {/* Browser Top Bar */}
         <div className="landing-window-header">
@@ -87,12 +87,12 @@ export default function HeroMotionMockup() {
           <div className="landing-dash-head">
             <div>
               <h2 className="landing-dash-title">Hola, Mateo 👋</h2>
-              <span className="landing-dash-date">Viernes 7 de Agosto · La Barbería Club</span>
+              <span className="landing-dash-date">Viernes 7 de Agosto · Tu Negocio</span>
             </div>
             <div className="landing-dash-actions">
               <span className="landing-badge-pending">⏳ 3 pendientes</span>
               <button className="landing-btn-walkin" type="button">
-                ✂️ Servicio sin turno
+                📋 Servicio sin turno
               </button>
             </div>
           </div>
@@ -103,7 +103,7 @@ export default function HeroMotionMockup() {
               <div className="toast-icon">✨</div>
               <div>
                 <strong>¡Nuevo turno ingresado desde el link!</strong>
-                <p>Santiago Rossi · Corte + Barba · 10:15 hs</p>
+                <p>Santiago Rossi · Sesión Completa · 10:15 hs</p>
               </div>
               <span className="toast-badge">RESERVADO ONLINE</span>
             </div>
@@ -141,7 +141,7 @@ export default function HeroMotionMockup() {
                 </div>
                 <div className="row-client">
                   <strong>Santiago Rossi</strong>
-                  <span>Corte + Perfilado de Barba</span>
+                  <span>Sesión Completa</span>
                 </div>
                 <div className="row-price">$15.000</div>
                 <div className="row-status">
@@ -157,7 +157,7 @@ export default function HeroMotionMockup() {
                 </div>
                 <div className="row-client">
                   <strong>Gonzalo Pérez</strong>
-                  <span>Corte Clásico</span>
+                  <span>Consulta Estándar</span>
                 </div>
                 <div className="row-price">$12.000</div>
                 <div className="row-status">
@@ -196,8 +196,8 @@ export default function HeroMotionMockup() {
           <div className="phone-screen">
             {/* App Header */}
             <div className="phone-header">
-              <div className="phone-brand">LA BARBERÍA</div>
-              <div className="phone-url">barberos.sacia.tech/labarberia</div>
+              <div className="phone-brand">TU NEGOCIO</div>
+              <div className="phone-url">tuapp.com/tu-negocio</div>
             </div>
 
             {/* Stepper Indicator */}
@@ -226,13 +226,13 @@ export default function HeroMotionMockup() {
                 <div className="step-view animate-fade-in">
                   <h3 className="step-title">Seleccioná tu profesional</h3>
                   <p className="step-sub">Elegí con quién querés atenderte</p>
-                  
+
                   <div className="prof-grid">
                     <div className="prof-card selected">
                       <div className="prof-avatar">M</div>
                       <div>
                         <strong>Mateo Rossi</strong>
-                        <span>Barbero Master · Disponible</span>
+                        <span>Especialista · Disponible</span>
                       </div>
                       <span className="check-mark">✓</span>
                     </div>
@@ -240,7 +240,7 @@ export default function HeroMotionMockup() {
                       <div className="prof-avatar">J</div>
                       <div>
                         <strong>Joaquín Vega</strong>
-                        <span>Especialista en Barba</span>
+                        <span>Especialista</span>
                       </div>
                     </div>
                   </div>
@@ -256,8 +256,8 @@ export default function HeroMotionMockup() {
                   <div className="service-list">
                     <div className="service-card selected">
                       <div>
-                        <strong>Corte + Perfilado de Barba</strong>
-                        <span>Incluye lavado y peinado</span>
+                        <strong>Sesión Completa</strong>
+                        <span>Incluye seguimiento</span>
                       </div>
                       <div className="service-meta">
                         <span className="service-price">$15.000</span>
@@ -266,8 +266,8 @@ export default function HeroMotionMockup() {
                     </div>
                     <div className="service-card">
                       <div>
-                        <strong>Corte Clásico</strong>
-                        <span>Tijera o máquina</span>
+                        <strong>Consulta Estándar</strong>
+                        <span>Sesión rápida</span>
                       </div>
                       <div className="service-meta">
                         <span className="service-price">$12.000</span>
@@ -337,9 +337,9 @@ export default function HeroMotionMockup() {
                   
                   <div className="summary-box">
                     <div><strong>Cliente:</strong> Santiago Rossi</div>
-                    <div><strong>Servicio:</strong> Corte + Barba</div>
+                    <div><strong>Servicio:</strong> Sesión Completa</div>
                     <div><strong>Fecha:</strong> Vie 7 Ago · 10:15 hs</div>
-                    <div><strong>Barbero:</strong> Mateo</div>
+                    <div><strong>Profesional:</strong> Mateo</div>
                   </div>
                 </div>
               )}
