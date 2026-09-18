@@ -200,6 +200,9 @@ export default function AppointmentsPage() {
               {apt.clientPhone && !isWalkin && (
                 <a className="text-sm" href={`tel:${apt.clientPhone}`} style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>📞 {apt.clientPhone}</a>
               )}
+              {apt.notes && (
+                <div className="text-xs text-muted" style={{ marginTop: 4 }}>📝 {apt.notes}</div>
+              )}
               {accionesDe(apt)}
             </div>
           );
@@ -235,11 +238,12 @@ export default function AppointmentsPage() {
                   <td>{formatDate(apt.appointmentDate).split(',')[0]}</td>
                   <td><strong>{apt.startTime}</strong> — {apt.endTime}</td>
                   {isOwner && <td>{prof?.name}</td>}
-                  <td>
+                  <td title={apt.notes || undefined}>
                     {isWalkin
                       ? <span className="flex items-center gap-sm"><span>📋</span><span>Servicio sin turno</span></span>
                       : (apt.clientName || apt.userId)
                     }
+                    {apt.notes && <span className="text-xs text-muted"> 📝</span>}
                   </td>
                   <td>{apt.clientPhone || '—'}</td>
                   <td>

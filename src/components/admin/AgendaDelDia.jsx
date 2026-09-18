@@ -183,6 +183,9 @@ export default function AgendaDelDia({
                               📞 {a.clientPhone}
                             </a>
                           )}
+                          {a.notes && (
+                            <div className="text-xs text-muted">📝 {a.notes}</div>
+                          )}
                         </div>
                         <div className="agenda-turno-lateral">
                           <span className={`badge ${est.clase}`}>{est.label}</span>

@@ -55,6 +55,12 @@ export default function ConfirmationPage() {
             <span className="summary-label">💰 Precio</span>
             <span className="summary-value">{formatPrice(appointment.price, business?.currency)}</span>
           </div>
+          {appointment.notes && (
+            <div className="summary-row">
+              <span className="summary-label">📝 Datos</span>
+              <span className="summary-value">{appointment.notes}</span>
+            </div>
+          )}
         </div>
       </div>
 

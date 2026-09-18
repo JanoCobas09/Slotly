@@ -244,7 +244,7 @@ function telefonoValido(tel) {
   return digitos.length >= 10 && digitos.length <= 13;
 }
 
-function PersonalInfoStep({ user, phone, onPhoneChange }) {
+function PersonalInfoStep({ user, phone, onPhoneChange, customFields, customFieldValues, onCustomFieldChange }) {
   const tocado = phone.length > 0;
   const valido = telefonoValido(phone);
   return (
@@ -286,13 +286,30 @@ function PersonalInfoStep({ user, phone, onPhoneChange }) {
             Es por donde te va a contactar el negocio si hace falta.
           </p>
         </div>
+
+        {/* Campos extra según el rubro del negocio (professionPresets.js), ej.
+            datos del vehículo en un taller o de la mascota en veterinaria.
+            Nunca hardcodeados por profesión: vienen del preset resuelto. */}
+        {customFields.map((field) => (
+          <div className="form-group" key={field.key}>
+            <label className="form-label">
+              {field.label} {field.required && <span className="required">*</span>}
+            </label>
+            <input
+              className="form-input"
+              type="text"
+              value={customFieldValues[field.key] || ''}
+              onChange={(e) => onCustomFieldChange(field.key, e.target.value)}
+            />
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
 // ---- SUMMARY ----
-function BookingSummary({ professional, service, date, timeSlot, price, currency, clientName, clientPhone }) {
+function BookingSummary({ professional, service, date, timeSlot, price, currency, clientName, clientPhone, notes }) {
   const { terminology } = useBusinessContext();
   return (
     <div>
@@ -336,6 +353,12 @@ function BookingSummary({ professional, service, date, timeSlot, price, currency
               <span className="summary-label">📱 Teléfono</span>
               <span className="summary-value">{clientPhone}</span>
             </div>
+            {notes && (
+              <div className="summary-row">
+                <span className="summary-label">📝 Datos</span>
+                <span className="summary-value">{notes}</span>
+              </div>
+            )}
           </div>
           <div className="summary-footer">
             <div className="future-feature">
@@ -397,7 +420,28 @@ export default function BookingPage() {
   // Datos ya filtrados por el negocio del slug de la URL.
   const { professionals, services, professionalServices, schedules, appointments, business, slug, businessId } =
     useTenant();
-  const { step, professionalId, serviceId, date, timeSlot, personalInfo } = booking;
+  const { customerFields } = useBusinessContext();
+  const { step, professionalId, serviceId, date, timeSlot, personalInfo, customFieldValues } = booking;
+  const faltanCamposExtra = customerFields.some(
+    (f) => f.required && !String(customFieldValues[f.key] || '').trim()
+  );
+
+  // Los campos extra (datos del vehículo, de la mascota, motivo de
+  // consulta...) no tienen columnas propias en `appointments`: se juntan en
+  // el mismo `notes` que ya acepta `createAppointment` y que hoy nadie
+  // completaba desde la reserva pública.
+  const customFieldsNotes = useMemo(
+    () =>
+      customerFields
+        .map((f) => {
+          const valor = String(customFieldValues[f.key] || '').trim();
+          return valor ? `${f.label}: ${valor}` : null;
+        })
+        .filter(Boolean)
+        .join(' · ')
+        .slice(0, 500),
+    [customerFields, customFieldValues]
+  );
 
   // Motivos por los que este negocio no puede tomar turnos ahora mismo.
   // Se calcula acá pero se renderiza recién después de todos los hooks: cortar
@@ -495,7 +539,7 @@ export default function BookingPage() {
       case 2: return !!serviceId;
       case 3: return !!date && !hasAppointmentToday;
       case 4: return !!timeSlot;
-      case 5: return telefonoValido(personalInfo.phone);
+      case 5: return telefonoValido(personalInfo.phone) && !faltanCamposExtra;
       default: return false;
     }
   };
@@ -528,6 +572,8 @@ export default function BookingPage() {
     setReservando(true);
     setError('');
 
+    const notes = customFieldsNotes;
+
     const datos = {
       userId: user.id,
       clientName: user.name,
@@ -539,13 +585,13 @@ export default function BookingPage() {
       startTime: timeSlot.startTime,
       endTime: timeSlot.endTime,
       price: finalPrice,
-      notes: '',
+      notes,
       adminNotes: '',
     };
 
     try {
-      // El turno se escribe en Firestore: desde este momento lo ve el barbero
-      // en su panel, en su propio dispositivo.
+      // El turno se escribe en Firestore: desde este momento lo ve el
+      // profesional en su panel, en su propio dispositivo.
       //
       // Va por la Cloud Function, que revalida todo del lado del servidor: el
       // motor de disponibilidad de acá arriba pinta la grilla, pero cualquiera
@@ -560,6 +606,7 @@ export default function BookingPage() {
         clientName: user.name,
         clientPhone: personalInfo.phone,
         clientEmail: user.email,
+        notes,
       });
       const id = res.id;
       datos.price = res.price;
@@ -643,6 +690,9 @@ export default function BookingPage() {
           user={user}
           phone={personalInfo.phone}
           onPhoneChange={phone => dispatch({ type: 'SET_PERSONAL_INFO', payload: { phone } })}
+          customFields={customerFields}
+          customFieldValues={customFieldValues}
+          onCustomFieldChange={(key, value) => dispatch({ type: 'SET_CUSTOM_FIELD', payload: { key, value } })}
         />
       )}
 
@@ -654,6 +704,7 @@ export default function BookingPage() {
           timeSlot={timeSlot}
           price={finalPrice}
           currency={business.currency}
+          notes={customFieldsNotes}
           clientName={user.name}
           clientPhone={personalInfo.phone}
         />

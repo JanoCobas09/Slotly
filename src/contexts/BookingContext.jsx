@@ -9,6 +9,9 @@ const initialBooking = {
   date: null,
   timeSlot: null,
   personalInfo: { name: '', phone: '', email: '', notes: '' },
+  // Valores de los campos extra del negocio (ver customerFields en
+  // professionPresets.js), por key. Ej: { vehicleInfo: 'Fiat Cronos ABC123' }.
+  customFieldValues: {},
 };
 
 function bookingReducer(state, action) {
@@ -23,6 +26,8 @@ function bookingReducer(state, action) {
       return { ...state, timeSlot: action.payload };
     case 'SET_PERSONAL_INFO':
       return { ...state, personalInfo: { ...state.personalInfo, ...action.payload } };
+    case 'SET_CUSTOM_FIELD':
+      return { ...state, customFieldValues: { ...state.customFieldValues, [action.payload.key]: action.payload.value } };
     case 'SET_STEP':
       return { ...state, step: action.payload };
     case 'NEXT_STEP':
