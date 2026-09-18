@@ -37,12 +37,21 @@ clave para no repetir el análisis:
   propia.
 - `maxBarbers` (en `plans.js`) es el nombre viejo de `maxProfessionals`, y
   `esBarbero()` (en `firestore.rules`) se renombró a `esStaffAsignado()` —
-  mismo comportamiento, nombre genérico.
+  mismo comportamiento, nombre genérico. **Verificado contra el emulador**
+  (las 4 suites, 202/202 casos) el 17/09/2026: el rename y los mensajes de
+  error generalizados en `createAppointment` no rompieron nada.
+- Los `customerFields` de cada categoría (dato del vehículo, de la mascota,
+  motivo de consulta...) se piden de verdad en el paso 5 de `BookingPage` y
+  viajan en `notes` (un parámetro que `createAppointment` ya aceptaba y
+  escribía en Firestore, pero que ningún cliente llenaba). El staff los ve en
+  `AppointmentsPage` y `AgendaDelDia`.
 - Lo que sigue pendiente: terminar de barrer comentarios internos que todavía
-  dicen "barbero"/"barbería" (bajo impacto, no afectan al producto), y correr
-  `scripts/auditar-rules-emulador.mjs` contra el rename de Rules antes de
-  deployar a producción (no se pudo correr en la sesión que hizo el cambio
-  por no tener Firebase CLI instalado).
+  dicen "barbero"/"barbería" (bajo impacto, no afectan al producto). Si vas a
+  correr el emulador de nuevo: los puertos por defecto (8080 Firestore, 4000
+  UI) pueden estar ocupados por otros procesos de la máquina si hay varios
+  proyectos corriendo — remapealos en `firebase.json` (`emulators.*.port`) y
+  en los `127.0.0.1:8080` hardcodeados al inicio de cada script de
+  `scripts/*-emulador.mjs` si hace falta, y revertí ambos al terminar.
 
 **BarberOS es el producto. SACIA es el estudio que lo desarrolla.** No mezclar.
 
