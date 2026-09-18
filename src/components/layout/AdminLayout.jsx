@@ -58,7 +58,7 @@ export default function AdminLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { business, isPlatformOwner: platformOwner } = useCurrentBusiness();
-  const { terminology } = useBusinessContext();
+  const { terminology, icon: rubroIcon } = useBusinessContext();
 
   const isOwner = user?.role === 'owner';
   const navItems = isOwner ? ownerNavItems : adminNavItems;
@@ -85,7 +85,13 @@ export default function AdminLayout() {
       {/* Sidebar */}
       <aside className={`admin-sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="admin-sidebar-header">
-          <img src="/img/slotly-icon.svg" alt="Slotly" width="32" height="32" />
+          {business ? (
+            <span className="header-logo-icon">
+              <Icon name={rubroIcon} size="20" />
+            </span>
+          ) : (
+            <img src="/img/slotly-icon.svg" alt="Slotly" width="32" height="32" />
+          )}
           <span>{business?.name || 'Slotly'}</span>
         </div>
 
