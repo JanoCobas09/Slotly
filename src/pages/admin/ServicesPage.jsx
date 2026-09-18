@@ -208,7 +208,7 @@ export default function ServicesPage() {
               <div className="flex flex-col gap-md">
                 <div className="form-group">
                   <label className="form-label">Nombre <span className="required">*</span></label>
-                  <input className="form-input" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Ej: Corte Clásico" />
+                  <input className="form-input" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Nombre del servicio" />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Descripción</label>

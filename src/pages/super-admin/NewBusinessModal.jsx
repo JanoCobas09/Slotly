@@ -316,7 +316,8 @@ export default function NewBusinessModal({ onClose, onCreated }) {
             <div className="form-group">
               <label className="form-label">Acceso al panel</label>
               <div className="form-input" style={{ background: 'var(--bg-secondary)', fontSize: 13 }}>
-                Entra en <strong>/login</strong> con Google usando{' '}
+                Entra en <strong>/login</strong>{' '}
+                {created.claims?.password ? 'con usuario y contraseña' : 'con Google'} usando{' '}
                 <strong>{created.ownerAdmin.email}</strong>
               </div>
               {created.claims?.password && (
