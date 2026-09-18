@@ -20,6 +20,7 @@ export const PROFESSION_PRESETS = {
   beauty: {
     label: 'Peluquería, barbería o estética',
     examples: 'Barbería, peluquería, centro de estética, manicuría, spa',
+    icon: 'scissors',
     terminology: {
       appointmentNoun: 'turno',
       professionalNoun: 'profesional',
@@ -47,6 +48,7 @@ export const PROFESSION_PRESETS = {
   healthcare: {
     label: 'Salud (odontología, medicina, kinesiología...)',
     examples: 'Odontología, medicina general, kinesiología, nutrición',
+    icon: 'stethoscope',
     terminology: {
       appointmentNoun: 'consulta',
       professionalNoun: 'doctor/a',
@@ -75,6 +77,7 @@ export const PROFESSION_PRESETS = {
   wellness: {
     label: 'Bienestar y terapias (psicología, masajes...)',
     examples: 'Psicología, masajes, terapias, coaching',
+    icon: 'leaf',
     terminology: {
       appointmentNoun: 'sesión',
       professionalNoun: 'terapeuta',
@@ -101,6 +104,7 @@ export const PROFESSION_PRESETS = {
   automotive: {
     label: 'Taller o servicio automotor',
     examples: 'Taller mecánico, lavadero/detailing, servicio técnico de vehículos',
+    icon: 'car',
     terminology: {
       appointmentNoun: 'turno',
       professionalNoun: 'técnico/a',
@@ -128,6 +132,7 @@ export const PROFESSION_PRESETS = {
   education: {
     label: 'Clases y entrenamiento',
     examples: 'Profesores particulares, academias, entrenadores personales',
+    icon: 'dumbbell',
     terminology: {
       appointmentNoun: 'clase',
       professionalNoun: 'profesor/a',
@@ -154,6 +159,7 @@ export const PROFESSION_PRESETS = {
   professional_services: {
     label: 'Servicios profesionales',
     examples: 'Consultoría, abogacía, contabilidad, inmobiliarias',
+    icon: 'briefcase',
     terminology: {
       appointmentNoun: 'reunión',
       professionalNoun: 'profesional',
@@ -180,6 +186,7 @@ export const PROFESSION_PRESETS = {
   pet_services: {
     label: 'Servicios para mascotas',
     examples: 'Veterinaria, entrenamiento canino, cuidado de mascotas',
+    icon: 'paw',
     terminology: {
       appointmentNoun: 'turno',
       professionalNoun: 'profesional',
@@ -210,6 +217,7 @@ export const PROFESSION_PRESETS = {
   general: {
     label: 'Otro tipo de negocio',
     examples: 'Cualquier negocio que trabaje con turnos o reservas',
+    icon: 'building',
     terminology: {
       appointmentNoun: 'reserva',
       professionalNoun: 'profesional',
@@ -292,5 +300,5 @@ export function isKnownProfessionCategory(category) {
 export function listProfessionCategories() {
   return Object.entries(PROFESSION_PRESETS)
     .filter(([key]) => key !== DEFAULT_PROFESSION_CATEGORY)
-    .map(([key, preset]) => ({ value: key, label: preset.label, examples: preset.examples }));
+    .map(([key, preset]) => ({ value: key, label: preset.label, examples: preset.examples, icon: preset.icon }));
 }

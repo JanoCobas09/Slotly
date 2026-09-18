@@ -22,8 +22,12 @@ clave para no repetir el análisis:
 - `src/config/professionPresets.js` — 7 categorías (`beauty`, `healthcare`,
   `wellness`, `automotive`, `education`, `professional_services`,
   `pet_services`) + fallback `general`, cada una con terminología, tema de
-  color y servicios sugeridos. Un negocio nunca queda sin categoría: texto
-  libre no reconocido → `general`, nunca un estado roto.
+  color, ícono propio (`scissors`, `stethoscope`, `leaf`, `car`, `dumbbell`,
+  `briefcase`, `paw`, `building`) y servicios sugeridos. Un negocio nunca
+  queda sin categoría: texto libre no reconocido → `general`, nunca un
+  estado roto. `resolveBusinessContext()` expone el ícono resuelto
+  (`.icon`); se ve en el selector de rubro del alta, en las tarjetas del
+  panel global y en el header del cliente (`Header.jsx`).
 - `src/lib/resolveBusinessContext.js` — mezcla el preset con lo que el
   negocio haya personalizado. Un negocio sin `business.context` (cualquier
   barbería dada de alta antes de esto) resuelve a `beauty`: misma experiencia

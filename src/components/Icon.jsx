@@ -68,6 +68,12 @@ const PATHS = {
   paw: <><circle cx="7" cy="9" r="1.6" /><circle cx="11.5" cy="6.5" r="1.6" /><circle cx="16.5" cy="7.5" r="1.6" /><circle cx="19.5" cy="12" r="1.6" /><path d="M12 12.5c3 0 5 2.2 5 4.4 0 1.7-1.3 2.6-3 2.1a5.6 5.6 0 0 0-4 0c-1.7.5-3-.4-3-2.1 0-2.2 2-4.4 5-4.4z" /></>,
   car: <><path d="M4 15.5 5.6 10a2 2 0 0 1 1.9-1.4h9a2 2 0 0 1 1.9 1.4l1.6 5.5" /><rect x="3" y="15.5" width="18" height="4.5" rx="1.6" /><circle cx="7.5" cy="19.8" r="1.4" /><circle cx="16.5" cy="19.8" r="1.4" /></>,
   graduation: <><path d="M2 9.5 12 5l10 4.5-10 4.5z" /><path d="M6 11.5V16c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5v-4.5" /><path d="M20.5 10v5.5" /></>,
+
+  // Íconos por rubro (professionPresets.js) — uno por categoría, para que el
+  // dueño reconozca su profesión de un vistazo en vez de leer solo texto.
+  scissors: <><circle cx="6" cy="6" r="2.6" /><circle cx="6" cy="18" r="2.6" /><path d="M20 4L8.1 15.9" /><path d="M14.5 14.5L20 20" /><path d="M8.1 8.1L12 12" /></>,
+  dumbbell: <><path d="M7.5 12h9" /><rect x="3" y="8.5" width="3.2" height="7" rx="1.4" /><rect x="17.8" y="8.5" width="3.2" height="7" rx="1.4" /></>,
+  leaf: <><path d="M5 19c9 1 14-4 14.5-14.5C10.5 3 5 8.5 5 16.5z" /><path d="M6.2 17.8c2.5-4.5 5.5-8 11-11" /></>,
 };
 
 /** Ícono lineal, 24x24, hereda color y tamaño del texto (`1em` por defecto). */

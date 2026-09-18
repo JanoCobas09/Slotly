@@ -48,6 +48,7 @@ export function resolveBusinessContext(business) {
   return {
     professionCategory,
     customProfession: context?.customProfession || null,
+    icon: preset.icon,
     terminology,
     theme,
     suggestedServices,

@@ -16,6 +16,8 @@ import { deleteBusiness } from '../../lib/functions';
 import NewBusinessModal from './NewBusinessModal';
 import TicketsPanel from './TicketsPanel';
 import Icon from '../../components/Icon';
+import { resolveBusinessContext } from '../../lib/resolveBusinessContext';
+import { getProfessionPreset } from '../../config/professionPresets';
 
 // --- Professional SVG Icons ---
 const BusinessIcon = () => (
@@ -637,6 +639,8 @@ export default function SuperAdminDashboard() {
               const sentCount = getMonthlyMessageCount(b.id);
               const isExceeded = sentCount > (b.whatsappQuota || 0);
               const quotaPercentage = Math.min(100, (sentCount / (b.whatsappQuota || 1)) * 100);
+              const rubro = resolveBusinessContext(b);
+              const rubroLabel = getProfessionPreset(rubro.professionCategory).label;
 
               return (
                 <div key={b.id} className="card" style={{ 
@@ -663,10 +667,29 @@ export default function SuperAdminDashboard() {
 
                   {/* Header: Name & Status */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 4 }}>
-                    <div>
-                      <strong style={{ fontSize: 16, color: 'var(--text)' }}>{b.name}</strong>
-                      <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
-                        URL: <span style={{ fontFamily: 'monospace', background: 'var(--bg-secondary)', padding: '2px 6px', borderRadius: 4, border: '1px solid var(--border)' }}>/{b.slug}</span>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                      <span
+                        title={rubroLabel}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: 32,
+                          height: 32,
+                          borderRadius: 8,
+                          background: 'var(--bg-secondary)',
+                          color: 'var(--primary)',
+                          fontSize: 16,
+                          flexShrink: 0,
+                        }}
+                      >
+                        <Icon name={rubro.icon} />
+                      </span>
+                      <div>
+                        <strong style={{ fontSize: 16, color: 'var(--text)' }}>{b.name}</strong>
+                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
+                          URL: <span style={{ fontFamily: 'monospace', background: 'var(--bg-secondary)', padding: '2px 6px', borderRadius: 4, border: '1px solid var(--border)' }}>/{b.slug}</span>
+                        </div>
                       </div>
                     </div>
                     <span className={`badge ${b.isFrozen ? 'badge-danger' : 'badge-success'}`} style={{ fontSize: 11 }}>

@@ -11,7 +11,7 @@ export default function Header() {
   // Aplica el tema (color de marca) del negocio activo. Header está montado
   // tanto en la landing como en toda página de cliente, así que es el punto
   // que garantiza que el tema se pinte apenas se resuelve el negocio.
-  useBusinessContext();
+  const { icon: rubroIcon } = useBusinessContext();
 
   // Los links del cliente siempre viven bajo el slug del negocio actual.
   const home = slug ? `/${slug}` : '/';
@@ -19,7 +19,13 @@ export default function Header() {
   return (
     <header className="header">
       <Link to={home} className="header-logo">
-        <img src="/img/slotly-icon.svg" alt="Slotly" width="32" height="32" className="header-logo-img" />
+        {slug && business ? (
+          <span className="header-logo-icon">
+            <Icon name={rubroIcon} size="18" />
+          </span>
+        ) : (
+          <img src="/img/slotly-icon.svg" alt="Slotly" width="32" height="32" className="header-logo-img" />
+        )}
         <span>{business?.name || 'Slotly'}</span>
       </Link>
 

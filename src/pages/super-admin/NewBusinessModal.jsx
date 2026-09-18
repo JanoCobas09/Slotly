@@ -451,6 +451,22 @@ export default function NewBusinessModal({ onClose, onCreated }) {
                     checked={form.professionOption === cat.value}
                     onChange={() => handleProfessionOptionChange(cat.value)}
                   />
+                  <span
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: 28,
+                      height: 28,
+                      borderRadius: 8,
+                      background: 'var(--bg-secondary)',
+                      color: 'var(--primary)',
+                      fontSize: 15,
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Icon name={cat.icon} />
+                  </span>
                   <div>
                     <div style={{ fontWeight: 'bold', fontSize: 12 }}>{cat.label}</div>
                     <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{cat.examples}</div>
@@ -475,6 +491,22 @@ export default function NewBusinessModal({ onClose, onCreated }) {
                   checked={form.professionOption === OTHER_OPTION}
                   onChange={() => handleProfessionOptionChange(OTHER_OPTION)}
                 />
+                <span
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: 28,
+                    height: 28,
+                    borderRadius: 8,
+                    background: 'var(--bg-secondary)',
+                    color: 'var(--primary)',
+                    fontSize: 15,
+                    flexShrink: 0,
+                  }}
+                >
+                  <Icon name="question" />
+                </span>
                 <div>
                   <div style={{ fontWeight: 'bold', fontSize: 12 }}>No encuentro mi profesión</div>
                   <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Escribila y la configuramos igual</div>
