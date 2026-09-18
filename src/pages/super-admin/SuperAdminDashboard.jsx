@@ -166,7 +166,7 @@ export default function SuperAdminDashboard() {
       setModalType(null);
       alert(`Listo. Se borró ${selectedBusiness.name}: ${r.usuarios} usuario(s) sin acceso, ${r.tickets} ticket(s) eliminados.`);
     } catch (err) {
-      console.error('[SuperAdmin] No se pudo borrar la barbería:', err);
+      console.error('[SuperAdmin] No se pudo borrar el negocio:', err);
       setDeleteError(err.message);
     } finally {
       setDeleting(false);
@@ -336,7 +336,7 @@ export default function SuperAdminDashboard() {
               className="btn btn-primary"
               style={{ fontSize: 13, padding: '9px 16px' }}
             >
-              + Nueva barbería
+              + Nuevo negocio
             </button>
           )}
           {/* Se quitó "Vaciar base": los datos ya no están en este navegador.
@@ -360,7 +360,7 @@ export default function SuperAdminDashboard() {
           className={`btn ${activeTab === 'tenants' ? 'btn-primary' : 'btn-outline'}`}
           style={{ borderRadius: '8px 8px 0 0', borderBottom: 'none', padding: '10px 18px', display: 'flex', alignItems: 'center', gap: 6 }}
         >
-          Gestionar Barberías ({totalBusinesses})
+          Gestionar Negocios ({totalBusinesses})
         </button>
         <button 
           onClick={() => setActiveTab('citas')}
@@ -408,14 +408,14 @@ export default function SuperAdminDashboard() {
       {/* Base vacía: lo único que tiene sentido hacer es dar de alta el primer cliente */}
       {totalBusinesses === 0 && activeTab !== 'soporte' && activeTab !== 'equipo' && (
         <div className="card empty-state" style={{ padding: 'var(--space-2xl)' }}>
-          <div className="empty-state-icon">💈</div>
-          <h3 style={{ marginBottom: 8 }}>Todavía no hay ninguna barbería</h3>
+          <div className="empty-state-icon">🏢</div>
+          <h3 style={{ marginBottom: 8 }}>Todavía no hay ningún negocio</h3>
           <p style={{ maxWidth: 460, margin: '0 auto var(--space-lg)' }}>
             Cuando cierres un cliente, dalo de alta acá: se crea su cuenta, su
             link público y el acceso del dueño en un solo paso.
           </p>
           <button onClick={() => setShowNewBusiness(true)} className="btn btn-primary">
-            + Dar de alta la primera barbería
+            + Dar de alta el primer negocio
           </button>
         </div>
       )}
@@ -585,14 +585,14 @@ export default function SuperAdminDashboard() {
           {/* Filters card */}
           <div className="card" style={{ padding: 'var(--space-md)' }}>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ margin: 0 }}>Gestionar Barberías y Salones</h3>
+              <h3 style={{ margin: 0 }}>Gestionar Negocios</h3>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
                 <button
                   onClick={() => setShowNewBusiness(true)}
                   className="btn btn-primary"
                   style={{ margin: 0, fontSize: 13 }}
                 >
-                  + Nueva barbería
+                  + Nuevo negocio
                 </button>
                 <input
                   type="text"
@@ -810,7 +810,7 @@ export default function SuperAdminDashboard() {
                       className="btn btn-ghost"
                       style={{ padding: '8px', fontSize: 12, justifyContent: 'center', gridColumn: '1 / -1', color: 'var(--danger)' }}
                     >
-                      🗑️ Eliminar barbería
+                      🗑️ Eliminar negocio
                     </button>
                     </>)}
                   </div>
@@ -844,7 +844,7 @@ export default function SuperAdminDashboard() {
                 onChange={e => setAppointmentBusinessFilter(e.target.value)}
                 style={{ margin: 0, width: 180 }}
               >
-                <option value="all">Todas las Barberías</option>
+                <option value="all">Todos los Negocios</option>
                 {businesses?.map(b => (
                   <option key={b.id} value={b.id}>{b.name}</option>
                 ))}
@@ -1054,7 +1054,7 @@ export default function SuperAdminDashboard() {
                 onChange={e => setLogBusinessFilter(e.target.value)}
                 style={{ margin: 0, width: 180 }}
               >
-                <option value="all">Todas las Barberías</option>
+                <option value="all">Todos los Negocios</option>
                 {businesses?.map(b => (
                   <option key={b.id} value={b.id}>{b.name}</option>
                 ))}
@@ -1145,7 +1145,7 @@ export default function SuperAdminDashboard() {
         </div>
       )}
 
-      {/* --- MODAL: ALTA DE BARBERÍA (onboarding manual) --- */}
+      {/* --- MODAL: ALTA DE NEGOCIO (onboarding manual) --- */}
       {showNewBusiness && (
         <NewBusinessModal
           onClose={() => setShowNewBusiness(false)}
@@ -1232,19 +1232,19 @@ export default function SuperAdminDashboard() {
         </div>
       )}
 
-      {/* --- MODAL: ELIMINAR BARBERÍA --- */}
+      {/* --- MODAL: ELIMINAR NEGOCIO --- */}
       {modalType === 'delete' && selectedBusiness && (
         <div className="modal-overlay" onClick={() => !deleting && setModalType(null)}>
           <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 440 }}>
             <div className="modal-header">
-              <h3>Eliminar barbería</h3>
+              <h3>Eliminar negocio</h3>
               <button className="modal-close" onClick={() => setModalType(null)} disabled={deleting}>✕</button>
             </div>
             <div className="modal-body">
               <div className="notice notice-danger" style={{ marginBottom: 'var(--space-md)' }}>
                 <strong>Esto no se puede deshacer.</strong> Se borran la cuenta de{' '}
                 <strong>{selectedBusiness.name}</strong>, todos sus turnos, su equipo,
-                sus servicios, sus tickets y su link público. El dueño y los barberos
+                sus servicios, sus tickets y su link público. El dueño y los profesionales
                 pierden el acceso al instante.
               </div>
               <p className="text-secondary text-sm" style={{ marginBottom: 'var(--space-sm)' }}>

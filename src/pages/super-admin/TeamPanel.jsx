@@ -70,11 +70,11 @@ export default function TeamPanel() {
       <div className="card" style={{ marginBottom: 'var(--space-lg)' }}>
         <h3 style={{ marginBottom: 6 }}>Sumar un moderador</h3>
         <p className="text-secondary text-sm" style={{ marginBottom: 'var(--space-md)' }}>
-          Entra a este panel, ve todas las barberías y atiende los tickets de
+          Entra a este panel, ve todos los negocios y atiende los tickets de
           soporte. <strong>No puede</strong> dar de alta cuentas, registrar pagos,
           cambiar planes ni suspender a nadie. Si entra con Google, poné su Gmail;
-          si va a entrar con contraseña, creale la cuenta primero desde una
-          barbería o pedime que lo hagamos.
+          si va a entrar con contraseña, creale la cuenta primero desde un
+          negocio o pedime que lo hagamos.
         </p>
 
         {error && (

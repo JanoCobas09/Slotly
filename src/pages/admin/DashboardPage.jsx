@@ -39,7 +39,7 @@ function WalkinModal({ onClose, onConfirm }) {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 400 }}>
         <div className="modal-header">
-          <h3>✂️ Servicio sin turno</h3>
+          <h3>📋 Servicio sin turno</h3>
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>
         <div className="modal-body">
@@ -194,7 +194,7 @@ export default function DashboardPage() {
               📅 Agendar turno
             </button>
             <button className="btn btn-primary" onClick={() => setShowWalkinModal(true)}>
-              ✂️ Servicio sin turno
+              📋 Servicio sin turno
             </button>
           </div>
         </div>

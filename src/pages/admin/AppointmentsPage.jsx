@@ -192,7 +192,7 @@ export default function AppointmentsPage() {
                 </div>
                 <span className={`badge ${STATUS_BADGES[apt.status]}`}>{STATUS_LABELS[apt.status] || apt.status}</span>
               </div>
-              <div className="cita-tarjeta-cliente">{isWalkin ? '✂️ Servicio sin turno' : (apt.clientName || 'Cliente')}</div>
+              <div className="cita-tarjeta-cliente">{isWalkin ? '📋 Servicio sin turno' : (apt.clientName || 'Cliente')}</div>
               <div className="text-sm text-secondary">
                 {isWalkin ? 'Horario bloqueado' : `${srv?.name || '—'} · ${formatPrice(apt.price, business?.currency)}`}
                 {isOwner && prof && <> · {prof.name}</>}
@@ -237,7 +237,7 @@ export default function AppointmentsPage() {
                   {isOwner && <td>{prof?.name}</td>}
                   <td>
                     {isWalkin
-                      ? <span className="flex items-center gap-sm"><span>✂️</span><span>Servicio sin turno</span></span>
+                      ? <span className="flex items-center gap-sm"><span>📋</span><span>Servicio sin turno</span></span>
                       : (apt.clientName || apt.userId)
                     }
                   </td>

@@ -245,7 +245,6 @@ function telefonoValido(tel) {
 }
 
 function PersonalInfoStep({ user, phone, onPhoneChange }) {
-  const { terminology } = useBusinessContext();
   const tocado = phone.length > 0;
   const valido = telefonoValido(phone);
   return (

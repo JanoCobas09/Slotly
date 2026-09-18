@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { formatDate, toDateString, timeToMinutes } from '../../utils/dateUtils';
+import { useBusinessContext } from '../../hooks/useBusinessContext';
 
 /**
  * La agenda de un día, como un calendario: una fila por franja horaria, con
@@ -54,6 +55,7 @@ export default function AgendaDelDia({
   /** Acciones opcionales por turno: (apt) => ReactNode. */
   renderAcciones = null,
 }) {
+  const { terminology } = useBusinessContext();
   const hoy = toDateString(new Date());
   const [fecha, setFecha] = useState(hoy);
   const [filtroProf, setFiltroProf] = useState('');
@@ -124,7 +126,7 @@ export default function AgendaDelDia({
         </div>
         {varios && (
           <select className="form-input agenda-filtro" value={filtroProf} onChange={(e) => setFiltroProf(e.target.value)}>
-            <option value="">Todos los barberos</option>
+            <option value="">Todos los {terminology.professionalNoun}s</option>
             {professionals.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
         )}
@@ -132,7 +134,7 @@ export default function AgendaDelDia({
 
       {cerrado && delDia.length === 0 ? (
         <div className="empty-state" style={{ padding: 'var(--space-xl)' }}>
-          <p>La barbería está cerrada este día.</p>
+          <p>El negocio está cerrado este día.</p>
         </div>
       ) : (
         <div className="agenda-franjas">
@@ -170,7 +172,7 @@ export default function AgendaDelDia({
                       >
                         <div className="agenda-turno-principal">
                           <div className="agenda-turno-cliente">
-                            {walkin ? '✂️ Servicio sin turno' : (a.clientName || 'Cliente')}
+                            {walkin ? '📋 Servicio sin turno' : (a.clientName || 'Cliente')}
                           </div>
                           <div className="agenda-turno-detalle">
                             {a.startTime}–{a.endTime || '?'} · {nombreSrv(a)}
