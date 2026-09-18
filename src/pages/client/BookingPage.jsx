@@ -7,6 +7,7 @@ import { createAppointment, getBusySlots } from '../../lib/functions';
 import { calculateAvailableSlots, professionalWorksOnDate } from '../../utils/availabilityEngine';
 import { formatDate, formatPrice, toDateString, getMonthName } from '../../utils/dateUtils';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
+import Icon from '../../components/Icon';
 
 // ---- STEPPER ----
 function Stepper({ step }) {
@@ -22,7 +23,7 @@ function Stepper({ step }) {
             {idx > 0 && <div className={`stepper-line ${completed ? 'completed' : ''}`} />}
             <div>
               <div className={`stepper-circle ${active ? 'active' : ''} ${completed ? 'completed' : ''}`}>
-                {completed ? '✓' : num}
+                {completed ? <Icon name="check" /> : num}
               </div>
               <div className={`stepper-label ${active ? 'active' : ''}`}>{label}</div>
             </div>
@@ -87,7 +88,7 @@ function ServiceSelect({ services, professionalServices, professionalId, selecte
             </div>
             <div className="service-meta">
               <div className="service-price">{formatPrice(service.finalPrice, currency)}</div>
-              <div className="service-duration">⏱ {service.finalDuration} min</div>
+              <div className="service-duration"><Icon name="clock" /> {service.finalDuration} min</div>
             </div>
           </div>
         ))}
@@ -179,7 +180,7 @@ function TimeSlotGrid({ slots, selectedSlot, onSelect, date, cargando }) {
         <h2 className="booking-step-title">Horarios disponibles</h2>
         <p className="booking-step-subtitle">{formatDate(date)}</p>
         <div className="empty-state">
-          <div className="empty-state-icon">📅</div>
+          <div className="empty-state-icon"><Icon name="calendar" /></div>
           <p>No hay horarios disponibles para este día</p>
           <p className="text-sm text-muted mt-sm">Probá seleccionando otra fecha</p>
         </div>
@@ -237,7 +238,7 @@ function TimeSlotGrid({ slots, selectedSlot, onSelect, date, cargando }) {
  * con o sin código de país. La function lo vuelve a validar del lado del
  * servidor; esto es para que el error se vea antes de mandar.
  */
-const VOLVER_DEL_LOGIN = 'barberos:volverAlPaso5';
+const VOLVER_DEL_LOGIN = 'slotly:volverAlPaso5';
 
 function telefonoValido(tel) {
   const digitos = String(tel || '').replace(/\D/g, '');
@@ -261,7 +262,7 @@ function PersonalInfoStep({ user, phone, onPhoneChange, customFields, customFiel
           <div style={{ fontWeight: 600 }}>{user.name}</div>
           <div className="text-sm text-secondary">{user.email}</div>
         </div>
-        <span className="badge badge-success">✓ Verificado</span>
+        <span className="badge badge-success"><Icon name="check" /> Verificado</span>
       </div>
 
       <div className="personal-form">
@@ -326,43 +327,43 @@ function BookingSummary({ professional, service, date, timeSlot, price, currency
           </div>
           <div className="summary-body">
             <div className="summary-row">
-              <span className="summary-label">📋 Servicio</span>
+              <span className="summary-label"><Icon name="clipboard" /> Servicio</span>
               <span className="summary-value">{service.name}</span>
             </div>
             <div className="summary-row">
-              <span className="summary-label">📅 Fecha</span>
+              <span className="summary-label"><Icon name="calendar" /> Fecha</span>
               <span className="summary-value">{formatDate(date)}</span>
             </div>
             <div className="summary-row">
-              <span className="summary-label">🕐 Horario</span>
+              <span className="summary-label"><Icon name="clock" /> Horario</span>
               <span className="summary-value">{timeSlot.startTime} — {timeSlot.endTime}</span>
             </div>
             <div className="summary-row">
-              <span className="summary-label">⏱ Duración</span>
+              <span className="summary-label"><Icon name="clock" /> Duración</span>
               <span className="summary-value">{service.finalDuration || service.durationMinutes} min</span>
             </div>
             <div className="summary-row">
-              <span className="summary-label">💰 Total</span>
+              <span className="summary-label"><Icon name="money" /> Total</span>
               <span className="summary-value">{formatPrice(price, currency)}</span>
             </div>
             <div className="summary-row" style={{ borderTop: '1px solid var(--border-color)', marginTop: 'var(--space-sm)', paddingTop: 'var(--space-sm)' }}>
-              <span className="summary-label">👤 Cliente</span>
+              <span className="summary-label"><Icon name="user" /> Cliente</span>
               <span className="summary-value">{clientName}</span>
             </div>
             <div className="summary-row">
-              <span className="summary-label">📱 Teléfono</span>
+              <span className="summary-label"><Icon name="phone" /> Teléfono</span>
               <span className="summary-value">{clientPhone}</span>
             </div>
             {notes && (
               <div className="summary-row">
-                <span className="summary-label">📝 Datos</span>
+                <span className="summary-label"><Icon name="note" /> Datos</span>
                 <span className="summary-value">{notes}</span>
               </div>
             )}
           </div>
           <div className="summary-footer">
             <div className="future-feature">
-              🔒 Próximamente: pago con Mercado Pago
+              <Icon name="lock" /> Próximamente: pago con Mercado Pago
             </div>
           </div>
         </div>
@@ -387,7 +388,7 @@ function BookingUnavailable({ reason, business }) {
           borderTop: isFrozen ? '4px solid var(--danger)' : '4px solid var(--primary)',
         }}
       >
-        <div style={{ fontSize: 60, marginBottom: 'var(--space-md)' }}>{isFrozen ? '❄️' : '🛠️'}</div>
+        <div style={{ fontSize: 60, marginBottom: 'var(--space-md)' }}><Icon name={isFrozen ? 'snowflake' : 'tool'} /></div>
         <h2 style={{ marginBottom: 'var(--space-md)', color: isFrozen ? 'var(--danger)' : 'inherit' }}>
           {isFrozen ? 'Reservas suspendidas' : 'Todavía no hay turnos disponibles'}
         </h2>
@@ -721,7 +722,7 @@ export default function BookingPage() {
           </button>
         ) : step === 6 ? (
           <button className="btn btn-primary btn-lg" onClick={handleConfirm} disabled={reservando}>
-            {reservando ? 'Confirmando…' : '✅ Confirmar Reserva'}
+            {reservando ? 'Confirmando…' : <><Icon name="check-circle" /> Confirmar Reserva</>}
           </button>
         ) : null}
       </div>

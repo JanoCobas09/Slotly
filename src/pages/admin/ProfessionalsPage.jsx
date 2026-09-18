@@ -13,6 +13,7 @@ import { getDayName, generateId } from '../../utils/dateUtils';
 import { getPlan } from '../../config/plans';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
 import { capitalize } from '../../utils/text';
+import Icon from '../../components/Icon';
 
 // Mismo número que la landing y el resto del panel.
 const LINK_AMPLIAR = 'https://wa.me/5492257529684?text=' +
@@ -38,9 +39,9 @@ export default function ProfessionalsPage() {
   // cualquier tope de plan en una app de browser. Lo que protege los datos son
   // las Rules, y este número no es un dato a proteger.
   const plan = getPlan(business?.planId);
-  const topeBarberos = plan?.maxProfessionals ?? null;
+  const topeProfesionales = plan?.maxProfessionals ?? null;
   const activos = professionals.filter((p) => p.isActive !== false).length;
-  const llegoAlTope = topeBarberos !== null && activos >= topeBarberos;
+  const llegoAlTope = topeProfesionales !== null && activos >= topeProfesionales;
 
   const [guardando, setGuardando]     = useState(false);
   const [showModal, setShowModal]     = useState(false);
@@ -199,9 +200,9 @@ export default function ProfessionalsPage() {
       <div className="admin-page-header">
         <div>
           <h1>Profesionales</h1>
-          {topeBarberos !== null && (
+          {topeProfesionales !== null && (
             <p className="text-secondary text-sm" style={{ marginTop: 4 }}>
-              {activos} de {topeBarberos} {topeBarberos === 1 ? 'lugar usado' : 'lugares usados'} en tu plan
+              {activos} de {topeProfesionales} {topeProfesionales === 1 ? 'lugar usado' : 'lugares usados'} en tu plan
             </p>
           )}
         </div>
@@ -213,7 +214,7 @@ export default function ProfessionalsPage() {
       {llegoAlTope && (
         <div className="notice notice-info" style={{ marginBottom: 'var(--space-md)' }}>
           <strong>Llegaste al tope de tu plan.</strong> Incluye{' '}
-          {topeBarberos === 1 ? `1 ${terminology.professionalNoun}` : `${topeBarberos} ${profesionalPlural}`} y ya los
+          {topeProfesionales === 1 ? `1 ${terminology.professionalNoun}` : `${topeProfesionales} ${profesionalPlural}`} y ya los
           tenés cargados. Para sumar más,{' '}
           <a href={LINK_AMPLIAR} target="_blank" rel="noreferrer" style={{ fontWeight: 700 }}>
             escribinos y ampliamos tu cuenta
@@ -252,7 +253,7 @@ export default function ProfessionalsPage() {
                   <td>
                     <span className="text-sm text-secondary">
                       {srvNames.length > 0 ? `${srvNames.length} servicio${srvNames.length !== 1 ? 's' : ''}` : (
-                        <span style={{ color: 'var(--danger)', fontWeight: 600 }}>⚠ Sin servicios</span>
+                        <span style={{ color: 'var(--danger)', fontWeight: 600 }}><Icon name="warning" /> Sin servicios</span>
                       )}
                     </span>
                   </td>
@@ -264,8 +265,8 @@ export default function ProfessionalsPage() {
                   </td>
                   <td>
                     <div className="table-actions">
-                      <button className="btn btn-ghost btn-sm" onClick={() => openEdit(prof)}>✏️</button>
-                      <button className="btn btn-ghost btn-sm" onClick={() => handleDelete(prof.id)}>🗑️</button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => openEdit(prof)}><Icon name="edit" /></button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => handleDelete(prof.id)}><Icon name="trash" /></button>
                     </div>
                   </td>
                 </tr>
@@ -276,7 +277,7 @@ export default function ProfessionalsPage() {
 
         {professionals.length === 0 && (
           <div className="empty-state">
-            <div className="empty-state-icon">👥</div>
+            <div className="empty-state-icon"><Icon name="users" /></div>
             <p style={{ marginBottom: 'var(--space-md)' }}>
               Todavía no hay profesionales. Sin al menos uno cargado, el link
               público no puede mostrar horarios disponibles.
@@ -294,7 +295,7 @@ export default function ProfessionalsPage() {
           <div className="modal-content" style={{ maxWidth: 620 }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2>{editing ? 'Editar Profesional' : 'Agregar Profesional'}</h2>
-              <button className="modal-close" onClick={() => setShowModal(false)}>✕</button>
+              <button className="modal-close" onClick={() => setShowModal(false)}><Icon name="x" /></button>
             </div>
 
             <div className="modal-body">
@@ -370,7 +371,7 @@ export default function ProfessionalsPage() {
                                 {srv.name}
                               </div>
                               <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                                ⏱ {srv.durationMinutes} min
+                                <Icon name="clock" /> {srv.durationMinutes} min
                               </div>
                             </div>
                           </label>
@@ -380,7 +381,7 @@ export default function ProfessionalsPage() {
                   )}
                   {editServices.length === 0 && (
                     <p className="text-sm" style={{ color: 'var(--danger)', marginTop: 6 }}>
-                      ⚠ Sin servicios asignados — el profesional no aparecerá como disponible para reservas.
+                      <Icon name="warning" /> Sin servicios asignados — el profesional no aparecerá como disponible para reservas.
                     </p>
                   )}
                 </div>
@@ -422,7 +423,7 @@ export default function ProfessionalsPage() {
                 onClick={handleSave}
                 disabled={!form.name.trim() || guardando}
               >
-                {guardando ? 'Guardando…' : '💾 Guardar'}
+                {guardando ? 'Guardando…' : <><Icon name="save" /> Guardar</>}
               </button>
             </div>
           </div>

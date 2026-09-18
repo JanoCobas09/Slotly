@@ -107,7 +107,7 @@ export default function TicketChat({ ticket, role, user, alto = 340 }) {
                   marginBottom: 3,
                 }}
               >
-                {m.authorRole === 'platform' ? 'Soporte BarberOS' : m.authorName}
+                {m.authorRole === 'platform' ? 'Soporte Slotly' : m.authorName}
               </div>
               <div style={{ fontSize: 13.5, lineHeight: 1.45, whiteSpace: 'pre-wrap' }}>{m.text}</div>
             </div>

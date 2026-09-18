@@ -12,6 +12,7 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, connectAuthEmulator } from 'firebase/auth';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
+import { getMessaging, isSupported as isMessagingSupported } from 'firebase/messaging';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -57,6 +58,28 @@ export const functions = app ? getFunctions(app, 'southamerica-east1') : null;
 // función que lo use (el logo por barbería está pendiente). Cuando se active,
 // va acá y también al manualChunks de vite.config.js.
 
+/**
+ * Instancia de Messaging (notificaciones push), o null si el browser no lo
+ * soporta (Safari viejo, o cualquiera sin Service Workers/Push API) o si
+ * Firebase no está configurado. `isSupported()` es async porque en algunos
+ * navegadores hace falta consultarlo — nunca asumir que existe sin chequear.
+ *
+ * OJO: a diferencia de Auth/Firestore/Functions, Messaging NO tiene emulador
+ * local. `VITE_USE_EMULATORS=true` no lo afecta: siempre habla con los
+ * servidores reales de FCM. Sin una VITE_FIREBASE_VAPID_KEY real (Firebase
+ * Console → Cloud Messaging → Certificados push web) esto no puede
+ * levantarse ni contra el emulador ni contra producción.
+ */
+export async function getMessagingIfSupported() {
+  if (!app) return null;
+  try {
+    if (!(await isMessagingSupported())) return null;
+    return getMessaging(app);
+  } catch {
+    return null;
+  }
+}
+
 export const googleProvider = app ? new GoogleAuthProvider() : null;
 // Fuerza el selector de cuenta: sin esto, quien tiene varias cuentas de Google
 // entra siempre con la última y no puede cambiar.
@@ -67,7 +90,7 @@ if (googleProvider) googleProvider.setCustomParameters({ prompt: 'select_account
 // toca la base de producción. Usalo siempre para probar Security Rules.
 if (app && import.meta.env.DEV && import.meta.env.VITE_USE_EMULATORS === 'true') {
   connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
-  connectFirestoreEmulator(db, '127.0.0.1', 8080);
+  connectFirestoreEmulator(db, '127.0.0.1', 8180);
   connectFunctionsEmulator(functions, '127.0.0.1', 5001);
   console.info('[firebase] Usando emuladores locales.');
 }

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { formatDate, toDateString, timeToMinutes } from '../../utils/dateUtils';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
+import Icon from '../Icon';
 
 /**
  * La agenda de un día, como un calendario: una fila por franja horaria, con
@@ -172,7 +173,7 @@ export default function AgendaDelDia({
                       >
                         <div className="agenda-turno-principal">
                           <div className="agenda-turno-cliente">
-                            {walkin ? '📋 Servicio sin turno' : (a.clientName || 'Cliente')}
+                            {walkin ? <><Icon name="clipboard" /> Servicio sin turno</> : (a.clientName || 'Cliente')}
                           </div>
                           <div className="agenda-turno-detalle">
                             {a.startTime}–{a.endTime || '?'} · {nombreSrv(a)}
@@ -180,11 +181,11 @@ export default function AgendaDelDia({
                           </div>
                           {a.clientPhone && !walkin && (
                             <a className="agenda-turno-tel" href={`tel:${a.clientPhone}`} onClick={(e) => e.stopPropagation()}>
-                              📞 {a.clientPhone}
+                              <Icon name="phone" /> {a.clientPhone}
                             </a>
                           )}
                           {a.notes && (
-                            <div className="text-xs text-muted">📝 {a.notes}</div>
+                            <div className="text-xs text-muted"><Icon name="note" /> {a.notes}</div>
                           )}
                         </div>
                         <div className="agenda-turno-lateral">

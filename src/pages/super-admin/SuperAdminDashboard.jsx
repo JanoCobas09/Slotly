@@ -15,6 +15,7 @@ import {
 import { deleteBusiness } from '../../lib/functions';
 import NewBusinessModal from './NewBusinessModal';
 import TicketsPanel from './TicketsPanel';
+import Icon from '../../components/Icon';
 
 // --- Professional SVG Icons ---
 const BusinessIcon = () => (
@@ -207,7 +208,7 @@ export default function SuperAdminDashboard() {
         type: 'Pago Registrado',
         status: 'sent',
         sentAt: new Date().toISOString(),
-        message: `Hola ${selectedBusiness.name}, se ha registrado un pago de abono por un monto de ${formatPrice(Number(paymentAmount))}. ¡Gracias por confiar en BarberOS!`
+        message: `Hola ${selectedBusiness.name}, se ha registrado un pago de abono por un monto de ${formatPrice(Number(paymentAmount))}. ¡Gracias por confiar en Slotly!`
       }
     });
     setModalType(null);
@@ -408,7 +409,7 @@ export default function SuperAdminDashboard() {
       {/* Base vacía: lo único que tiene sentido hacer es dar de alta el primer cliente */}
       {totalBusinesses === 0 && activeTab !== 'soporte' && activeTab !== 'equipo' && (
         <div className="card empty-state" style={{ padding: 'var(--space-2xl)' }}>
-          <div className="empty-state-icon">🏢</div>
+          <div className="empty-state-icon"><Icon name="building" /></div>
           <h3 style={{ marginBottom: 8 }}>Todavía no hay ningún negocio</h3>
           <p style={{ maxWidth: 460, margin: '0 auto var(--space-lg)' }}>
             Cuando cierres un cliente, dalo de alta acá: se crea su cuenta, su
@@ -765,7 +766,7 @@ export default function SuperAdminDashboard() {
                       className="btn btn-primary"
                       style={{ padding: '8px', fontSize: 12, justifyContent: 'center', gridColumn: '1 / -1' }}
                     >
-                      ⚙️ Administrar esta cuenta
+                      <Icon name="settings" /> Administrar esta cuenta
                     </button>
                     <a
                       href={`/${b.slug}`}
@@ -774,7 +775,7 @@ export default function SuperAdminDashboard() {
                       className="btn btn-outline"
                       style={{ padding: '8px', fontSize: 12, justifyContent: 'center', gridColumn: '1 / -1', textDecoration: 'none' }}
                     >
-                      🔗 Ver link público
+                      <Icon name="link" /> Ver link público
                     </a>
                     {!soloLectura && (<>
                     <button
@@ -782,35 +783,35 @@ export default function SuperAdminDashboard() {
                       className={`btn ${b.isFrozen ? 'btn-success' : 'btn-danger'}`}
                       style={{ padding: '8px', fontSize: 12, justifyContent: 'center' }}
                     >
-                      {b.isFrozen ? '🟢 Habilitar' : '🔴 Suspender'}
+                      <Icon name={b.isFrozen ? 'check-circle' : 'snowflake'} /> {b.isFrozen ? 'Habilitar' : 'Suspender'}
                     </button>
-                    <button 
+                    <button
                       onClick={() => handleOpenPaymentModal(b)}
                       className="btn btn-outline"
                       style={{ padding: '8px', fontSize: 12, justifyContent: 'center' }}
                     >
-                      💵 Registrar Pago
+                      <Icon name="money" /> Registrar Pago
                     </button>
-                    <button 
+                    <button
                       onClick={() => handleOpenUpgradeModal(b)}
                       className="btn btn-outline"
                       style={{ padding: '8px', fontSize: 12, justifyContent: 'center' }}
                     >
-                      🚀 Cambiar Plan
+                      <Icon name="send" /> Cambiar Plan
                     </button>
-                    <button 
+                    <button
                       onClick={() => handleOpenDebtModal(b)}
                       className="btn btn-outline"
                       style={{ padding: '8px', fontSize: 12, justifyContent: 'center' }}
                     >
-                      ✏️ Editar Saldo
+                      <Icon name="edit" /> Editar Saldo
                     </button>
                     <button
                       onClick={() => handleOpenDeleteModal(b)}
                       className="btn btn-ghost"
                       style={{ padding: '8px', fontSize: 12, justifyContent: 'center', gridColumn: '1 / -1', color: 'var(--danger)' }}
                     >
-                      🗑️ Eliminar negocio
+                      <Icon name="trash" /> Eliminar negocio
                     </button>
                     </>)}
                   </div>
@@ -834,7 +835,7 @@ export default function SuperAdminDashboard() {
             <div>
               <h3 style={{ margin: 0 }}>Monitoreo Global de Turnos</h3>
               <p className="text-secondary" style={{ fontSize: 13, marginTop: 4, marginBottom: 0 }}>
-                Auditoría en tiempo real de todos los turnos agendados en la plataforma BarberOS.
+                Auditoría en tiempo real de todos los turnos agendados en la plataforma Slotly.
               </p>
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
@@ -1162,7 +1163,7 @@ export default function SuperAdminDashboard() {
           <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 400 }}>
             <div className="modal-header">
               <h3>Registrar Cobro de Abono</h3>
-              <button className="modal-close" onClick={() => setModalType(null)}>✕</button>
+              <button className="modal-close" onClick={() => setModalType(null)}><Icon name="x" /></button>
             </div>
             <div className="modal-body">
               <p className="text-secondary" style={{ marginBottom: 'var(--space-md)', fontSize: 13 }}>
@@ -1203,7 +1204,7 @@ export default function SuperAdminDashboard() {
           <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 400 }}>
             <div className="modal-header">
               <h3>Modificar Saldo de Deuda</h3>
-              <button className="modal-close" onClick={() => setModalType(null)}>✕</button>
+              <button className="modal-close" onClick={() => setModalType(null)}><Icon name="x" /></button>
             </div>
             <div className="modal-body">
               <p className="text-secondary" style={{ marginBottom: 'var(--space-md)', fontSize: 13 }}>
@@ -1238,7 +1239,7 @@ export default function SuperAdminDashboard() {
           <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 440 }}>
             <div className="modal-header">
               <h3>Eliminar negocio</h3>
-              <button className="modal-close" onClick={() => setModalType(null)} disabled={deleting}>✕</button>
+              <button className="modal-close" onClick={() => setModalType(null)} disabled={deleting}><Icon name="x" /></button>
             </div>
             <div className="modal-body">
               <div className="notice notice-danger" style={{ marginBottom: 'var(--space-md)' }}>
@@ -1290,7 +1291,7 @@ export default function SuperAdminDashboard() {
           <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 450 }}>
             <div className="modal-header">
               <h3>Ofrecer Upgrade de Plan</h3>
-              <button className="modal-close" onClick={() => setModalType(null)}>✕</button>
+              <button className="modal-close" onClick={() => setModalType(null)}><Icon name="x" /></button>
             </div>
             <div className="modal-body">
               <p className="text-secondary" style={{ marginBottom: 'var(--space-md)', fontSize: 13 }}>

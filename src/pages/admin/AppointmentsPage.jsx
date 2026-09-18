@@ -4,6 +4,7 @@ import { useTenant } from '../../hooks/useTenantData';
 import { updateAppointment, cancelAppointment } from '../../lib/repository';
 import NuevoTurnoModal from '../../components/admin/NuevoTurnoModal';
 import { formatDate, formatPrice } from '../../utils/dateUtils';
+import Icon from '../../components/Icon';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Todos' },
@@ -59,7 +60,7 @@ export default function AppointmentsPage() {
       return db.localeCompare(da);
     });
 
-    // Admin/peluquero solo ve sus propias citas
+    // Admin/staff asignado solo ve sus propias citas
     if (!isOwner) {
       result = result.filter(a => a.professionalId === user?.professionalId);
     }
@@ -100,19 +101,19 @@ export default function AppointmentsPage() {
               onClick={() => started && updateStatus(apt.id, 'completada')}
               disabled={!started}
               style={!started ? { opacity: 0.35, cursor: 'not-allowed' } : {}}
-            >✅</button>
+            ><Icon name="check-circle" /></button>
             <button
               className="btn btn-ghost btn-sm"
               title={started ? 'No asistió' : blockedMsg}
               onClick={() => started && updateStatus(apt.id, 'no_asistio')}
               disabled={!started}
               style={!started ? { opacity: 0.35, cursor: 'not-allowed' } : {}}
-            >👻</button>
-            <button className="btn btn-ghost btn-sm" title="Cancelar" onClick={() => handleCancel(apt.id)}>❌</button>
+            ><Icon name="user-x" /></button>
+            <button className="btn btn-ghost btn-sm" title="Cancelar" onClick={() => handleCancel(apt.id)}><Icon name="x-circle" /></button>
           </>
         )}
         {apt.status === 'pendiente' && (
-          <button className="btn btn-ghost btn-sm" title="Confirmar" onClick={() => updateStatus(apt.id, 'confirmada')}>✔️</button>
+          <button className="btn btn-ghost btn-sm" title="Confirmar" onClick={() => updateStatus(apt.id, 'confirmada')}><Icon name="check" /></button>
         )}
       </div>
     );
@@ -124,7 +125,7 @@ export default function AppointmentsPage() {
         <h1>{isOwner ? 'Citas' : 'Mis Citas'}</h1>
         <div className="flex items-center gap-md">
           <span className="badge badge-neutral">{filtered.length} resultado{filtered.length !== 1 ? 's' : ''}</span>
-          {/* El barbero carga los turnos que le piden por WhatsApp o en persona,
+          {/* El staff carga los turnos que le piden por WhatsApp o en persona,
               así la agenda online y la de siempre son la misma. */}
           <button className="btn btn-primary" onClick={() => setAgendando(true)}>
             + Agendar turno
@@ -171,7 +172,7 @@ export default function AppointmentsPage() {
             className="btn btn-ghost btn-sm"
             onClick={() => { setFilterProf(''); setFilterStatus(''); setFilterDate(''); }}
           >
-            ✕ Limpiar
+            <Icon name="x" /> Limpiar
           </button>
         )}
       </div>
@@ -192,16 +193,16 @@ export default function AppointmentsPage() {
                 </div>
                 <span className={`badge ${STATUS_BADGES[apt.status]}`}>{STATUS_LABELS[apt.status] || apt.status}</span>
               </div>
-              <div className="cita-tarjeta-cliente">{isWalkin ? '📋 Servicio sin turno' : (apt.clientName || 'Cliente')}</div>
+              <div className="cita-tarjeta-cliente">{isWalkin ? <><Icon name="clipboard" /> Servicio sin turno</> : (apt.clientName || 'Cliente')}</div>
               <div className="text-sm text-secondary">
                 {isWalkin ? 'Horario bloqueado' : `${srv?.name || '—'} · ${formatPrice(apt.price, business?.currency)}`}
                 {isOwner && prof && <> · {prof.name}</>}
               </div>
               {apt.clientPhone && !isWalkin && (
-                <a className="text-sm" href={`tel:${apt.clientPhone}`} style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>📞 {apt.clientPhone}</a>
+                <a className="text-sm" href={`tel:${apt.clientPhone}`} style={{ color: 'var(--text-muted)', textDecoration: 'none' }}><Icon name="phone" /> {apt.clientPhone}</a>
               )}
               {apt.notes && (
-                <div className="text-xs text-muted" style={{ marginTop: 4 }}>📝 {apt.notes}</div>
+                <div className="text-xs text-muted" style={{ marginTop: 4 }}><Icon name="note" /> {apt.notes}</div>
               )}
               {accionesDe(apt)}
             </div>
@@ -240,10 +241,10 @@ export default function AppointmentsPage() {
                   {isOwner && <td>{prof?.name}</td>}
                   <td title={apt.notes || undefined}>
                     {isWalkin
-                      ? <span className="flex items-center gap-sm"><span>📋</span><span>Servicio sin turno</span></span>
+                      ? <span className="flex items-center gap-sm"><Icon name="clipboard" /><span>Servicio sin turno</span></span>
                       : (apt.clientName || apt.userId)
                     }
-                    {apt.notes && <span className="text-xs text-muted"> 📝</span>}
+                    {apt.notes && <span className="text-xs text-muted"> <Icon name="note" /></span>}
                   </td>
                   <td>{apt.clientPhone || '—'}</td>
                   <td>

@@ -483,6 +483,9 @@ src/
   /notifications                  🔒 dueño todas; barbero las suyas. Las
                                      escribe un trigger; el browser solo
                                      marca leídas
+  /pushTokens/{token}             🔒 cada quien escribe/borra el suyo; NADIE
+                                     lee del browser, solo el trigger (Admin
+                                     SDK) que manda el push
   /admins/{email}                 🔒 registro para UI, NO otorga permiso
 /tickets/{id}                     🔒 su barbería + plataforma
   /messages/{id}
@@ -621,6 +624,15 @@ curl -s "https://barberos.sacia.tech$B" | grep -c "TEXTO_A_BUSCAR"
    recorrido completo en producción real (alta con días de prueba → dueño
    carga servicios/barberos/horarios → cliente reserva desde incógnito → se ve
    en el panel y en "Mis citas") nunca se hizo.
+2b. **Clave VAPID para notificaciones push (FCM)** — Firebase Console →
+    Project Settings → Cloud Messaging → "Certificados push web" → generar
+    par de claves. Copiar la clave pública a `VITE_FIREBASE_VAPID_KEY` (local
+    y en Vercel) y volver a desplegar. Sin esto el botón "Activar
+    notificaciones push" de la campanita (`CampanaNotificaciones.jsx`) falla
+    con un mensaje claro, no rompe nada — pero nadie recibe push hasta que
+    esté. Messaging no tiene emulador: no se puede probar en local con
+    `VITE_USE_EMULATORS=true`, solo contra un deploy real (o `npm run dev`
+    apuntando a Firebase real).
 
 Ya resueltos y verificados: dominio `barberos.sacia.tech` autorizado,
 Email/Password habilitado, alcance del barbero cerrado en Rules.
@@ -671,7 +683,15 @@ Email/Password habilitado, alcance del barbero cerrado en Rules.
     del negocio. Botón "Eliminar barbería" en el panel global.
     `deleteBusinessRecord` de repository.js quedó sin uso.
 13. Subir logo por barbería (Firebase Storage).
-14. PWA.
+14. ~~PWA.~~ Hecho: `public/manifest.webmanifest` + íconos + Service Worker
+    (`public/firebase-messaging-sw.js`, registrado desde `src/lib/push.js`
+    solo en producción — en dev un SW propio genera más lío de caché que
+    beneficio). Instalable en el celular del dueño/staff. El push de verdad
+    (FCM) manda desde el mismo trigger `onNuevoTurno`/`onTurnoCancelado` que
+    ya escribía la notificación in-app; falta la clave VAPID real (ítem 2b) y
+    probarlo en un deploy — el manifest, los íconos, el SW y la lógica de
+    Rules/Functions ya están, verificados con `npm run build` + `npm run
+    lint`, pero un push real necesita el proyecto de Firebase de verdad.
 
 ---
 

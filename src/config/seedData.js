@@ -1,5 +1,5 @@
 // ============================================
-// ESTADO INICIAL — BarberOS (producción)
+// ESTADO INICIAL — Slotly (producción)
 // ============================================
 // Reemplaza al viejo `mockData.js`, que traía 4 negocios de demostración,
 // profesionales, servicios, 12 citas y 108 logs de WhatsApp inventados.

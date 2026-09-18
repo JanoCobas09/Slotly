@@ -5,8 +5,9 @@ import { useTenant } from '../../hooks/useTenantData';
 import { setBusinessAdmin, revokeBusinessAdmin } from '../../lib/functions';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
 import { capitalize as cap } from '../../utils/text';
+import Icon from '../../components/Icon';
 
-const ROLE_OWNER = { value: 'owner', label: '👑 Dueño/a — acceso total' };
+const ROLE_OWNER = { value: 'owner', label: 'Dueño/a — acceso total' };
 
 const EMPTY_FORM = { email: '', role: 'admin', professionalId: '', name: '' };
 
@@ -14,7 +15,7 @@ export default function AdminsPage() {
   const { user } = useAuth();
   const { authorizedAdmins, professionals, businessId } = useTenant();
   const { terminology } = useBusinessContext();
-  const roleAdmin = { value: 'admin', label: `🔖 ${terminology.professionalNoun} — solo sus citas` };
+  const roleAdmin = { value: 'admin', label: `${cap(terminology.professionalNoun)} — solo sus citas` };
 
   const [showModal, setShowModal] = useState(false);
   const [editTarget, setEditTarget] = useState(null); // null = nuevo, id = editar
@@ -150,7 +151,7 @@ export default function AdminsPage() {
                 <tr key={admin.id}>
                   <td>
                     <div className="flex items-center gap-sm">
-                      <span style={{ fontSize: 20 }}>{admin.role === 'owner' ? '👑' : '🔖'}</span>
+                      <span style={{ fontSize: 20 }}><Icon name={admin.role === 'owner' ? 'crown' : 'tag'} /></span>
                       <span>{admin.email}</span>
                       {isMe && <span className="badge badge-primary" style={{ fontSize: 10 }}>Vos</span>}
                     </div>
@@ -169,8 +170,8 @@ export default function AdminsPage() {
                   </td>
                   <td>
                     <div className="table-actions">
-                      <button className="btn btn-ghost btn-sm" onClick={() => openEdit(admin)}>✏️</button>
-                      <button className="btn btn-ghost btn-sm" onClick={() => handleRemove(admin)} disabled={isMe}>🗑️</button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => openEdit(admin)}><Icon name="edit" /></button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => handleRemove(admin)} disabled={isMe}><Icon name="trash" /></button>
                     </div>
                   </td>
                 </tr>
@@ -202,7 +203,7 @@ export default function AdminsPage() {
           <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
             <div className="modal-header">
               <h3>{editTarget ? 'Editar administrador' : 'Agregar administrador'}</h3>
-              <button className="modal-close" onClick={closeModal}>✕</button>
+              <button className="modal-close" onClick={closeModal}><Icon name="x" /></button>
             </div>
             <div className="modal-body">
               {error && (

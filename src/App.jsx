@@ -20,7 +20,7 @@ import SuperAdminLayout from './components/layout/SuperAdminLayout';
 // Cliente
 import LoginPage from './pages/client/LoginPage';
 import NoBusinessPage from './pages/client/NoBusinessPage';
-import CuentaSinBarberia from './pages/client/CuentaSinBarberia';
+import CuentaSinNegocio from './pages/client/CuentaSinNegocio';
 
 const LandingPage      = lazy(() => import('./pages/LandingPage'));
 const BookingPage      = lazy(() => import('./pages/client/BookingPage'));
@@ -173,7 +173,7 @@ export default function App() {
 
         {/* Adónde cae quien se logueó pero no tiene barbería. Antes volvía a la
             landing sin explicación y parecía que el login había fallado. */}
-        <Route path="/cuenta" element={<ClientLayout><CuentaSinBarberia /></ClientLayout>} />
+        <Route path="/cuenta" element={<ClientLayout><CuentaSinNegocio /></ClientLayout>} />
 
         {/* ── Rutas de admin ──────────────────────────────────────── */}
         <Route path="/admin" element={
@@ -205,7 +205,7 @@ export default function App() {
         {/* Sin ProtectedRoute a propósito: el link de la barbería se abre sin
             cuenta. El cliente ve el equipo, los servicios y la grilla, y recién
             al llegar a sus datos se le pide entrar. Antes lo primero que veía
-            era una pantalla de login con marca BarberOS y ni el nombre de la
+            era una pantalla de login con marca Slotly y ni el nombre de la
             barbería — para un link puesto en Instagram es tirar la mitad de
             los que entran. */}
         <Route path="/:businessSlug" element={

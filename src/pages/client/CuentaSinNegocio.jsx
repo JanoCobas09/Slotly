@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import Icon from '../../components/Icon';
 
 // Mismo número que la landing y el panel. Si cambia, cambia en los tres.
 const WHATSAPP = '5492257529684';
@@ -20,12 +21,12 @@ const LINK_WA = `https://wa.me/${WHATSAPP}?text=${mensaje}`;
  * prepara la plataforma con el equipo, los servicios y los horarios ya cargados.
  * Así que esto no es un error, es el paso siguiente de la venta.
  */
-export default function CuentaSinBarberia() {
+export default function CuentaSinNegocio() {
   const { user } = useAuth();
 
   return (
     <div className="empty-state" style={{ maxWidth: 560, margin: '0 auto' }}>
-      <div className="empty-state-icon">🏢</div>
+      <div className="empty-state-icon"><Icon name="building" /></div>
       <h2>Tu cuenta todavía no tiene un negocio</h2>
 
       {user?.email && (

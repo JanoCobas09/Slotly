@@ -2,9 +2,10 @@ import { Link } from 'react-router-dom';
 import { PLANS, FEATURES_COMUNES, OVERAGE_COST_USD } from '../config/plans';
 import HeroMotionMockup from '../components/landing/HeroMotionMockup';
 import FloatingActionWidget from '../components/landing/FloatingActionWidget';
+import Icon from '../components/Icon';
 
 // ============================================================================
-// Landing pública de BarberOS
+// Landing pública de Slotly
 // ============================================================================
 // Decisión que ordena todo lo demás: el onboarding es MANUAL. No hay registro
 // self-service, así que el CTA no puede ser "creá tu cuenta gratis" — sería una
@@ -23,20 +24,17 @@ const LINK_WA = `https://wa.me/${WHATSAPP}?text=${mensajeWA}`;
 
 const DOLORES = [
   {
-    icono: '/img/icon-phone-interrupt.svg',
-    alt: 'Ícono de teléfono interrumpiendo la atención de un cliente',
+    icono: 'phone',
     titulo: 'Frenás todo para contestar',
     texto: 'Cada mensaje que entra te saca de lo que estás haciendo. Y si no contestás en el momento, el cliente se va a otro lado.',
   },
   {
-    icono: '/img/icon-ghost-no-show.svg',
-    alt: 'Ícono de turno cancelado y cliente ausente',
+    icono: 'user-x',
     titulo: 'Reservan y no aparecen',
     texto: 'Un turno vacío es plata que no vuelve. Sin recordatorio, entre el 20% y el 30% no se presenta.',
   },
   {
-    icono: '/img/icon-notebook-agenda.svg',
-    alt: 'Ícono de cuaderno impreso y agenda en papel',
+    icono: 'note',
     titulo: 'La agenda vive en un cuaderno',
     texto: 'Si el cuaderno no está, nadie sabe quién viene. Y averiguar cuánto facturaste el mes pasado es imposible.',
   },
@@ -44,48 +42,42 @@ const DOLORES = [
 
 const BENEFICIOS = [
   {
-    imagen: '/img/benefit-link.svg',
-    alt: 'Vista previa del enlace personalizado del negocio',
+    icono: 'link',
     titulo: 'Tu link, tu agenda',
     texto: 'Cada negocio tiene su propia dirección. La ponés en el perfil de Instagram y tus clientes reservan solos, a cualquier hora, sin instalar nada.',
   },
   {
-    imagen: '/img/benefit-whatsapp.svg',
-    alt: 'Vista previa del mensaje de recordatorio automático por WhatsApp',
+    icono: 'bell',
     titulo: 'Recordatorio por WhatsApp',
     texto: 'El sistema le avisa al cliente el día antes y unas horas antes. Es la función que más ausencias evita.',
     proximamente: true,
   },
   {
-    imagen: '/img/benefit-schedule.svg',
-    alt: 'Vista previa de la grilla de días y horarios de atención por profesional',
+    icono: 'calendar',
     titulo: 'Sabe quién trabaja cuándo',
     texto: 'Cargás el horario de cada profesional, sus descansos y qué servicios hace. La agenda no ofrece turnos que no se pueden atender.',
   },
   {
-    imagen: '/img/benefit-roles.svg',
-    alt: 'Vista previa de los roles de dueño y equipo',
+    icono: 'users',
     titulo: 'Cada uno ve lo suyo',
     texto: 'El dueño ve todo: caja, estadísticas, el equipo completo. Cada profesional ve solo sus propios turnos del día.',
   },
   {
-    imagen: '/img/benefit-stats.svg',
-    alt: 'Vista previa de métricas de facturación y servicios destacados',
+    icono: 'chart-bar',
     titulo: 'Números de verdad',
     texto: 'Cuánto facturaste, qué servicio deja más, quién tiene más ausencias. Sin planillas.',
   },
   {
-    imagen: '/img/benefit-branding.svg',
-    alt: 'Vista previa del encabezado personalizado con la marca del negocio',
+    icono: 'sparkle',
     titulo: 'Con tu cara, no la nuestra',
-    texto: 'Tu nombre y tus colores. Para tu cliente es la agenda de tu negocio, no la de un proveedor.',
+    texto: 'Tu nombre, tus colores y tu propia terminología: cada negocio tiene su paleta y su lenguaje. Para tu cliente es la agenda de tu negocio, no la de un proveedor.',
   },
 ];
 
 const PASOS = [
-  { n: '01', img: '/img/step-talk.svg', alt: 'Charla inicial de asesoramiento', t: 'Hablamos', d: 'Nos contás cómo trabajás: a qué te dedicás, cuántos profesionales, qué servicios, qué horarios.' },
-  { n: '02', img: '/img/step-setup.svg', alt: 'Configuración llave en mano', t: 'Te la dejamos lista', d: 'Configuramos todo nosotros: tu equipo, tus precios, tus horarios. Vos no tocás nada.' },
-  { n: '03', img: '/img/step-share.svg', alt: 'Publicación del link en Instagram', t: 'Compartís el link', d: 'Lo ponés en Instagram y en tu estado de WhatsApp. Esa misma tarde entra el primer turno.' },
+  { n: '01', icono: 'chat', t: 'Hablamos', d: 'Nos contás cómo trabajás: a qué te dedicás, cuántos profesionales, qué servicios, qué horarios.' },
+  { n: '02', icono: 'settings', t: 'Te la dejamos lista', d: 'Configuramos todo nosotros: tu equipo, tus precios, tus horarios. Vos no tocás nada.' },
+  { n: '03', icono: 'link', t: 'Compartís el link', d: 'Lo ponés en Instagram y en tu estado de WhatsApp. Esa misma tarde entra el primer turno.' },
 ];
 
 const FAQ = [
@@ -159,9 +151,9 @@ export default function LandingPage() {
         </div>
 
         <ul className="landing-checks">
-          <li>✓ Lo configuramos nosotros</li>
-          <li>✓ Sin permanencia</li>
-          <li>✓ Andando el mismo día</li>
+          <li><Icon name="check" /> Lo configuramos nosotros</li>
+          <li><Icon name="check" /> Sin permanencia</li>
+          <li><Icon name="check" /> Andando el mismo día</li>
         </ul>
 
         {/* Dynamic 3D HTML Motion Hero Mockup */}
@@ -176,7 +168,7 @@ export default function LandingPage() {
           {DOLORES.map((d) => (
             <div key={d.titulo} className="card landing-card">
               <div className="landing-card-icon">
-                <img src={d.icono} alt={d.alt} width="48" height="48" className="landing-icon-img" />
+                <Icon name={d.icono} />
               </div>
               <h3>{d.titulo}</h3>
               <p>{d.texto}</p>
@@ -192,15 +184,8 @@ export default function LandingPage() {
         <div className="landing-grid-3">
           {BENEFICIOS.map((b) => (
             <div key={b.titulo} className="card landing-card landing-card-benefit">
-              <div className="landing-benefit-img-wrapper">
-                <img
-                  src={b.imagen}
-                  alt={b.alt}
-                  width="280"
-                  height="120"
-                  className="landing-benefit-img"
-                  loading="lazy"
-                />
+              <div className="landing-benefit-icon">
+                <Icon name={b.icono} />
               </div>
               <h3>
                 {b.titulo}
@@ -224,14 +209,9 @@ export default function LandingPage() {
             <div key={p.n} className="landing-step">
               <div className="landing-step-header">
                 <span className="landing-step-num">{p.n}</span>
-                <img
-                  src={p.img}
-                  alt={p.alt}
-                  width="160"
-                  height="80"
-                  className="landing-step-img"
-                  loading="lazy"
-                />
+                <div className="landing-step-icon">
+                  <Icon name={p.icono} />
+                </div>
               </div>
               <h3>{p.t}</h3>
               <p>{p.d}</p>
@@ -285,7 +265,7 @@ export default function LandingPage() {
                   const pronto = typeof feat === 'object' && feat.proximamente;
                   return (
                     <li key={texto} style={pronto ? { opacity: 0.7 } : undefined}>
-                      {pronto ? '○' : '✓'} {texto}
+                      <Icon name={pronto ? 'clock' : 'check'} /> {texto}
                       {pronto && <span className="badge badge-warning landing-soon">pronto</span>}
                     </li>
                   );

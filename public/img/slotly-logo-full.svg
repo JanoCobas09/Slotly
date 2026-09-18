@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 48" width="200" height="48">
+  <rect x="0" y="4" width="40" height="40" rx="10" fill="#171717"/>
+  <rect x="9" y="15" width="22" height="5.2" rx="2.6" fill="#ffffff"/>
+  <rect x="9" y="22.4" width="16.5" height="5.2" rx="2.6" fill="#ffffff" fill-opacity="0.72"/>
+  <rect x="9" y="29.8" width="11" height="5.2" rx="2.6" fill="#ffffff" fill-opacity="0.44"/>
+  <text x="50" y="33" font-family="'Space Grotesk', 'Segoe UI', Arial, sans-serif" font-weight="700" font-size="26" letter-spacing="-0.5" fill="#0a0a0a">Slotly</text>
+</svg>

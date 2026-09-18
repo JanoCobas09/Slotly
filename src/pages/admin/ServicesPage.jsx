@@ -8,6 +8,7 @@ import {
 } from '../../lib/repository';
 import { formatPrice } from '../../utils/dateUtils';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
+import Icon from '../../components/Icon';
 
 export default function ServicesPage() {
   const { services, professionals, professionalServices, business, businessId } = useTenant();
@@ -162,8 +163,8 @@ export default function ServicesPage() {
                   <td><span className={`badge ${srv.isActive ? 'badge-success' : 'badge-neutral'}`}>{srv.isActive ? 'Activo' : 'Inactivo'}</span></td>
                   <td>
                     <div className="table-actions">
-                      <button className="btn btn-ghost btn-sm" onClick={() => openEdit(srv)}>✏️</button>
-                      <button className="btn btn-ghost btn-sm" onClick={() => handleDelete(srv.id)}>🗑️</button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => openEdit(srv)}><Icon name="edit" /></button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => handleDelete(srv.id)}><Icon name="trash" /></button>
                     </div>
                   </td>
                 </tr>
@@ -174,7 +175,7 @@ export default function ServicesPage() {
 
         {services.length === 0 && (
           <div className="empty-state">
-            <div className="empty-state-icon">🧾</div>
+            <div className="empty-state-icon"><Icon name="services" /></div>
             <p style={{ marginBottom: 'var(--space-md)' }}>
               Todavía no hay servicios en el catálogo. El cliente elige uno al
               reservar, así que sin servicios no se puede tomar ningún turno.
@@ -202,7 +203,7 @@ export default function ServicesPage() {
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2>{editing ? 'Editar Servicio' : 'Nuevo Servicio'}</h2>
-              <button className="modal-close" onClick={() => setShowModal(false)}>✕</button>
+              <button className="modal-close" onClick={() => setShowModal(false)}><Icon name="x" /></button>
             </div>
             <div className="modal-body">
               <div className="flex flex-col gap-md">
@@ -245,7 +246,7 @@ export default function ServicesPage() {
             <div className="modal-footer">
               <button className="btn btn-outline" onClick={() => setShowModal(false)}>Cancelar</button>
               <button className="btn btn-primary" onClick={handleSave} disabled={guardando}>
-                {guardando ? 'Guardando…' : '💾 Guardar'}
+                {guardando ? 'Guardando…' : <><Icon name="save" /> Guardar</>}
               </button>
             </div>
           </div>

@@ -11,6 +11,7 @@ import {
   matchProfessionCategory,
   DEFAULT_PROFESSION_CATEGORY,
 } from '../../config/professionPresets';
+import Icon from '../../components/Icon';
 
 const PROFESSION_CATEGORIES = listProfessionCategories();
 const OTHER_OPTION = 'other';
@@ -295,7 +296,7 @@ export default function NewBusinessModal({ onClose, onCreated }) {
         <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 560 }}>
           <div className="modal-header">
             <h3>Cuenta creada</h3>
-            <button className="modal-close" onClick={onClose}>✕</button>
+            <button className="modal-close" onClick={onClose}><Icon name="x" /></button>
           </div>
           <div className="modal-body">
             <p className="text-secondary" style={{ fontSize: 13, marginBottom: 'var(--space-md)' }}>
@@ -345,7 +346,7 @@ export default function NewBusinessModal({ onClose, onCreated }) {
 
               {created.claims?.ok && created.claims.status === 'pending' && (
                 <p className="text-xs text-muted" style={{ marginTop: 4 }}>
-                  Esa cuenta nunca entró a BarberOS. El permiso queda anotado y se
+                  Esa cuenta nunca entró a Slotly. El permiso queda anotado y se
                   activa solo, en su primer login con Google.
                 </p>
               )}
@@ -402,7 +403,7 @@ export default function NewBusinessModal({ onClose, onCreated }) {
       >
         <div className="modal-header">
           <h3>Nuevo negocio</h3>
-          <button type="button" className="modal-close" onClick={onClose}>✕</button>
+          <button type="button" className="modal-close" onClick={onClose}><Icon name="x" /></button>
         </div>
 
         <div className="modal-body">

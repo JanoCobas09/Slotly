@@ -10,6 +10,7 @@ import { useTenant } from '../../hooks/useTenantData';
 import { getDayName, generateId } from '../../utils/dateUtils';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
 import { capitalize } from '../../utils/text';
+import Icon from '../../components/Icon';
 
 export default function ProfileSettingsPage() {
   const { user } = useAuth();
@@ -73,7 +74,7 @@ export default function ProfileSettingsPage() {
   if (!profId || !professional) {
     return (
       <div className="card" style={{ padding: 'var(--space-xl)', textAlign: 'center' }}>
-        <div style={{ fontSize: '3rem', marginBottom: 'var(--space-md)' }}>⚠️</div>
+        <div style={{ fontSize: '3rem', marginBottom: 'var(--space-md)' }}><Icon name="warning" /></div>
         <h3>Perfil No Vinculado</h3>
         <p className="text-secondary mt-sm">
           Esta cuenta de administrador no está vinculada a ningún perfil de profesional.
@@ -132,7 +133,7 @@ export default function ProfileSettingsPage() {
             Tus datos personales y tus horarios de trabajo.
           </p>
         </div>
-        {saved && <span className="badge badge-success">✅ Cambios Guardados</span>}
+        {saved && <span className="badge badge-success"><Icon name="check-circle" /> Cambios Guardados</span>}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-lg)' }}>
@@ -244,7 +245,7 @@ export default function ProfileSettingsPage() {
               onClick={handleSave}
               disabled={!form.name.trim() || guardando}
             >
-              💾 Guardar Mi Configuración
+              <Icon name="save" /> Guardar Mi Configuración
             </button>
           </div>
         </div>

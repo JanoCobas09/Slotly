@@ -16,6 +16,7 @@
 //     /professionalServices/{id}
 //     /appointments/{id}
 //     /admins/{email}
+//     /pushTokens/{token}         → notificaciones push (FCM), solo Admin SDK lee
 //   /platform/{doc}
 //
 // Por qué la facturación va aparte: el documento del negocio es de lectura
@@ -320,6 +321,31 @@ export async function markNotificationRead(businessId, id, uid) {
   await updateDoc(doc(db, 'businesses', businessId, 'notifications', id), {
     [`leidaPor.${uid}`]: true,
   });
+}
+
+// ============================================================================
+// TOKENS DE NOTIFICACIONES PUSH (FCM)
+// ============================================================================
+// Un documento por token, con el token mismo como id: registrar el mismo
+// dispositivo dos veces pisa el documento en vez de duplicarlo, y "apagar
+// notificaciones en este dispositivo" es simplemente borrar por id. Los lee
+// SOLO el trigger de Functions con el Admin SDK (ver firestore.rules: nadie
+// puede leer los tokens de otro desde el browser); el dueño ve todas las
+// reservas nuevas, el staff asignado a un profesional ve las suyas — mismo
+// criterio que ya usan las notificaciones in-app.
+
+export async function savePushToken(businessId, token, { uid, role, professionalId = null }) {
+  await setDoc(doc(db, 'businesses', businessId, 'pushTokens', token), {
+    token,
+    uid,
+    role,
+    professionalId,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function removePushToken(businessId, token) {
+  await deleteDoc(doc(db, 'businesses', businessId, 'pushTokens', token));
 }
 
 // ============================================================================

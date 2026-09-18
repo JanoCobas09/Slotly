@@ -5,6 +5,7 @@ import { useCurrentBusiness } from '../../hooks/useCurrentBusiness';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
 import { getDayName } from '../../utils/dateUtils';
 import { applyTheme } from '../../config/theme';
+import Icon from '../../components/Icon';
 
 const defaultHours = [
   { dayOfWeek: 0, startTime: '09:00', endTime: '20:00', isActive: true },
@@ -100,7 +101,7 @@ export default function SettingsPage() {
     <div>
       <div className="admin-page-header">
         <h1>Configuración</h1>
-        {saved && <span className="badge badge-success">✅ Guardado</span>}
+        {saved && <span className="badge badge-success"><Icon name="check-circle" /> Guardado</span>}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-lg)' }}>
@@ -248,7 +249,7 @@ export default function SettingsPage() {
               vive en Firestore — no se restaura desde el navegador. */}
           <div className="flex gap-sm mt-lg">
             <button className="btn btn-primary btn-lg" onClick={handleSave} disabled={guardando}>
-              {guardando ? 'Guardando…' : '💾 Guardar Cambios'}
+              {guardando ? 'Guardando…' : <><Icon name="save" /> Guardar Cambios</>}
             </button>
           </div>
         </div>

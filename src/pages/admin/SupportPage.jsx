@@ -3,6 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useCurrentBusiness } from '../../hooks/useCurrentBusiness';
 import { subscribeBusinessTickets, createTicket, TICKET_ESTADOS } from '../../lib/repository';
 import TicketChat from '../../components/TicketChat';
+import Icon from '../../components/Icon';
 
 const CATEGORIAS = [
   { value: 'consulta', label: 'Consulta — cómo hacer algo' },
@@ -161,7 +162,7 @@ export default function SupportPage() {
           <div className="card" style={{ padding: 0, overflow: 'hidden', alignSelf: 'start' }}>
             {tickets.length === 0 ? (
               <div className="empty-state">
-                <div className="empty-state-icon">💬</div>
+                <div className="empty-state-icon"><Icon name="chat" /></div>
                 <p style={{ marginBottom: 'var(--space-md)' }}>
                   Todavía no abriste ninguna consulta. Cualquier duda o problema, escribinos por acá.
                 </p>

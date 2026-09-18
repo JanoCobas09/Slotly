@@ -2,6 +2,26 @@ import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { isPlatformOwner, PLATFORM_OWNERS } from '../../config/platform';
+import Icon from '../../components/Icon';
+
+/**
+ * Cuentas del emulador local (ver scripts/seed-local-demo.mjs). Son sesiones
+ * REALES de Firebase Auth con custom claims de verdad — a diferencia de
+ * `loginBypass`, acá las Rules y Firestore responden normal, así que se puede
+ * probar cualquier pantalla con datos reales.
+ *
+ * Solo tiene efecto en desarrollo Y apuntando al emulador local
+ * (VITE_USE_EMULATORS=true): con Firebase de producción estas cuentas no
+ * existen y el login simplemente falla, no hay riesgo de tocar datos reales.
+ */
+const DEMO_ACCOUNTS = [
+  { icon: 'crown', label: 'Dueño de plataforma', email: 'audit-owner@example.com', password: 'AuditPass123!' },
+  { icon: 'car', label: 'Dueño — Taller Don Ricardo (automotor)', email: 'taller-owner@example.com', password: 'DemoPass123!' },
+  { icon: 'stethoscope', label: 'Dueño — Consultorio Dra. Pérez (salud)', email: 'salud-owner@example.com', password: 'DemoPass123!' },
+  { icon: 'building', label: 'Dueño — Barbería Clásica (sin context, legado)', email: 'barberia-owner@example.com', password: 'DemoPass123!' },
+  { icon: 'user', label: 'Cliente de prueba', email: 'cliente-demo@example.com', password: 'ClienteDemo123!' },
+];
+const USANDO_EMULADORES = import.meta.env.DEV && import.meta.env.VITE_USE_EMULATORS === 'true';
 
 export default function LoginPage() {
   const [error, setError] = useState('');
@@ -16,13 +36,13 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Si el usuario venía de un link de negocio (`/barberia-sacia`) y lo mandamos
+  // Si el usuario venía de un link de negocio (`/mi-negocio`) y lo mandamos
   // a loguearse, después lo devolvemos ahí en vez de tirarlo a la raíz.
   // '/' y '/login' no sirven como destino: volver ahí es justo lo que dejaba
-  // al barbero curioso sin entender qué pasó.
+  // al curioso sin entender qué pasó.
   const origen = location.state?.from;
   const from = origen && origen !== '/' && origen !== '/login' ? origen : null;
-  // "Reservar turno" solo si venía del link de una barbería. Si venía del
+  // "Reservar turno" solo si venía del link de un negocio. Si venía del
   // panel (cerró sesión, o le venció el token), es alguien del staff y el
   // título de reserva lo confunde.
   const vieneDeReserva = Boolean(from) && !/^\/(admin|super-admin|cuenta)(\/|$)/.test(from);
@@ -33,10 +53,10 @@ export default function LoginPage() {
     } else if (user.role === 'owner' || user.role === 'admin') {
       navigate('/admin');
     } else if (from) {
-      // Venía del link de una barbería: se lo devuelve ahí a terminar de reservar.
+      // Venía del link de un negocio: se lo devuelve ahí a terminar de reservar.
       navigate(from);
     } else {
-      // Entró por "Iniciar Sesión" desde la landing y no tiene barbería. Antes
+      // Entró por "Iniciar Sesión" desde la landing y no tiene negocio. Antes
       // se lo mandaba de vuelta a la landing sin decirle nada, y quedaba
       // pensando que no había funcionado.
       navigate('/cuenta');
@@ -70,6 +90,15 @@ export default function LoginPage() {
     else setError(result.error);
   };
 
+  const handleDemoLogin = async (email, password) => {
+    setError('');
+    setEntrando(true);
+    const result = await loginWithPassword(email, password);
+    setEntrando(false);
+    if (result.success) redirectAfterLogin(result.user);
+    else setError(result.error);
+  };
+
   const handleBypass = (email) => {
     const result = loginBypass(email);
     if (result.success) redirectAfterLogin(result.user);
@@ -85,7 +114,7 @@ export default function LoginPage() {
     <div className="auth-container">
       <div className="auth-card">
         <div style={{ textAlign: 'center', marginBottom: 'var(--space-md)' }}>
-          <img src="/img/barberos-logo-full.svg" alt="BarberOS Logo" width="200" height="48" style={{ margin: '0 auto' }} />
+          <img src="/img/slotly-logo-full.svg" alt="Slotly" width="200" height="48" style={{ margin: '0 auto' }} />
         </div>
         <h1>{vieneDeReserva ? 'Reservar turno' : 'Iniciar sesión'}</h1>
         <p className="auth-subtitle">
@@ -211,8 +240,29 @@ export default function LoginPage() {
                 fontWeight: 600,
               }}
             >
-              🛠️ ACCESO RÁPIDO (SOLO EN DESARROLLO)
+              <Icon name="tool" /> ACCESO RÁPIDO (SOLO EN DESARROLLO)
             </p>
+
+            {USANDO_EMULADORES && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+                <p className="text-xs text-muted" style={{ textAlign: 'center', marginBottom: 4 }}>
+                  Sesión real contra el emulador local — datos de verdad, cada rol por separado
+                </p>
+                {DEMO_ACCOUNTS.map((acc) => (
+                  <button
+                    key={acc.email}
+                    type="button"
+                    className="btn btn-outline"
+                    disabled={entrando}
+                    onClick={() => handleDemoLogin(acc.email, acc.password)}
+                    style={{ fontSize: 13, justifyContent: 'center', width: '100%', padding: '10px' }}
+                  >
+                    <Icon name={acc.icon} /> {acc.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {PLATFORM_OWNERS.map((email) => (
                 <button
@@ -221,7 +271,7 @@ export default function LoginPage() {
                   onClick={() => handleBypass(email)}
                   style={{ fontSize: 13, justifyContent: 'center', width: '100%', padding: '10px' }}
                 >
-                  👑 Entrar como dueño de plataforma
+                  <Icon name="crown" /> Entrar como dueño de plataforma
                 </button>
               ))}
               <div style={{ display: 'flex', gap: 6 }}>

@@ -1,5 +1,5 @@
 // ============================================
-// Configuración de la plataforma (BarberOS)
+// Configuración de la plataforma (Slotly)
 // ============================================
 
 /**

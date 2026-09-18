@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import Icon from '../Icon';
 
 // Inline SVGs for professional icons
 const DashboardIcon = () => (
@@ -34,8 +35,8 @@ export default function SuperAdminLayout() {
       {/* Sidebar */}
       <aside className={`admin-sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="admin-sidebar-header">
-          <img src="/img/barberos-logo-icon.svg" alt="BarberOS" width="32" height="32" />
-          <span>BarberOS Global</span>
+          <img src="/img/slotly-icon.svg" alt="Slotly" width="32" height="32" />
+          <span>Slotly Global</span>
         </div>
 
         {/* Badge de rol */}
@@ -76,7 +77,7 @@ export default function SuperAdminLayout() {
         <div className="admin-topbar">
           <div className="admin-topbar-left">
             <button className="hamburger" onClick={() => setSidebarOpen(!sidebarOpen)}>
-              ☰
+              <Icon name="menu" />
             </button>
           </div>
           <div className="admin-topbar-right">

@@ -46,7 +46,7 @@ function authReducer(state, action) {
 
 // Las sesiones reales las persiste Firebase solo (IndexedDB). Esta clave es
 // únicamente para que la sesión falsa de desarrollo sobreviva a un F5.
-const DEV_BYPASS_KEY = 'barberos_dev_bypass';
+const DEV_BYPASS_KEY = 'slotly_dev_bypass';
 
 function loadDevBypass() {
   if (!import.meta.env.DEV) return null;
@@ -93,7 +93,7 @@ async function reclamarPendientes(fbUser, claimsActuales) {
  * navegación sería pagar una invocación por pantalla.
  */
 function tocaReintentar(uid) {
-  const clave = `barberos_claims_check_${uid}`;
+  const clave = `slotly_claims_check_${uid}`;
   try {
     if (sessionStorage.getItem(clave)) return false;
     sessionStorage.setItem(clave, '1');

@@ -22,6 +22,7 @@ const { setGlobalOptions } = require('firebase-functions/v2');
 const { initializeApp } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { getAuth } = require('firebase-admin/auth');
+const { getMessaging } = require('firebase-admin/messaging');
 
 // Se usan los submódulos y no el namespace `admin.*` a propósito: el emulador
 // de Functions envuelve firebase-admin en un proxy para interceptar
@@ -30,6 +31,7 @@ const { getAuth } = require('firebase-admin/auth');
 // runtime, dentro del callable. Con los submódulos no hay proxy que valga.
 initializeApp();
 const db = getFirestore();
+const messaging = getMessaging();
 
 setGlobalOptions({ region: 'southamerica-east1', maxInstances: 10 });
 
@@ -684,20 +686,67 @@ async function notificar(bizId, datos) {
   });
 }
 
+/**
+ * Push por FCM (src/lib/push.js registra los tokens). Mismo criterio de a
+ * quién avisar que la notificación in-app: el dueño ve todo, el staff
+ * asignado a un profesional solo lo suyo — así que se manda la misma lista
+ * de destinatarios que ya calculó `notificar`, filtrando los tokens acá.
+ *
+ * Nunca puede tirar abajo el trigger: si falla el push, el turno ya se
+ * guardó y la notificación in-app ya se escribió, así que un error acá se
+ * loguea y se sigue, no se relanza.
+ */
+async function enviarPush(bizId, { title, body, professionalId, url }) {
+  const tokensSnap = await db.collection(`businesses/${bizId}/pushTokens`).get();
+  if (tokensSnap.empty) return;
+
+  const destinatarios = tokensSnap.docs.filter((d) => {
+    const t = d.data();
+    return t.role === 'owner' || (t.role === 'admin' && t.professionalId === professionalId);
+  });
+  if (destinatarios.length === 0) return;
+
+  try {
+    const res = await messaging.sendEachForMulticast({
+      tokens: destinatarios.map((d) => d.data().token),
+      notification: { title, body },
+      data: { url: url || '/admin/citas' },
+      webpush: { fcmOptions: { link: url || '/admin/citas' } },
+    });
+    // Un token que ya no sirve (navegador desinstalado, permiso revocado)
+    // queda respondiendo error para siempre si no se limpia solo.
+    const aBorrar = [];
+    res.responses.forEach((r, i) => {
+      const code = r.error?.code;
+      if (!r.success && (code === 'messaging/registration-token-not-registered' || code === 'messaging/invalid-registration-token')) {
+        aBorrar.push(destinatarios[i].ref.delete());
+      }
+    });
+    if (aBorrar.length) await Promise.all(aBorrar);
+  } catch (err) {
+    console.error(`[push] No se pudo notificar al negocio ${bizId}:`, err);
+  }
+}
+
 exports.onNuevoTurno = onDocumentCreated('businesses/{bizId}/appointments/{aptId}', async (event) => {
   const a = event.data?.data();
   if (!a) return;
   // Lo cargó el propio staff (walk-in o a mano): ya lo sabe.
   if (a.type === 'walkin' || a.type === 'manual') return;
 
-  await notificar(event.params.bizId, {
+  const bizId = event.params.bizId;
+  const title = 'Nuevo turno';
+  const body = `${a.clientName || 'Un cliente'} reservó ${a.serviceName || 'un servicio'} · ${fechaLinda(a.appointmentDate)} ${a.startTime}`;
+
+  await notificar(bizId, {
     type: 'nuevo_turno',
-    title: 'Nuevo turno',
-    body: `${a.clientName || 'Un cliente'} reservó ${a.serviceName || 'un servicio'} · ${fechaLinda(a.appointmentDate)} ${a.startTime}`,
+    title,
+    body,
     professionalId: a.professionalId || null,
     appointmentId: event.params.aptId,
     appointmentDate: a.appointmentDate,
   });
+  await enviarPush(bizId, { title, body, professionalId: a.professionalId || null, url: '/admin/citas' });
 });
 
 exports.onTurnoCancelado = onDocumentUpdated('businesses/{bizId}/appointments/{aptId}', async (event) => {
@@ -708,14 +757,19 @@ exports.onTurnoCancelado = onDocumentUpdated('businesses/{bizId}/appointments/{a
   // Solo si canceló el cliente. Si lo canceló el barbero, ya lo sabe.
   if (ahora.cancelledBy !== 'client') return;
 
-  await notificar(event.params.bizId, {
+  const bizId = event.params.bizId;
+  const title = 'Turno cancelado';
+  const body = `${ahora.clientName || 'Un cliente'} canceló ${ahora.serviceName || 'su turno'} · ${fechaLinda(ahora.appointmentDate)} ${ahora.startTime}`;
+
+  await notificar(bizId, {
     type: 'turno_cancelado',
-    title: 'Turno cancelado',
-    body: `${ahora.clientName || 'Un cliente'} canceló ${ahora.serviceName || 'su turno'} · ${fechaLinda(ahora.appointmentDate)} ${ahora.startTime}`,
+    title,
+    body,
     professionalId: ahora.professionalId || null,
     appointmentId: event.params.aptId,
     appointmentDate: ahora.appointmentDate,
   });
+  await enviarPush(bizId, { title, body, professionalId: ahora.professionalId || null, url: '/admin/citas' });
 });
 
 // ============================================================================

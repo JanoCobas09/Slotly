@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../hooks/useTenantData';
 import { cancelAppointment } from '../../lib/repository';
 import { formatDate, formatPrice } from '../../utils/dateUtils';
+import Icon from '../../components/Icon';
 
 const STATUS_LABELS = {
   pendiente: { label: 'Pendiente', className: 'badge-warning' },
@@ -35,7 +36,7 @@ export default function MyAppointments() {
     return (
       <div className="my-appointments">
         <div className="empty-state">
-          <div className="empty-state-icon">🔒</div>
+          <div className="empty-state-icon"><Icon name="lock" /></div>
           <p>Necesitás iniciar sesión para ver tus citas</p>
           <Link to="/login" state={{ from: location.pathname }} className="btn btn-primary mt-lg">
             Iniciar Sesión
@@ -82,7 +83,7 @@ export default function MyAppointments() {
 
       {displayed.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-state-icon">{tab === 'upcoming' ? '📅' : '📋'}</div>
+          <div className="empty-state-icon"><Icon name={tab === 'upcoming' ? 'calendar' : 'clipboard'} /></div>
           <p>{tab === 'upcoming' ? 'No tenés citas próximas' : 'No tenés citas pasadas'}</p>
           {tab === 'upcoming' && <Link to={`/${slug}`} className="btn btn-primary mt-lg">Reservar una cita</Link>}
         </div>
@@ -96,8 +97,8 @@ export default function MyAppointments() {
               <div className="appointment-info">
                 <h3>{srv?.name} con {prof?.name}</h3>
                 <div className="details">
-                  <span>📅 {formatDate(apt.appointmentDate)}</span>
-                  <span>🕐 {apt.startTime}</span>
+                  <span><Icon name="calendar" /> {formatDate(apt.appointmentDate)}</span>
+                  <span><Icon name="clock" /> {apt.startTime}</span>
                 </div>
                 <div className="details mt-sm">
                   <span>{formatPrice(apt.price, business?.currency)}</span>

@@ -21,7 +21,7 @@ function emptyState() {
 
 const BusinessContext = createContext();
 
-const STORAGE_KEY = 'barberos_data';
+const STORAGE_KEY = 'slotly_data';
 
 /**
  * Datos guardados antes de la multi-tenancy pueden no tener `businessId`.

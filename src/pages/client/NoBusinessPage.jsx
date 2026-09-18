@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useBusiness } from '../../contexts/BusinessContext';
+import Icon from '../../components/Icon';
 
 /**
  * Pantalla para cuando no se pudo resolver un negocio desde la URL.
@@ -14,17 +15,17 @@ export default function NoBusinessPage({ reason = 'not-found' }) {
 
   const messages = {
     'not-found': {
-      icon: '🔍',
+      icon: 'search',
       title: 'No encontramos este negocio',
       text: 'Revisá el link que te compartieron. Cada negocio tiene su propia dirección.',
     },
     frozen: {
-      icon: '⏸️',
+      icon: 'pause',
       title: 'Reservas no disponibles',
       text: 'Este negocio tiene las reservas online pausadas temporalmente. Escribinos por otro medio para coordinar tu turno.',
     },
     'no-slug': {
-      icon: '📅',
+      icon: 'calendar',
       title: 'Necesitás el link de tu negocio',
       text: 'Para reservar un turno entrá con el link que te compartió el negocio.',
     },
@@ -34,7 +35,7 @@ export default function NoBusinessPage({ reason = 'not-found' }) {
 
   return (
     <div className="empty-state" style={{ maxWidth: 560, margin: '0 auto' }}>
-      <div className="empty-state-icon">{icon}</div>
+      <div className="empty-state-icon"><Icon name={icon} /></div>
       <h2>{title}</h2>
       <p>{text}</p>
 

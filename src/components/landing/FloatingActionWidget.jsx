@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Icon from '../Icon';
 
 const WHATSAPP_NUMBER = '5492257529684';
 const WHATSAPP_LINK = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
@@ -28,7 +29,7 @@ export default function FloatingActionWidget() {
   const [messages, setMessages] = useState([
     {
       sender: 'bot',
-      text: '¡Hola! 👋 Soy el asistente virtual de BarberOS. ¿En qué puedo ayudarte hoy?',
+      text: '¡Hola! Soy el asistente virtual de Slotly. ¿En qué puedo ayudarte hoy?',
     },
   ]);
   const [inputText, setInputText] = useState('');
@@ -77,7 +78,7 @@ export default function FloatingActionWidget() {
             title="Hablamos por WhatsApp"
           >
             <span className="fab-tooltip">Hablamos por WhatsApp</span>
-            <span className="fab-icon">💬</span>
+            <span className="fab-icon"><Icon name="chat" /></span>
           </a>
 
           {/* Sub-button 2: Asistente IA */}
@@ -88,10 +89,10 @@ export default function FloatingActionWidget() {
               setIsChatOpen(true);
               setIsOpen(false);
             }}
-            title="Asistente BarberOS IA"
+            title="Asistente Slotly IA"
           >
             <span className="fab-tooltip">Asistente IA</span>
-            <span className="fab-icon">🤖</span>
+            <span className="fab-icon"><Icon name="robot" /></span>
           </button>
         </div>
       )}
@@ -104,7 +105,7 @@ export default function FloatingActionWidget() {
         aria-label="Menú de ayuda y contacto"
       >
         <span className="fab-pulse-ring" />
-        <span className="fab-main-icon">{isOpen ? '✕' : '💬'}</span>
+        <span className="fab-main-icon"><Icon name={isOpen ? 'x' : 'chat'} /></span>
       </button>
 
       {/* ── AI CHAT MODAL WINDOW ── */}
@@ -114,9 +115,9 @@ export default function FloatingActionWidget() {
             {/* Header */}
             <div className="chat-modal-header">
               <div className="chat-bot-info">
-                <div className="chat-bot-avatar">🤖</div>
+                <div className="chat-bot-avatar"><Icon name="robot" /></div>
                 <div>
-                  <strong>Asistente BarberOS IA</strong>
+                  <strong>Asistente Slotly IA</strong>
                   <span className="chat-status">• Online · Respuesta en vivo</span>
                 </div>
               </div>
@@ -125,7 +126,7 @@ export default function FloatingActionWidget() {
                 className="chat-close-btn"
                 onClick={() => setIsChatOpen(false)}
               >
-                ✕
+                <Icon name="x" />
               </button>
             </div>
 
@@ -148,21 +149,21 @@ export default function FloatingActionWidget() {
                 className="chip-btn"
                 onClick={() => handleSendMessage('¿Cuáles son los precios?')}
               >
-                💰 Precios
+                <Icon name="money" /> Precios
               </button>
               <button
                 type="button"
                 className="chip-btn"
                 onClick={() => handleSendMessage('¿Cómo es el alta?')}
               >
-                🚀 Cómo arranca
+                <Icon name="send" /> Cómo arranca
               </button>
               <button
                 type="button"
                 className="chip-btn"
                 onClick={() => handleSendMessage('¿Qué diferencia hay entre planes?')}
               >
-                📊 Diferencia de planes
+                <Icon name="chart-bar" /> Diferencia de planes
               </button>
             </div>
 
@@ -188,7 +189,7 @@ export default function FloatingActionWidget() {
 
             <div className="chat-wa-direct">
               <a href={WHATSAPP_LINK} target="_blank" rel="noreferrer">
-                💬 O preferís hablar directo por WhatsApp →
+                <Icon name="chat" /> O preferís hablar directo por WhatsApp →
               </a>
             </div>
           </div>

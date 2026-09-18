@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCurrentBusiness } from '../../hooks/useCurrentBusiness';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
+import Icon from '../Icon';
 
 export default function Header() {
   const location = useLocation();
@@ -18,8 +19,8 @@ export default function Header() {
   return (
     <header className="header">
       <Link to={home} className="header-logo">
-        <img src="/img/barberos-logo-icon.svg" alt="BarberOS Logo" width="32" height="32" className="header-logo-img" />
-        <span>{business?.name || 'BarberOS'}</span>
+        <img src="/img/slotly-icon.svg" alt="Slotly" width="32" height="32" className="header-logo-img" />
+        <span>{business?.name || 'Slotly'}</span>
       </Link>
 
       {!slug && (
@@ -38,7 +39,7 @@ export default function Header() {
           <>
             {slug && (
               <Link to={`${home}/mis-citas`} className="btn btn-ghost btn-sm">
-                📅 Mis Citas
+                <Icon name="calendar" /> Mis Citas
               </Link>
             )}
             <button onClick={logout} className="btn btn-ghost btn-sm">

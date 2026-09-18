@@ -7,6 +7,7 @@ import { calculateStats } from '../../utils/statsCalculator';
 import { formatPrice, formatDate, toDateString } from '../../utils/dateUtils';
 import NuevoTurnoModal from '../../components/admin/NuevoTurnoModal';
 import AgendaDelDia from '../../components/admin/AgendaDelDia';
+import Icon from '../../components/Icon';
 
 const STATUS_BADGES = {
   pendiente:  'badge-warning',
@@ -39,8 +40,8 @@ function WalkinModal({ onClose, onConfirm }) {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 400 }}>
         <div className="modal-header">
-          <h3>📋 Servicio sin turno</h3>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <h3><Icon name="clipboard" /> Servicio sin turno</h3>
+          <button className="modal-close" onClick={onClose}><Icon name="x" /></button>
         </div>
         <div className="modal-body">
           <p className="text-secondary" style={{ marginBottom: 'var(--space-md)', fontSize: 14 }}>
@@ -84,7 +85,7 @@ function WalkinModal({ onClose, onConfirm }) {
         <div className="modal-footer">
           <button className="btn btn-outline" onClick={onClose}>Cancelar</button>
           <button className="btn btn-primary" onClick={() => onConfirm(startTime, endTime)}>
-            ✅ Registrar servicio
+            <Icon name="check-circle" /> Registrar servicio
           </button>
         </div>
       </div>
@@ -104,7 +105,7 @@ export default function DashboardPage() {
   // ya es "mañana" — el walk-in se registraba en el día equivocado.
   const today   = toDateString(new Date());
 
-  // Owner ve todas las citas; peluquero solo las suyas
+  // Owner ve todas las citas; el staff asignado solo las suyas
   const visibleAppointments = isOwner
     ? appointments
     : appointments.filter(a => a.professionalId === user?.professionalId);
@@ -125,17 +126,17 @@ export default function DashboardPage() {
     return (
       <>
         {apt.status === 'pendiente' && (
-          <button className="btn btn-ghost btn-sm" title="Confirmar" onClick={() => cambiarEstado(apt, 'confirmada')}>✔️</button>
+          <button className="btn btn-ghost btn-sm" title="Confirmar" onClick={() => cambiarEstado(apt, 'confirmada')}><Icon name="check" /></button>
         )}
-        <button className="btn btn-ghost btn-sm" title={empezo ? 'Marcar como completada' : 'Todavía no empezó'} disabled={!empezo} style={!empezo ? { opacity: 0.35 } : undefined} onClick={() => cambiarEstado(apt, 'completada')}>✅</button>
-        <button className="btn btn-ghost btn-sm" title={empezo ? 'No asistió' : 'Todavía no empezó'} disabled={!empezo} style={!empezo ? { opacity: 0.35 } : undefined} onClick={() => cambiarEstado(apt, 'no_asistio')}>👻</button>
-        <button className="btn btn-ghost btn-sm" title="Cancelar" onClick={() => cambiarEstado(apt, 'cancelada')}>❌</button>
+        <button className="btn btn-ghost btn-sm" title={empezo ? 'Marcar como completada' : 'Todavía no empezó'} disabled={!empezo} style={!empezo ? { opacity: 0.35 } : undefined} onClick={() => cambiarEstado(apt, 'completada')}><Icon name="check-circle" /></button>
+        <button className="btn btn-ghost btn-sm" title={empezo ? 'No asistió' : 'Todavía no empezó'} disabled={!empezo} style={!empezo ? { opacity: 0.35 } : undefined} onClick={() => cambiarEstado(apt, 'no_asistio')}><Icon name="user-x" /></button>
+        <button className="btn btn-ghost btn-sm" title="Cancelar" onClick={() => cambiarEstado(apt, 'cancelada')}><Icon name="x-circle" /></button>
       </>
     );
   };
 
   // ══════════════════════════════════════════════════════════════════════════
-  // VISTA PELUQUERO
+  // VISTA STAFF ASIGNADO
   // ══════════════════════════════════════════════════════════════════════════
   if (!isOwner) {
     const upcomingPending = visibleAppointments
@@ -181,20 +182,20 @@ export default function DashboardPage() {
         {/* Header */}
         <div className="admin-page-header">
           <div>
-            <h1>Hola, {user?.name?.split(' ')[0]} 👋</h1>
+            <h1>Hola, {user?.name?.split(' ')[0]}</h1>
             <span className="text-secondary text-sm" style={{ marginTop: 4, display: 'block' }}>
               {formatDate(today)}
             </span>
           </div>
           <div className="flex items-center gap-md">
             <span className="badge badge-warning" style={{ fontSize: 13, padding: '6px 12px' }}>
-              ⏳ {upcomingPending.length} pendiente{upcomingPending.length !== 1 ? 's' : ''}
+              <Icon name="clock" /> {upcomingPending.length} pendiente{upcomingPending.length !== 1 ? 's' : ''}
             </span>
             <button className="btn btn-outline" onClick={() => setAgendando(true)}>
-              📅 Agendar turno
+              <Icon name="calendar" /> Agendar turno
             </button>
             <button className="btn btn-primary" onClick={() => setShowWalkinModal(true)}>
-              📋 Servicio sin turno
+              <Icon name="clipboard" /> Servicio sin turno
             </button>
           </div>
         </div>
@@ -283,7 +284,7 @@ export default function DashboardPage() {
                 key={step.to}
                 style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, flexWrap: 'wrap' }}
               >
-                <span style={{ fontSize: 15 }}>{step.done ? '✅' : '⬜'}</span>
+                <span style={{ fontSize: 15 }}><Icon name={step.done ? 'check-circle' : 'circle'} /></span>
                 <span
                   style={{
                     flex: 1,
@@ -309,7 +310,7 @@ export default function DashboardPage() {
           style={{ padding: 'var(--space-md)', marginBottom: 'var(--space-lg)', borderLeft: '4px solid var(--success)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}
         >
           <div>
-            <strong style={{ fontSize: 14 }}>✅ La cuenta está lista para tomar turnos</strong>
+            <strong style={{ fontSize: 14 }}><Icon name="check-circle" /> La cuenta está lista para tomar turnos</strong>
             <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
               Link para compartir con los clientes: <code>{window.location.origin}/{business.slug}</code>
             </div>
@@ -334,18 +335,18 @@ export default function DashboardPage() {
 
       <div className="admin-page-header">
         <h1>Dashboard</h1>
-        <span className="badge badge-primary">📅 {formatDate(today)}</span>
+        <span className="badge badge-primary"><Icon name="calendar" /> {formatDate(today)}</span>
       </div>
 
       {/* Stats Grid */}
       <div className="stats-grid">
         <div className="stat-card">
-          <div className="stat-card-icon" style={{ background: 'var(--primary-light)', color: 'var(--primary)' }}>📊</div>
+          <div className="stat-card-icon" style={{ background: 'var(--primary-light)', color: 'var(--primary)' }}><Icon name="chart-bar" /></div>
           <div className="stat-card-value">{stats.total}</div>
           <div className="stat-card-label">Total Reservas</div>
         </div>
         <div className="stat-card">
-          <div className="stat-card-icon" style={{ background: 'var(--success-light)', color: 'var(--success)' }}>✅</div>
+          <div className="stat-card-icon" style={{ background: 'var(--success-light)', color: 'var(--success)' }}><Icon name="check-circle" /></div>
           <div className="stat-card-value">{stats.completadas}</div>
           <div className="stat-card-label">Completadas</div>
           <div className="stat-card-change positive">
@@ -353,18 +354,18 @@ export default function DashboardPage() {
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-card-icon" style={{ background: 'var(--primary-light)', color: 'var(--primary)' }}>💰</div>
+          <div className="stat-card-icon" style={{ background: 'var(--primary-light)', color: 'var(--primary)' }}><Icon name="money" /></div>
           <div className="stat-card-value">{formatPrice(stats.ingresosTotales, business.currency)}</div>
           <div className="stat-card-label">Ingresos Totales</div>
         </div>
         <div className="stat-card">
-          <div className="stat-card-icon" style={{ background: 'var(--danger-light)', color: 'var(--danger)' }}>❌</div>
+          <div className="stat-card-icon" style={{ background: 'var(--danger-light)', color: 'var(--danger)' }}><Icon name="x-circle" /></div>
           <div className="stat-card-value">{stats.noAsistio}</div>
           <div className="stat-card-label">No Asistieron</div>
           <div className="stat-card-change negative">{stats.tasaNoAsistencia}%</div>
         </div>
         <div className="stat-card">
-          <div className="stat-card-icon" style={{ background: 'var(--warning-light)', color: 'var(--warning)' }}>⏳</div>
+          <div className="stat-card-icon" style={{ background: 'var(--warning-light)', color: 'var(--warning)' }}><Icon name="clock" /></div>
           <div className="stat-card-value">{stats.pendientes}</div>
           <div className="stat-card-label">Pendientes</div>
         </div>
@@ -408,7 +409,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Agenda del día, con todos los barberos o filtrada por uno. */}
+      {/* Agenda del día, con todos los profesionales o filtrada por uno. */}
       <div className="card">
         <AgendaDelDia
           appointments={visibleAppointments}

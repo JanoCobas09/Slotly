@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import Icon from '../Icon';
 
 const STEPS_DATA = [
   {
@@ -75,7 +76,7 @@ export default function HeroMotionMockup() {
             <span className="dot dot-yellow" />
             <span className="dot dot-green" />
           </div>
-          <div className="landing-window-url">barberos.sacia.tech/admin</div>
+          <div className="landing-window-url">slotly.sacia.tech/admin</div>
           <div className="landing-window-badge">
             <span className="live-pulse" /> Panel en Vivo
           </div>
@@ -86,13 +87,13 @@ export default function HeroMotionMockup() {
           {/* Header Bar */}
           <div className="landing-dash-head">
             <div>
-              <h2 className="landing-dash-title">Hola, Mateo 👋</h2>
+              <h2 className="landing-dash-title">Hola, Mateo</h2>
               <span className="landing-dash-date">Viernes 7 de Agosto · Tu Negocio</span>
             </div>
             <div className="landing-dash-actions">
-              <span className="landing-badge-pending">⏳ 3 pendientes</span>
+              <span className="landing-badge-pending"><Icon name="clock" /> 3 pendientes</span>
               <button className="landing-btn-walkin" type="button">
-                📋 Servicio sin turno
+                <Icon name="clipboard" /> Servicio sin turno
               </button>
             </div>
           </div>
@@ -100,7 +101,7 @@ export default function HeroMotionMockup() {
           {/* New Appointment Toast Alert */}
           {showNotification && (
             <div className="landing-dash-toast animate-slide-down">
-              <div className="toast-icon">✨</div>
+              <div className="toast-icon"><Icon name="sparkle" /></div>
               <div>
                 <strong>¡Nuevo turno ingresado desde el link!</strong>
                 <p>Santiago Rossi · Sesión Completa · 10:15 hs</p>
@@ -128,7 +129,7 @@ export default function HeroMotionMockup() {
           {/* Appointments Table */}
           <div className="landing-dash-table-card">
             <div className="table-header">
-              <h3>📋 Agenda del Día</h3>
+              <h3><Icon name="clipboard" /> Agenda del Día</h3>
               <span className="text-xs text-muted">Actualizado en tiempo real</span>
             </div>
 
@@ -213,7 +214,7 @@ export default function HeroMotionMockup() {
                     onClick={() => handleStepClick(s.num)}
                     title={s.title}
                   >
-                    {isCompleted ? '✓' : s.num}
+                    {isCompleted ? <Icon name="check" /> : s.num}
                   </button>
                 );
               })}
@@ -234,7 +235,7 @@ export default function HeroMotionMockup() {
                         <strong>Mateo Rossi</strong>
                         <span>Especialista · Disponible</span>
                       </div>
-                      <span className="check-mark">✓</span>
+                      <span className="check-mark"><Icon name="check" /></span>
                     </div>
                     <div className="prof-card">
                       <div className="prof-avatar">J</div>
@@ -261,7 +262,7 @@ export default function HeroMotionMockup() {
                       </div>
                       <div className="service-meta">
                         <span className="service-price">$15.000</span>
-                        <span className="service-dur">⏱ 45 min</span>
+                        <span className="service-dur"><Icon name="clock" /> 45 min</span>
                       </div>
                     </div>
                     <div className="service-card">
@@ -271,7 +272,7 @@ export default function HeroMotionMockup() {
                       </div>
                       <div className="service-meta">
                         <span className="service-price">$12.000</span>
-                        <span className="service-dur">⏱ 30 min</span>
+                        <span className="service-dur"><Icon name="clock" /> 30 min</span>
                       </div>
                     </div>
                   </div>
@@ -298,7 +299,7 @@ export default function HeroMotionMockup() {
                       <span className="off">9</span>
                     </div>
                   </div>
-                  <div className="selected-date-pill">📅 Viernes 7 de Agosto seleccionado</div>
+                  <div className="selected-date-pill"><Icon name="calendar" /> Viernes 7 de Agosto seleccionado</div>
                 </div>
               )}
 
@@ -331,7 +332,7 @@ export default function HeroMotionMockup() {
               {/* STEP 5: CONFIRMACIÓN Y ÉXITO */}
               {currentStep === 5 && (
                 <div className="step-view animate-fade-in text-center">
-                  <div className="success-icon">🎉</div>
+                  <div className="success-icon"><Icon name="confetti" /></div>
                   <h3 className="step-title">¡Turno Reservado!</h3>
                   <p className="step-sub">Te enviamos el recordatorio por WhatsApp</p>
                   

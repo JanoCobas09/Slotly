@@ -4,6 +4,7 @@ import { useTenant } from '../../hooks/useTenantData';
 import { createAppointment, updateAppointment } from '../../lib/repository';
 import { calculateAvailableSlots } from '../../utils/availabilityEngine';
 import { formatPrice, toDateString } from '../../utils/dateUtils';
+import Icon from '../Icon';
 
 /**
  * El staff agenda un turno a mano.
@@ -11,7 +12,7 @@ import { formatPrice, toDateString } from '../../utils/dateUtils';
  * Por qué existe: al principio la mayoría de los clientes va a seguir pidiendo
  * turno por WhatsApp, y el barbero necesita cargarlo igual para que el horario
  * quede bloqueado y la agenda sea una sola. También sirve para el que no quiere
- * abrir la reserva al público y usa BarberOS solo para ordenarse.
+ * abrir la reserva al público y usa Slotly solo para ordenarse.
  *
  * Escribe directo a Firestore, no por la Cloud Function `createAppointment`:
  * la función cuenta los turnos del uid que llama (uno por día, tres a futuro),
@@ -124,8 +125,8 @@ export default function NuevoTurnoModal({ onClose }) {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
         <div className="modal-header">
-          <h3>📅 Agendar turno</h3>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <h3><Icon name="calendar" /> Agendar turno</h3>
+          <button className="modal-close" onClick={onClose}><Icon name="x" /></button>
         </div>
         <div className="modal-body">
           <p className="text-secondary" style={{ marginBottom: 'var(--space-md)', fontSize: 14 }}>

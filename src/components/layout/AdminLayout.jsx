@@ -5,26 +5,27 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useCurrentBusiness } from '../../hooks/useCurrentBusiness';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
 import { capitalize } from '../../utils/text';
+import Icon from '../Icon';
 
 // Items visibles solo para el dueño (owner)
 const ownerNavItems = [
-  { to: '/admin',               icon: '📊', label: 'Dashboard',        end: true },
-  { to: '/admin/profesionales', icon: '👥', label: 'Profesionales' },
-  { to: '/admin/servicios',     icon: '🧾', label: 'Servicios' },
-  { to: '/admin/citas',         icon: '📅', label: 'Citas' },
-  { to: '/admin/admins',        icon: '🛡️', label: 'Administradores' },
-  { to: '/admin/configuracion', icon: '⚙️', label: 'Configuración' },
-  { to: '/admin/soporte',       icon: '💬', label: 'Soporte' },
+  { to: '/admin',               icon: 'dashboard', label: 'Dashboard',        end: true },
+  { to: '/admin/profesionales', icon: 'users',      label: 'Profesionales' },
+  { to: '/admin/servicios',     icon: 'services',   label: 'Servicios' },
+  { to: '/admin/citas',         icon: 'calendar',   label: 'Citas' },
+  { to: '/admin/admins',        icon: 'shield',     label: 'Administradores' },
+  { to: '/admin/configuracion', icon: 'settings',   label: 'Configuración' },
+  { to: '/admin/soporte',       icon: 'chat',       label: 'Soporte' },
 ];
 
-// Items para el admin/peluquero → solo sus citas
+// Items para el staff asignado a un profesional → solo sus citas
 const adminNavItems = [
-  { to: '/admin',         icon: '🏠', label: 'Hoy', end: true },
+  { to: '/admin',         icon: 'home',     label: 'Hoy', end: true },
   // La tabla con confirmar / completar / no asistió / cancelar y "Agendar
-  // turno". Sin esta entrada el barbero no tenía forma de llegar.
-  { to: '/admin/citas',   icon: '📅', label: 'Mi Agenda' },
-  { to: '/admin/ajustes', icon: '⚙️', label: 'Mi Configuración' },
-  { to: '/admin/soporte', icon: '💬', label: 'Soporte' },
+  // turno". Sin esta entrada el staff no tenía forma de llegar.
+  { to: '/admin/citas',   icon: 'calendar', label: 'Mi Agenda' },
+  { to: '/admin/ajustes', icon: 'settings', label: 'Mi Configuración' },
+  { to: '/admin/soporte', icon: 'chat',     label: 'Soporte' },
 ];
 
 const ROLE_COLORS = {
@@ -34,7 +35,7 @@ const ROLE_COLORS = {
 
 // Mismo número que la landing y el widget flotante. Si cambia, cambia en los tres.
 const LINK_SOPORTE = 'https://wa.me/5492257529684?text=' +
-  encodeURIComponent('Hola! Te escribo por mi cuenta de BarberOS.');
+  encodeURIComponent('Hola! Te escribo por mi cuenta de Slotly.');
 
 /**
  * Días que faltan para que termine la prueba. Negativo si ya venció, null si la
@@ -84,8 +85,8 @@ export default function AdminLayout() {
       {/* Sidebar */}
       <aside className={`admin-sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="admin-sidebar-header">
-          <img src="/img/barberos-logo-icon.svg" alt="BarberOS" width="32" height="32" />
-          <span>{business?.name || 'BarberOS'}</span>
+          <img src="/img/slotly-icon.svg" alt="Slotly" width="32" height="32" />
+          <span>{business?.name || 'Slotly'}</span>
         </div>
 
         {/* Badge de rol */}
@@ -107,7 +108,7 @@ export default function AdminLayout() {
               className={({ isActive }) => `admin-nav-item ${isActive ? 'active' : ''}`}
               onClick={() => setSidebarOpen(false)}
             >
-              <span className="nav-icon">{item.icon}</span>
+              <span className="nav-icon"><Icon name={item.icon} /></span>
               {item.label}
             </NavLink>
           ))}
@@ -115,7 +116,7 @@ export default function AdminLayout() {
 
         <div className="admin-sidebar-footer">
           <button className="admin-nav-item" onClick={handleLogout}>
-            <span className="nav-icon">🚪</span>
+            <span className="nav-icon"><Icon name="logout" /></span>
             Cerrar Sesión
           </button>
         </div>
@@ -208,7 +209,7 @@ export default function AdminLayout() {
         <div className="admin-topbar">
           <div className="admin-topbar-left">
             <button className="hamburger" onClick={() => setSidebarOpen(!sidebarOpen)}>
-              ☰
+              <Icon name="menu" />
             </button>
           </div>
           <div className="admin-topbar-right">
@@ -231,12 +232,12 @@ export default function AdminLayout() {
             // un negocio resuelto, así no hay que defenderse de `business` nulo
             // en cada pantalla.
             <div className="card empty-state" style={{ padding: 'var(--space-2xl)' }}>
-              <div className="empty-state-icon">🏪</div>
+              <div className="empty-state-icon"><Icon name="building" /></div>
               <h3 style={{ marginBottom: 8 }}>No hay ningún negocio asignado a tu cuenta</h3>
               <p style={{ maxWidth: 460, margin: '0 auto var(--space-lg)' }}>
                 {platformOwner
                   ? 'Todavía no diste de alta ningún negocio. Creá el primero desde el panel global.'
-                  : 'Tu usuario tiene acceso al panel pero no está vinculado a ningún negocio. Contactate con BarberOS para que lo asocien.'}
+                  : 'Tu usuario tiene acceso al panel pero no está vinculado a ningún negocio. Contactate con Slotly para que lo asocien.'}
               </p>
               {platformOwner && (
                 <Link to="/super-admin" className="btn btn-primary">
