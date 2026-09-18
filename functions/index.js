@@ -465,12 +465,12 @@ exports.createAppointment = onCall(async (request) => {
     db.doc(`businesses/${businessId}/professionals/${professionalId}`).get(),
   ]);
 
-  if (!bizSnap.exists) throw new HttpsError('not-found', 'La barbería no existe.');
+  if (!bizSnap.exists) throw new HttpsError('not-found', 'El negocio no existe.');
   const negocio = bizSnap.data();
 
   // La suspensión por deuda tiene que cortar la reserva, no solo esconder la UI.
   if (negocio.isFrozen === true) {
-    throw new HttpsError('failed-precondition', 'Esta barbería no está tomando turnos en este momento.');
+    throw new HttpsError('failed-precondition', 'Este negocio no está tomando turnos en este momento.');
   }
   if (!srvSnap.exists || srvSnap.data().isActive === false) {
     throw new HttpsError('not-found', 'El servicio no existe o no está disponible.');
@@ -517,7 +517,7 @@ exports.createAppointment = onCall(async (request) => {
   const diaNegocio = (negocio.businessHours || []).find((b) => b.dayOfWeek === dow);
   if (diaNegocio) {
     if (diaNegocio.isActive === false) {
-      throw new HttpsError('failed-precondition', 'La barbería no abre ese día.');
+      throw new HttpsError('failed-precondition', 'El negocio no abre ese día.');
     }
     if (diaNegocio.startTime && diaNegocio.endTime) {
       desde = Math.max(desde, timeToMinutes(diaNegocio.startTime));

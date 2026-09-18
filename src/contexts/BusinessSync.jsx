@@ -208,7 +208,7 @@ export default function BusinessSync() {
     // ensucia la consola con un permission-denied por cada pantalla.
     //
     //   plataforma / dueño → todo, sin filtrar
-    //   barbero            → todo menos la agenda; la suya filtrada por perfil
+    //   staff asignado     → todo menos la agenda; la suya filtrada por perfil
     //   cliente            → las públicas + SUS turnos filtrados por uid
     //   anónimo            → solo las públicas
     //
@@ -217,27 +217,27 @@ export default function BusinessSync() {
     // datos), y "Mis citas" quedaba vacío para todos. subscribeMyAppointments
     // existía en el repositorio y nadie la llamaba.
     const esStaffCompleto = esPlataforma || rol === 'owner';
-    const esBarbero = rol === 'admin' && Boolean(profId);
-    const esCliente = Boolean(uid) && !esStaffCompleto && !esBarbero;
+    const esStaffAsignado = rol === 'admin' && Boolean(profId);
+    const esCliente = Boolean(uid) && !esStaffCompleto && !esStaffAsignado;
 
     const cb = (col) => (filas) => dispatch({ type: 'SET_TENANT_DATA', payload: { [col]: filas } });
 
     const colecciones = esStaffCompleto ? COLECCIONES
-      : esBarbero ? COLECCIONES.filter((c) => c !== 'appointments')
+      : esStaffAsignado ? COLECCIONES.filter((c) => c !== 'appointments')
       : PUBLICAS;
 
     const offs = colecciones.map((col) =>
       subscribeSubcollection(businessId, col, cb(col), onError(col))
     );
 
-    // La campanita: el dueño ve todas las del negocio, el barbero las suyas.
+    // La campanita: el dueño ve todas las del negocio, el staff asignado las suyas.
     if (esStaffCompleto) {
       offs.push(subscribeNotifications(businessId, {}, cb('notifications'), onError('notifications')));
-    } else if (esBarbero) {
+    } else if (esStaffAsignado) {
       offs.push(subscribeNotifications(businessId, { professionalId: profId }, cb('notifications'), onError('notifications')));
     }
 
-    if (esBarbero) {
+    if (esStaffAsignado) {
       offs.push(subscribeAppointmentsDeProfesional(businessId, profId, cb('appointments'), onError('appointments')));
     } else if (esCliente) {
       offs.push(subscribeMyAppointments(businessId, uid, cb('appointments'), onError('appointments')));

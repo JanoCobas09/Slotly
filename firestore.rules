@@ -68,21 +68,22 @@ service cloud.firestore {
     }
 
     /**
-     * Barbero: staff con rol 'admin', atado a un perfil de profesional. A
+     * Staff con rol 'admin', atado a un perfil de profesional (barbero,
+     * doctor, entrenador... el nombre del rol es genérico a propósito). A
      * diferencia del dueño, solo alcanza SUS turnos.
      */
-    function esBarbero(bizId) {
+    function esStaffAsignado(bizId) {
       return inBusiness(bizId) && claims().get('role', '') == 'admin';
     }
 
-    /** ¿Este turno es del barbero que está llamando? */
+    /** ¿Este turno es del profesional que está llamando? */
     function esSuTurno() {
       return resource.data.professionalId == claims().get('professionalId', '');
     }
 
-    /** ¿Este horario es del barbero que está llamando? */
+    /** ¿Este horario es del profesional que está llamando? */
     function esSuHorario(bizId, datos) {
-      return esBarbero(bizId) && datos.professionalId == claims().get('professionalId', '');
+      return esStaffAsignado(bizId) && datos.professionalId == claims().get('professionalId', '');
     }
 
     // Escribe cosas del negocio: su dueño, o vos preparando la cuenta.
@@ -125,7 +126,7 @@ service cloud.firestore {
         isBusinessOwner(bizId) &&
         !request.resource.data.diff(resource.data).affectedKeys()
           .hasAny(['isFrozen', 'planId', 'monthlyFee', 'whatsappQuota', 'slug', 'id',
-                   'trialEndsAt', 'createdAt', 'maxBarbers'])
+                   'trialEndsAt', 'createdAt', 'maxBarbers', 'maxProfessionals'])
       );
 
       // Facturación: solo la plataforma. Ni el dueño la lee.
@@ -147,7 +148,7 @@ service cloud.firestore {
         allow read: if true;
         allow create, delete: if canManage(bizId);
         allow update: if canManage(bizId)
-                         || (esBarbero(bizId)
+                         || (esStaffAsignado(bizId)
                              && claims().get('professionalId', '') == profId
                              && !request.resource.data.diff(resource.data).affectedKeys()
                                    .hasAny(['isActive', 'id']));
@@ -194,7 +195,7 @@ service cloud.firestore {
         // solo los propios.
         allow get: if isBusinessOwner(bizId)
                       || esEquipoPlataforma()
-                      || (esBarbero(bizId) && esSuTurno())
+                      || (esStaffAsignado(bizId) && esSuTurno())
                       || (signedIn() && resource.data.userId == request.auth.uid);
 
         // Listar la agenda completa es solo del staff. El cliente puede listar
@@ -218,7 +219,7 @@ service cloud.firestore {
         // where('professionalId','==',suId). Lo hace BusinessSync.
         allow list: if isBusinessOwner(bizId)
                        || esEquipoPlataforma()
-                       || (esBarbero(bizId) && esSuTurno())
+                       || (esStaffAsignado(bizId) && esSuTurno())
                        || (signedIn() && resource.data.userId == request.auth.uid);
 
         // Un cliente NO escribe turnos directo: reserva por la Cloud Function
@@ -235,14 +236,14 @@ service cloud.firestore {
         allow create: if request.resource.data.userId == request.auth.uid
                          && (isPlatform()
                              || isBusinessOwner(bizId)
-                             || (esBarbero(bizId)
+                             || (esStaffAsignado(bizId)
                                  && request.resource.data.professionalId == claims().get('professionalId', '')));
 
         // Cancelar: el cliente solo puede cambiar el estado a 'cancelada' de un
         // turno propio. Cambiar fecha, precio o profesional es cosa del staff.
         allow update: if isBusinessOwner(bizId)
                          || isPlatform()
-                         || (esBarbero(bizId) && esSuTurno())
+                         || (esStaffAsignado(bizId) && esSuTurno())
                          || (
                               signedIn()
                               && resource.data.userId == request.auth.uid
@@ -269,8 +270,8 @@ service cloud.firestore {
         // misma ruta se suman: con cualquiera que permita, pasa. Quedó uno.)
         allow get, list: if isBusinessOwner(bizId)
                             || esEquipoPlataforma()
-                            || (esBarbero(bizId) && esSuTurno());
-        allow update: if (isBusinessOwner(bizId) || (esBarbero(bizId) && esSuTurno()))
+                            || (esStaffAsignado(bizId) && esSuTurno());
+        allow update: if (isBusinessOwner(bizId) || (esStaffAsignado(bizId) && esSuTurno()))
                          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['leidaPor']);
         allow create, delete: if false;
       }

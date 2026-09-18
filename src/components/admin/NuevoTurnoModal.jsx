@@ -27,11 +27,11 @@ export default function NuevoTurnoModal({ onClose }) {
   const { user } = useAuth();
   const { appointments, professionals, services, professionalServices, schedules, business, businessId } = useTenant();
 
-  const esBarbero = user?.role === 'admin' && Boolean(user?.professionalId);
+  const esStaffAsignado = user?.role === 'admin' && Boolean(user?.professionalId);
   const hoy = toDateString(new Date());
 
   const [form, setForm] = useState({
-    professionalId: esBarbero ? user.professionalId : (professionals[0]?.id || ''),
+    professionalId: esStaffAsignado ? user.professionalId : (professionals[0]?.id || ''),
     serviceId: '',
     date: hoy,
     startTime: '',
@@ -139,7 +139,7 @@ export default function NuevoTurnoModal({ onClose }) {
             </div>
           )}
 
-          {!esBarbero && (
+          {!esStaffAsignado && (
             <div className="form-group">
               <label className="form-label">Profesional</label>
               <select className="form-input" value={form.professionalId} onChange={set('professionalId')}>
