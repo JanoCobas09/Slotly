@@ -9,9 +9,40 @@
 
 ## Qué es
 
-SaaS multi-tenant de turnos para barberías. Cada barbería tiene su link público
+SaaS multi-tenant de turnos y reservas, genérico por rubro (no exclusivo de
+barberías: odontología, talleres, entrenadores, psicología, o cualquier
+profesión que el dueño escriba a mano). Cada negocio tiene su link público
 donde los clientes reservan, su panel de administración, y todo se gestiona
 desde un panel global de plataforma.
+
+**Generalización a multi-rubro (17/09/2026 en adelante).** El producto nació
+exclusivamente para barberías y se generalizó sin reescribir el core. Puntos
+clave para no repetir el análisis:
+
+- `src/config/professionPresets.js` — 7 categorías (`beauty`, `healthcare`,
+  `wellness`, `automotive`, `education`, `professional_services`,
+  `pet_services`) + fallback `general`, cada una con terminología, tema de
+  color y servicios sugeridos. Un negocio nunca queda sin categoría: texto
+  libre no reconocido → `general`, nunca un estado roto.
+- `src/lib/resolveBusinessContext.js` — mezcla el preset con lo que el
+  negocio haya personalizado. Un negocio sin `business.context` (cualquier
+  barbería dada de alta antes de esto) resuelve a `beauty`: misma experiencia
+  de siempre, sin migrar datos.
+- `src/hooks/useBusinessContext.js` — hook de consumo. Cualquier componente
+  que necesite texto o color según el rubro lo usa acá, nunca hardcodea
+  "barbero"/"turno"/"cliente" de nuevo.
+- **Regla:** configuración antes que hardcode. No agregar `if profession ===
+  'x'` disperso ni un archivo por profesión nueva — todo entra como una fila
+  más en `professionPresets.js`, o cae en `general` si no amerita categoría
+  propia.
+- `maxBarbers` (en `plans.js`) es el nombre viejo de `maxProfessionals`, y
+  `esBarbero()` (en `firestore.rules`) se renombró a `esStaffAsignado()` —
+  mismo comportamiento, nombre genérico.
+- Lo que sigue pendiente: terminar de barrer comentarios internos que todavía
+  dicen "barbero"/"barbería" (bajo impacto, no afectan al producto), y correr
+  `scripts/auditar-rules-emulador.mjs` contra el rename de Rules antes de
+  deployar a producción (no se pudo correr en la sesión que hizo el cambio
+  por no tener Firebase CLI instalado).
 
 **BarberOS es el producto. SACIA es el estudio que lo desarrolla.** No mezclar.
 
@@ -659,7 +690,11 @@ Hoy: claims 64, reservas 35, facturación 11, rules 92. Todo en verde.
 - ❌ NO presentar el filtro del frontend como aislamiento de seguridad
 - ❌ NO inventar testimonios, logos de clientes ni métricas en la landing:
   todavía no hay clientes
-- ❌ NO usar violeta ni azul: la paleta es naranja `#e03d00` sobre casi-blanco
+- ❌ NO usar violeta ni azul para la identidad de SACIA/el preset `beauty`: su
+  paleta es naranja `#e03d00` sobre casi-blanco. Las demás categorías de
+  `professionPresets.js` sí usan otros colores a propósito (ver
+  generalización a multi-rubro, más arriba) — esta regla es sobre la marca
+  de SACIA/barbería, no un límite global de la paleta del producto
 
 ---
 

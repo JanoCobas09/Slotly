@@ -668,7 +668,7 @@ export default function NewBusinessModal({ onClose, onCreated }) {
                 className="form-input"
                 value={form.email}
                 onChange={(e) => set({ email: e.target.value })}
-                placeholder="hola@barberia.com"
+                placeholder="hola@minegocio.com"
               />
             </div>
             <div className="form-group">
@@ -695,7 +695,7 @@ export default function NewBusinessModal({ onClose, onCreated }) {
                 className="form-input"
                 value={form.instagram}
                 onChange={(e) => set({ instagram: e.target.value })}
-                placeholder="@barberiadonjose"
+                placeholder="@mi_negocio"
               />
             </div>
             <div className="form-group">

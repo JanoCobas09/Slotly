@@ -238,7 +238,7 @@ export default function AdminLayout() {
               <h3 style={{ marginBottom: 8 }}>No hay ningún negocio asignado a tu cuenta</h3>
               <p style={{ maxWidth: 460, margin: '0 auto var(--space-lg)' }}>
                 {platformOwner
-                  ? 'Todavía no diste de alta ninguna barbería. Creá la primera desde el panel global.'
+                  ? 'Todavía no diste de alta ningún negocio. Creá el primero desde el panel global.'
                   : 'Tu usuario tiene acceso al panel pero no está vinculado a ningún negocio. Contactate con BarberOS para que lo asocien.'}
               </p>
               {platformOwner && (
