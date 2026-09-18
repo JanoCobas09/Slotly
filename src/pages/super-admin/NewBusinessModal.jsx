@@ -5,6 +5,15 @@ import { isPlatformOwner } from '../../config/platform';
 import { slugify, isReservedSlug } from '../../utils/slug';
 import { createBusiness, isSlugAvailable } from '../../lib/repository';
 import { setBusinessAdmin, createOwnerWithPassword } from '../../lib/functions';
+import {
+  listProfessionCategories,
+  getProfessionPreset,
+  matchProfessionCategory,
+  DEFAULT_PROFESSION_CATEGORY,
+} from '../../config/professionPresets';
+
+const PROFESSION_CATEGORIES = listProfessionCategories();
+const OTHER_OPTION = 'other';
 
 // Onboarding manual: el cliente se contacta, se cierra la venta, y la cuenta se
 // prepara desde acá. No hay registro self-service a propósito.
@@ -13,6 +22,10 @@ const EMPTY_FORM = {
   name: '',
   slug: '',
   slugEdited: false,
+  // Rubro del negocio: una de las 7 categorías, o 'other' + texto libre.
+  // Vacío = todavía no eligió, se lo pedimos antes de crear la cuenta.
+  professionOption: '',
+  customProfession: '',
   ownerEmail: '',
   ownerName: '',
   phone: '',
@@ -20,13 +33,16 @@ const EMPTY_FORM = {
   address: '',
   city: '',
   planId: DEFAULT_PLAN_ID,
-  // Arranca con los colores de BarberOS; el cliente los cambia si tiene marca propia.
-  primaryColor: '#e03d00',
-  secondaryColor: '#ff5c1a',
-  accentColor: '#ff5c1a',
+  // Se pisan solos con los del preset de la categoría elegida, hasta que el
+  // cliente los toca a mano (ver `colorsEdited`).
+  primaryColor: '#404040',
+  secondaryColor: '#737373',
+  accentColor: '#404040',
+  colorsEdited: false,
   slotInterval: 30,
   minCancelHours: 2,
-  welcomeMessage: 'Reservá tu turno en segundos',
+  welcomeMessage: '',
+  welcomeMessageEdited: false,
   instagram: '',
   whatsapp: '',
   // 0 = cuenta que se cobra desde el arranque. Mayor a 0 = cuenta de prueba.
@@ -75,11 +91,50 @@ export default function NewBusinessModal({ onClose, onCreated }) {
     set({ slug: slugify(slug), slugEdited: true });
   };
 
+  // Categoría resuelta: la que eligió directo, o la que infiere el matcher a
+  // partir de lo que escribió en "otra profesión". Nunca queda sin una.
+  const professionCategory = form.professionOption === OTHER_OPTION
+    ? matchProfessionCategory(form.customProfession)
+    : form.professionOption || DEFAULT_PROFESSION_CATEGORY;
+
+  // Elegir una categoría (de la lista o "otra") pre-carga colores y mensaje de
+  // bienvenida con el preset — pero solo si el cliente todavía no los tocó a
+  // mano. Es una sugerencia de arranque, nunca pisa algo que ya personalizó.
+  const applyPresetDefaults = (category) => {
+    const preset = getProfessionPreset(category);
+    const patch = {};
+    if (!form.colorsEdited) {
+      patch.primaryColor = preset.theme.primaryColor;
+      patch.secondaryColor = preset.theme.secondaryColor;
+      patch.accentColor = preset.theme.accentColor;
+    }
+    if (!form.welcomeMessageEdited) {
+      patch.welcomeMessage = `${preset.terminology.ctaLabel} en segundos`;
+    }
+    if (Object.keys(patch).length) set(patch);
+  };
+
+  const handleProfessionOptionChange = (option) => {
+    set({ professionOption: option });
+    if (option && option !== OTHER_OPTION) applyPresetDefaults(option);
+  };
+
+  const handleCustomProfessionChange = (text) => {
+    set({ customProfession: text });
+    applyPresetDefaults(matchProfessionCategory(text));
+  };
+
   const validate = async () => {
     const e = {};
     const email = form.ownerEmail.trim().toLowerCase();
 
     if (!form.name.trim()) e.name = 'Poné el nombre del negocio.';
+
+    if (!form.professionOption) {
+      e.professionOption = 'Elegí qué tipo de negocio es.';
+    } else if (form.professionOption === OTHER_OPTION && !form.customProfession.trim()) {
+      e.customProfession = 'Escribí a qué se dedica.';
+    }
 
     if (!form.slug) {
       e.slug = 'Hace falta un slug para la URL pública.';
@@ -154,6 +209,15 @@ export default function NewBusinessModal({ onClose, onCreated }) {
       // quedan sin una lectura extra. No es dato sensible.
       trialEndsAt: trialDays > 0 ? enDiasISO(trialDays) : null,
       businessHours: DEFAULT_BUSINESS_HOURS.map((h) => ({ ...h })),
+      // Rubro del negocio: alimenta terminología, tema y servicios sugeridos
+      // (ver resolveBusinessContext.js). Opcional por diseño — un negocio sin
+      // esto resuelve a 'beauty', pero acá siempre lo completamos.
+      context: {
+        professionCategory,
+        customProfession: form.professionOption === OTHER_OPTION
+          ? form.customProfession.trim() || null
+          : null,
+      },
     };
 
     // Privado: la plata va en /businesses/{id}/private/billing, no en el
@@ -336,7 +400,7 @@ export default function NewBusinessModal({ onClose, onCreated }) {
         style={{ maxWidth: 640 }}
       >
         <div className="modal-header">
-          <h3>Nueva barbería</h3>
+          <h3>Nuevo negocio</h3>
           <button type="button" className="modal-close" onClick={onClose}>✕</button>
         </div>
 
@@ -354,10 +418,80 @@ export default function NewBusinessModal({ onClose, onCreated }) {
               className={`form-input ${errors.name ? 'error' : ''}`}
               value={form.name}
               onChange={(e) => handleNameChange(e.target.value)}
-              placeholder="Barbería Don José"
+              placeholder="Nombre de tu negocio"
               autoFocus
             />
             {errors.name && <div className="form-error">{errors.name}</div>}
+          </div>
+
+          {/* Rubro: la variable que después alimenta terminología, tema y
+              servicios sugeridos (ver professionPresets.js). */}
+          <div className="form-group">
+            <label className="form-label">¿Qué tipo de negocio o servicio ofrece? <span className="required">*</span></label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 8 }}>
+              {PROFESSION_CATEGORIES.map((cat) => (
+                <label
+                  key={cat.value}
+                  className="card card-selectable"
+                  style={{
+                    padding: '8px 12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    cursor: 'pointer',
+                    border: form.professionOption === cat.value ? '2px solid var(--primary)' : '1px solid var(--border-color)',
+                    margin: 0,
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="professionOption"
+                    checked={form.professionOption === cat.value}
+                    onChange={() => handleProfessionOptionChange(cat.value)}
+                  />
+                  <div>
+                    <div style={{ fontWeight: 'bold', fontSize: 12 }}>{cat.label}</div>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{cat.examples}</div>
+                  </div>
+                </label>
+              ))}
+              <label
+                className="card card-selectable"
+                style={{
+                  padding: '8px 12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  cursor: 'pointer',
+                  border: form.professionOption === OTHER_OPTION ? '2px solid var(--primary)' : '1px solid var(--border-color)',
+                  margin: 0,
+                }}
+              >
+                <input
+                  type="radio"
+                  name="professionOption"
+                  checked={form.professionOption === OTHER_OPTION}
+                  onChange={() => handleProfessionOptionChange(OTHER_OPTION)}
+                />
+                <div>
+                  <div style={{ fontWeight: 'bold', fontSize: 12 }}>No encuentro mi profesión</div>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Escribila y la configuramos igual</div>
+                </div>
+              </label>
+            </div>
+            {errors.professionOption && <div className="form-error">{errors.professionOption}</div>}
+
+            {form.professionOption === OTHER_OPTION && (
+              <div style={{ marginTop: 8 }}>
+                <input
+                  className={`form-input ${errors.customProfession ? 'error' : ''}`}
+                  value={form.customProfession}
+                  onChange={(e) => handleCustomProfessionChange(e.target.value)}
+                  placeholder="Ej: Restaurador de instrumentos musicales"
+                />
+                {errors.customProfession && <div className="form-error">{errors.customProfession}</div>}
+              </div>
+            )}
           </div>
 
           <div className="form-group">
@@ -370,7 +504,7 @@ export default function NewBusinessModal({ onClose, onCreated }) {
                 className={`form-input ${errors.slug ? 'error' : ''}`}
                 value={form.slug}
                 onChange={(e) => handleSlugChange(e.target.value)}
-                placeholder="barberia-don-jose"
+                placeholder="mi-negocio"
                 style={{ margin: 0, fontFamily: 'monospace' }}
               />
             </div>
@@ -383,7 +517,7 @@ export default function NewBusinessModal({ onClose, onCreated }) {
 
           {/* Dueño */}
           <h4 style={{ marginTop: 'var(--space-lg)', borderBottom: '1px solid var(--border-color)', paddingBottom: 6 }}>
-            Dueño de la barbería
+            Dueño/a del negocio
           </h4>
           <p className="text-secondary" style={{ fontSize: 12, marginBottom: 'var(--space-md)' }}>
             Tiene que ser una cuenta de Google: es con la que va a entrar al panel.
@@ -610,7 +744,7 @@ export default function NewBusinessModal({ onClose, onCreated }) {
             <input
               className="form-input"
               value={form.welcomeMessage}
-              onChange={(e) => set({ welcomeMessage: e.target.value })}
+              onChange={(e) => set({ welcomeMessage: e.target.value, welcomeMessageEdited: true })}
             />
           </div>
 
@@ -626,7 +760,7 @@ export default function NewBusinessModal({ onClose, onCreated }) {
                   <input
                     type="color"
                     value={form[key]}
-                    onChange={(e) => set({ [key]: e.target.value })}
+                    onChange={(e) => set({ [key]: e.target.value, colorsEdited: true })}
                     style={{ width: 40, height: 32, padding: 0, border: '1px solid var(--border-color)', borderRadius: 6, cursor: 'pointer' }}
                   />
                   {label}
