@@ -1,9 +1,15 @@
-# BarberOS — contexto del proyecto
+# Slotly — contexto del proyecto
 
 > Este archivo se carga automáticamente al abrir una sesión de Claude Code en
 > esta carpeta. Leelo primero y no vuelvas a explorar lo que ya está acá.
 >
-> **La carpeta se llama `saciaTurno` por historia. El proyecto es BarberOS.**
+> **La carpeta se llama `BarberOS-clone` y por historia más atrás `saciaTurno`.
+> El proyecto es Slotly.** Nació como BarberOS (turnero solo para barberías,
+> repo `cavanna11/BarberOS`) y el 18/09/2026 se volvió multi-rubro y cambió de
+> nombre. Ese repo viejo **quedó retirado para siempre** (era una clonación de
+> partida, nada más) — el único repo vigente es `JanoCobas09/Slotly`, rama
+> `main`. Si ves texto o código que todavía dice "BarberOS"/"barbería" es
+> residuo de esa herencia, no una referencia a usar.
 
 ---
 
@@ -57,7 +63,7 @@ clave para no repetir el análisis:
   en los `127.0.0.1:8080` hardcodeados al inicio de cada script de
   `scripts/*-emulador.mjs` si hace falta, y revertí ambos al terminar.
 
-**BarberOS es el producto. SACIA es el estudio que lo desarrolla.** No mezclar.
+**Slotly es el producto. SACIA es el estudio que lo desarrolla.** No mezclar.
 
 ### Modelo de venta: dos puertas de alta (18/09/2026 en adelante)
 
@@ -140,14 +146,17 @@ Consecuencias que siguen ordenando el diseño:
 
 | | |
 |---|---|
-| Repo | `github.com/cavanna11/BarberOS` (rama `main`) |
-| Producción | `https://barberos.sacia.tech` (Vercel, auto-deploy desde `main`) |
-| Firebase | proyecto `barberos-1d60e`, región `southamerica-east1` |
+| Repo | `github.com/JanoCobas09/Slotly` (rama `main`) — único vigente |
+| Producción | **pendiente de configurar.** El deploy viejo (`barberos.sacia.tech`, Vercel, auto-deploy desde `cavanna11/BarberOS`) quedó congelado en su último commit — no recibe más cambios y no hay que tratarlo como el sitio real. Hay que armar un proyecto de Vercel nuevo apuntando a este repo cuando se vaya a producción. |
+| Firebase | proyecto `barberos-1d60e`, región `southamerica-east1` — **se mantiene sin cambios**: es el backend real (Firestore, Auth, Functions, Messaging) y migrarlo no tiene beneficio; el nombre del proyecto de Firebase es independiente del nombre del producto o del repo |
 | Dueño de plataforma | `cavannaprogramacion@gmail.com` — claim `platform: true` ya asignado |
 | Consola Firestore | `console.firebase.google.com/project/barberos-1d60e/firestore` |
 
-El repo viejo `cavanna11/saciaTurnos` está **abandonado** (tenía commits de un
-ex socio). No pushear ahí.
+Repos viejos, **ambos abandonados, no pushear ahí nunca más**:
+- `cavanna11/BarberOS` — el origen de esta clonación. Se dejó de usar por
+  decisión explícita (18/09/2026): de acá en adelante todo pasa por
+  `JanoCobas09/Slotly`.
+- `cavanna11/saciaTurnos` — más viejo todavía (tenía commits de un ex socio).
 
 ---
 
@@ -156,8 +165,8 @@ ex socio). No pushear ahí.
 Git trae el código, **pero no trae lo que hace falta para que arranque**:
 
 ```bash
-git clone https://github.com/cavanna11/BarberOS.git
-cd BarberOS
+git clone https://github.com/JanoCobas09/Slotly.git
+cd Slotly
 npm install
 ```
 
@@ -595,10 +604,13 @@ global los liste con una query simple, sin `collectionGroup` ni su índice.
   Firestore: no es sesión de Firebase, las Rules lo rechazan.
 - **La consola del navegador acumula errores entre navegaciones.** Antes de
   diagnosticar, recargar limpio.
-- **La carpeta está anidada: `codesSYNC/BarberOS/BarberOS`.** `firebase.json`
-  vive en la de adentro. Corrido desde la de afuera, cualquier `firebase deploy`
-  falla con *"Not in a Firebase app directory"*. Verificá con `ls firebase.json`
-  antes de desplegar.
+- **En alguna máquina de desarrollo la carpeta del proyecto puede quedar
+  anidada** (ej. `codesSYNC/BarberOS/BarberOS`, herencia de un sync de iCloud
+  en la máquina original). `firebase.json` vive en la carpeta del proyecto de
+  verdad, no en la de afuera — corrido desde el nivel equivocado, cualquier
+  `firebase deploy` falla con *"Not in a Firebase app directory"*. Verificá
+  con `ls firebase.json` antes de desplegar, sea cual sea la ruta en tu
+  máquina.
 - **Los reemplazos por script fallan con CRLF.** Varios archivos tienen finales
   de línea Windows; usar la herramienta Edit o verificar siempre el resultado.
 - **En Rules, `request.query.limit` es `null` si la query no puso límite**, y
@@ -673,13 +685,17 @@ curl -s -o /dev/null -w "%{http_code}\n" "$BASE/businesses?key=$KEY"
 curl -s -o /dev/null -w "%{http_code}\n" "$BASE/tickets/x?key=$KEY"
 ```
 
-Esperado: `404`, `403`, `403`.
+Esperado: `404`, `403`, `403`. (Esto habla directo con Firestore, no con
+ningún dominio — sigue funcionando igual aunque no haya producción de Slotly
+desplegada todavía.)
 
-Qué está desplegado en producción:
+Qué está desplegado en producción (reemplazar `TU-DOMINIO` por el dominio real
+una vez que exista un deploy de Vercel apuntando a este repo — hoy no hay
+ninguno):
 
 ```bash
-B=$(curl -s https://barberos.sacia.tech/ | grep -o '/assets/index-[A-Za-z0-9_-]*\.js' | head -1)
-curl -s "https://barberos.sacia.tech$B" | grep -c "TEXTO_A_BUSCAR"
+B=$(curl -s https://TU-DOMINIO/ | grep -o '/assets/index-[A-Za-z0-9_-]*\.js' | head -1)
+curl -s "https://TU-DOMINIO$B" | grep -c "TEXTO_A_BUSCAR"
 ```
 
 ---
@@ -719,8 +735,12 @@ curl -s "https://barberos.sacia.tech$B" | grep -c "TEXTO_A_BUSCAR"
     `VITE_RECAPTCHA_SITE_KEY` (local y Vercel). Ver "Modelo de venta" más
     arriba para el detalle completo.
 
-Ya resueltos y verificados: dominio `barberos.sacia.tech` autorizado,
-Email/Password habilitado, alcance del barbero cerrado en Rules.
+Ya resueltos y verificados: Email/Password habilitado, alcance del barbero
+cerrado en Rules. El dominio `barberos.sacia.tech` estaba autorizado en
+Firebase Auth (Authentication → Settings → Authorized domains) porque era el
+deploy viejo de `cavanna11/BarberOS` — cuando exista el dominio real de
+Slotly hay que agregarlo ahí también (no hace falta sacar el viejo, un
+dominio de más autorizado no es un agujero de seguridad, solo ruido).
 
 ### Producto — hace falta decidir antes de programar
 
@@ -841,5 +861,6 @@ los componentes.
 | `FIREBASE_SETUP.md` | ✅ guía de migración, sirve de referencia |
 | `ROADMAPdesde2352026.md` | ⚠️ actualizado, pero el histórico de sprints tiene ruido |
 | `PROJECT_CONTEXT.md` | ❌ **desactualizado**, describe el diseño original de un solo negocio |
+| `BRIEF-BARBEROS.md` | ❌ **histórico de la era BarberOS/`cavanna11`** — marca, dominio y número de WhatsApp viejos. No usar como fuente de nada vigente. |
 
 Ante cualquier duda, **el código manda sobre los documentos**.
