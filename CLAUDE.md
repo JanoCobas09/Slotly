@@ -702,7 +702,12 @@ curl -s "https://barberos.sacia.tech$B" | grep -c "TEXTO_A_BUSCAR"
     con un mensaje claro, no rompe nada — pero nadie recibe push hasta que
     esté. Messaging no tiene emulador: no se puede probar en local con
     `VITE_USE_EMULATORS=true`, solo contra un deploy real (o `npm run dev`
-    apuntando a Firebase real).
+    apuntando a Firebase real). Una vez activo el push en un dispositivo,
+    aparece un botón "Mandarme una notificación de prueba" (callable
+    `enviarPushDePrueba`) para validar que llega sin tener que esperar un
+    turno real o cancelar uno a propósito — manda SOLO a los tokens de quien
+    lo aprieta, nunca a otra cuenta, así que no hace falta restringirlo a un
+    rol puntual.
 2c. **Site key de reCAPTCHA v3 para App Check** — sin esto, el alta
     self-service (`/onboarding`) no funciona ni en producción ni contra el
     emulador: `createBusinessSelfService` exige `enforceAppCheck` y rechaza

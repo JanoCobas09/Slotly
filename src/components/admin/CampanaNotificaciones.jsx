@@ -5,6 +5,7 @@ import { useNotifications } from '../../hooks/useTenantData';
 import { useCurrentBusiness } from '../../hooks/useCurrentBusiness';
 import { markNotificationRead } from '../../lib/repository';
 import { enablePushNotifications } from '../../lib/push';
+import { enviarPushDePrueba } from '../../lib/functions';
 import Icon from '../Icon';
 
 /**
@@ -46,6 +47,8 @@ export default function CampanaNotificaciones() {
   const [permiso, setPermiso] = useState(() => (typeof Notification !== 'undefined' ? Notification.permission : 'unsupported'));
   const [pushEstado, setPushEstado] = useState('inactivo'); // inactivo | activando | activo | error
   const [pushError, setPushError] = useState('');
+  const [pruebaEstado, setPruebaEstado] = useState('inactiva'); // inactiva | enviando | enviada | error
+  const [pruebaError, setPruebaError] = useState('');
   const panelRef = useRef(null);
 
   const uid = user?.id;
@@ -104,6 +107,19 @@ export default function CampanaNotificaciones() {
     }
   };
 
+  /** Manda un push de prueba a este mismo dispositivo, sin esperar un turno real. */
+  const probarPush = async () => {
+    setPruebaEstado('enviando');
+    setPruebaError('');
+    try {
+      await enviarPushDePrueba();
+      setPruebaEstado('enviada');
+    } catch (err) {
+      setPruebaEstado('error');
+      setPruebaError(err.message || 'No se pudo enviar la prueba.');
+    }
+  };
+
   const abrir = async (n) => {
     setAbierta(false);
     if (!n.leidaPor?.[uid] && businessId && uid) {
@@ -145,6 +161,21 @@ export default function CampanaNotificaciones() {
           {permiso === 'granted' && pushEstado === 'activo' && (
             <div className="campana-vacia" style={{ color: 'var(--success)' }}>
               <Icon name="bell" /> Notificaciones push activas en este dispositivo
+              <div style={{ marginTop: 8 }}>
+                <button className="btn btn-ghost btn-sm" onClick={probarPush} disabled={pruebaEstado === 'enviando'}>
+                  {pruebaEstado === 'enviando' ? 'Enviando…' : 'Mandarme una notificación de prueba'}
+                </button>
+                {pruebaEstado === 'enviada' && (
+                  <div className="text-xs" style={{ color: 'var(--success)', marginTop: 4 }}>
+                    Enviada — debería llegarte en unos segundos.
+                  </div>
+                )}
+                {pruebaEstado === 'error' && (
+                  <div className="text-xs" style={{ color: 'var(--danger)', marginTop: 4 }}>
+                    {pruebaError}
+                  </div>
+                )}
+              </div>
             </div>
           )}
           {pushEstado === 'error' && (

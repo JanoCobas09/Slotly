@@ -830,6 +830,46 @@ exports.onTurnoCancelado = onDocumentUpdated('businesses/{bizId}/appointments/{a
   await enviarPush(bizId, { title, body, professionalId: ahora.professionalId || null, url: '/admin/citas' });
 });
 
+/**
+ * Push de prueba, para validar el flujo (activar en el dispositivo -> llega
+ * de verdad) sin esperar a que entre un turno real o tener que cancelar uno
+ * a propósito. A diferencia de `enviarPush`, que reparte según rol
+ * (dueño ve todo, staff asignado lo suyo), esto NUNCA manda a otra persona:
+ * solo a los tokens que quien llama registró para sí mismo. Cualquier
+ * dueño/admin con push activo en su dispositivo lo puede usar — no hace
+ * falta restringirlo a una cuenta puntual porque no hay forma de que le
+ * llegue a nadie más.
+ */
+exports.enviarPushDePrueba = onCall(async (request) => {
+  if (!request.auth) throw new HttpsError('unauthenticated', 'Tenés que iniciar sesión.');
+
+  const { businessId, role } = request.auth.token;
+  if (!businessId || (role !== 'owner' && role !== 'admin')) {
+    throw new HttpsError('permission-denied', 'Esto es para el panel de un negocio.');
+  }
+
+  const tokensSnap = await db.collection(`businesses/${businessId}/pushTokens`)
+    .where('uid', '==', request.auth.uid)
+    .get();
+  if (tokensSnap.empty) {
+    throw new HttpsError('failed-precondition', 'Este dispositivo todavía no activó las notificaciones push.');
+  }
+
+  const res = await messaging.sendEachForMulticast({
+    tokens: tokensSnap.docs.map((d) => d.data().token),
+    notification: { title: 'Notificación de prueba', body: 'Si ves esto, el push está funcionando en este dispositivo.' },
+    data: { url: '/admin/citas' },
+    webpush: { fcmOptions: { link: '/admin/citas' } },
+  });
+
+  const exitosos = res.responses.filter((r) => r.success).length;
+  if (exitosos === 0) {
+    const err = res.responses.find((r) => r.error)?.error;
+    throw new HttpsError('internal', err?.message || 'No se pudo enviar a ningún dispositivo registrado.');
+  }
+  return { status: 'sent', exitosos };
+});
+
 // ============================================================================
 // 5. ALTA CON CONTRASEÑA
 // ============================================================================

@@ -139,6 +139,17 @@ export function applyPendingClaims() {
 }
 
 /**
+ * Manda un push de prueba SOLO a los dispositivos que la cuenta que llama
+ * registró para sí misma (nunca a otra persona) — para validar que las
+ * notificaciones push funcionan de punta a punta sin esperar a que entre un
+ * turno real. Falla con un mensaje claro si este dispositivo todavía no
+ * activó el push.
+ */
+export function enviarPushDePrueba() {
+  return llamar('enviarPushDePrueba', {});
+}
+
+/**
  * Alta self-service: la persona que llama se convierte en dueña de un
  * negocio nuevo, con ~48 hs de prueba gratis. A diferencia del alta manual
  * (super-admin/NewBusinessModal, que escribe directo a Firestore porque está
