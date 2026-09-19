@@ -225,12 +225,15 @@ export const PROFESSION_PRESETS = {
       ctaLabel: 'Reservá tu turno',
       confirmationMsg: 'Tu reserva quedó confirmada.',
     },
+    // Mismos valores que la identidad de plataforma (defaultTheme en
+    // theme.js / :root de index.css): un negocio sin categoría propia usa la
+    // marca de Slotly tal cual, no un gris genérico aparte.
     theme: {
-      primaryColor: '#404040',
-      primaryHover: '#262626',
-      primaryLight: '#f5f5f5',
-      secondaryColor: '#737373',
-      accentColor: '#404040',
+      primaryColor: '#28706f',
+      primaryHover: '#1f5957',
+      primaryLight: '#dcefea',
+      secondaryColor: '#c87957',
+      accentColor: '#c87957',
     },
     suggestedServices: [],
     customerFields: [],

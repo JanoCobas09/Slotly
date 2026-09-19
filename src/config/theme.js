@@ -1,23 +1,25 @@
 // Configuración del tema White-Label
 // Estos valores se cargan desde business_settings y se aplican como CSS custom properties.
 //
-// Los defaults son la identidad de SACIA (sacia.tech): naranja quemado sobre
-// casi-blanco. Cada barbería puede pisar primary/secondary/accent con sus
-// propios colores desde /admin/configuracion; el resto es la base del producto.
+// Los defaults son la identidad de Slotly ("Warm Utility"): petróleo/teal con
+// acento terracota sobre casi-blanco cálido. Cada negocio puede pisar
+// primary/secondary/accent con sus propios colores desde
+// /admin/configuracion (o hereda el preset de su rubro, ver
+// professionPresets.js); el resto es la base del producto.
 // Los mismos valores están en :root de index.css — si cambiás uno, cambiá el otro.
 
 export const defaultTheme = {
-  primaryColor: '#e03d00',
-  primaryHover: '#b83200',
-  primaryLight: '#fdf0eb',
-  secondaryColor: '#ff5c1a',
-  accentColor: '#ff5c1a',
-  bgColor: '#fafafa',
+  primaryColor: '#28706f',
+  primaryHover: '#1f5957',
+  primaryLight: '#dcefea',
+  secondaryColor: '#c87957',
+  accentColor: '#c87957',
+  bgColor: '#fafaf7',
   surfaceColor: '#ffffff',
-  textColor: '#0a0a0a',
-  textSecondary: '#555555',
-  textMuted: '#aaaaaa',
-  borderColor: 'rgba(0, 0, 0, 0.08)',
+  textColor: '#202524',
+  textSecondary: '#565c59',
+  textMuted: '#9aa19b',
+  borderColor: 'rgba(32, 37, 36, 0.09)',
   successColor: '#0f9960',
   warningColor: '#b45309',
   dangerColor: '#d92d20',

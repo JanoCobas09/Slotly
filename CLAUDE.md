@@ -839,17 +839,39 @@ Hoy: claims 64, reservas 35, facturación 11, rules 92. Todo en verde.
 
 ## Identidad visual
 
-Tomada de [sacia.tech](https://sacia.tech).
+**Dirección de marca: "Warm Utility"** (19/09/2026 en adelante). Software
+profesional con calidez, no el azul/violeta/gradiente/glassmorphism que usa
+cualquier SaaS genérico armado con IA. La diferenciación sale de color,
+tipografía, proporciones y espaciado — no de efectos visuales.
 
-- Naranja: `#e03d00` · variante clara `#ff5c1a`
-- Fondos: `#fafafa` base, `#f2f2f2` secciones alternadas, `#ffffff` tarjetas
-- Texto: `#0a0a0a` / `#555555` / `#aaaaaa`
-- Tipografías: **Inter** (todo el texto, pesos 400 a 800) y **Space Mono**
-  (etiquetas en mayúscula, tracking amplio)
-- Radio de esquinas: 8px parejo. Sin degradados en la marca.
+- Marca: petróleo/teal `#28706f` · hover `#1f5957` · variante clara `#5aafa0`
+  (sidebar oscuro, resaltes) · acento terracota `#c87957`
+- Fondos: `#fafaf7` base cálido, `#f2efe8` secciones alternadas, `#ffffff`
+  tarjetas
+- Texto: `#202524` / `#565c59` / `#9aa19b`
+- Tipografías: **Plus Jakarta Sans** (todo el texto, pesos 400 a 800) —
+  elegida en vez de Inter/Roboto/Poppins a propósito, para no sumarse al
+  look de cualquier SaaS generado por IA — y **Space Mono** (etiquetas en
+  mayúscula, tracking amplio)
+- Radio de esquinas: 6/8/8/12px según el elemento (ya venía así, no hizo
+  falta tocarlo). Sombras sutiles, pocos niveles. **Sin degradados en la
+  marca** — había tres lugares (`.avatar`/círculo de iniciales, encabezado de
+  resumen, barra de progreso de WhatsApp) que mezclaban `--primary` y
+  `--secondary` en diagonal; se aplanaron a color sólido.
 
-Todo sale de variables CSS en `:root` de `src/index.css`. Cambiar ahí, no en
-los componentes.
+Esta es la identidad de **plataforma**: lo que ve la landing, el login, y
+cualquier pantalla sin un negocio activo (`resolveBusinessContext(null)`
+resuelve al preset `general`, que usa estos mismos valores — ver
+`professionPresets.js`). Cada negocio pisa esto con su propio tema desde
+`/admin/configuracion`, o hereda el preset de su rubro (ver "Generalización a
+multi-rubro" más arriba). La única excepción deliberada es el preset
+`beauty`, que conserva el naranja histórico de SACIA — ver la regla "NO usar
+violeta ni azul..." en la sección "Qué NO hacer".
+
+Todo sale de variables CSS en `:root` de `src/index.css`, con el mismo juego
+de valores replicado en `defaultTheme` de `src/config/theme.js` (el comentario
+de ese archivo lo recuerda: "si cambiás uno, cambiá el otro"). Cambiar ahí,
+no en los componentes.
 
 ---
 

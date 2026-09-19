@@ -711,7 +711,7 @@ export default function SuperAdminDashboard() {
                       <div style={{ 
                         height: '100%', 
                         width: `${quotaPercentage}%`, 
-                        background: isExceeded ? 'var(--danger)' : 'linear-gradient(90deg, var(--primary), var(--secondary))',
+                        background: isExceeded ? 'var(--danger)' : 'var(--primary)',
                         borderRadius: 3 
                       }} />
                     </div>

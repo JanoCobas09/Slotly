@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap');
 
 /* ============================================
    CSS RESET & CUSTOM PROPERTIES
@@ -13,10 +13,20 @@
 }
 
 /* ============================================================================
-   Slotly — identidad visual SACIA (sacia.tech)
+   Slotly — identidad visual "Warm Utility"
    ============================================================================
-   Naranja quemado sobre casi-blanco, negro real para el texto, Inter
-   para todo y Space Mono para etiquetas en mayúscula.
+   Petróleo/teal como color de marca, terracota como acento — no el azul o
+   violeta que usa cualquier SaaS generado por IA. Casi-blanco cálido de
+   fondo, negro cálido para el texto, Plus Jakarta Sans para todo y Space
+   Mono para etiquetas en mayúscula. Sin degradados en la marca.
+
+   Esto es la identidad de PLATAFORMA: lo que ve la landing, el login y
+   cualquier pantalla sin un negocio activo. Cada negocio pisa
+   primary/secondary/accent con su propio tema blanco-etiqueta desde
+   /admin/configuracion — ver professionPresets.js para las 7 categorías de
+   rubro. La única excepción es el preset `beauty` (peluquería/barbería/
+   estética), que conserva a propósito el naranja histórico de SACIA — ver
+   la regla "NO usar violeta ni azul..." más abajo en este archivo.
 
    Los nombres de las variables se mantienen (--primary, --bg, --text…) para no
    tener que tocar las ~1500 líneas de CSS que ya las usan: cambia el valor, no
@@ -24,34 +34,33 @@
    ============================================================================ */
 
 :root {
-  /* Marca — el naranja de SACIA */
-  --primary: #e03d00;
-  --primary-hover: #b83200;
-  --primary-soft: #ff5c1a;
-  --primary-light: #fdf0eb;        /* fondo suave para badges y estados */
-  --primary-glow: rgba(224, 61, 0, 0.12);
-  --secondary: #ff5c1a;
-  --accent: #ff5c1a;
+  /* Marca — petróleo/teal, con la terracota como acento secundario */
+  --primary: #28706f;
+  --primary-hover: #1f5957;
+  --primary-soft: #5aafa0;         /* variante clara — sidebar oscuro, resaltes */
+  --primary-light: #dcefea;        /* fondo suave para badges y estados */
+  --primary-glow: rgba(40, 112, 111, 0.14);
+  --secondary: #c87957;
+  --accent: #c87957;
 
-  /* Superficies — casi blanco, no gris azulado */
-  --bg: #fafafa;
-  --bg-secondary: #f2f2f2;
+  /* Superficies — casi blanco cálido, no gris azulado */
+  --bg: #fafaf7;
+  --bg-secondary: #f2efe8;
   --surface: #ffffff;
-  --surface-hover: #f7f7f7;
+  --surface-hover: #f7f6f2;
 
-  /* Texto — negro real, sin tinte azul */
-  --text: #0a0a0a;
-  --text-secondary: #555555;
-  --text-muted: #aaaaaa;
+  /* Texto — negro cálido, sin tinte azul */
+  --text: #202524;
+  --text-secondary: #565c59;
+  --text-muted: #9aa19b;
 
   /* Bordes — negro translúcido, se apoyan en el fondo */
-  --border: rgba(0, 0, 0, 0.08);
-  --border-hover: rgba(0, 0, 0, 0.16);
-  --border-accent: rgba(224, 61, 0, 0.2);
-  --border-color: rgba(0, 0, 0, 0.08);  /* alias usado por varios componentes */
+  --border: rgba(32, 37, 36, 0.09);
+  --border-hover: rgba(32, 37, 36, 0.18);
+  --border-accent: rgba(40, 112, 111, 0.22);
+  --border-color: rgba(32, 37, 36, 0.09);  /* alias usado por varios componentes */
 
-  /* Estados. El naranja de marca ocupa el lugar del "warning" clásico, así que
-     el amarillo se corre a un ámbar más oscuro para no competir con él. */
+  /* Estados — independientes de la marca, no cambian con el tema del negocio */
   --success: #0f9960;
   --success-light: #eaf7f1;
   --warning: #b45309;
@@ -59,10 +68,10 @@
   --danger: #d92d20;
   --danger-light: #fdeceb;
 
-  /* Sidebar — negro de la marca */
-  --sidebar-bg: #0a0a0a;
-  --sidebar-text: #aaaaaa;
-  --sidebar-active: #e03d00;
+  /* Sidebar — negro cálido, igual que el isotipo de Slotly */
+  --sidebar-bg: #171717;
+  --sidebar-text: #9aa19b;
+  --sidebar-active: var(--primary-soft);
 
   /* Spacing */
   --space-xs: 4px;
@@ -86,7 +95,7 @@
   --shadow-xl: 0 16px 40px rgba(0,0,0,0.10);
 
   /* Tipografía */
-  --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-mono: 'Space Mono', 'SFMono-Regular', Consolas, monospace;
 
   /* Transitions */
@@ -467,7 +476,7 @@ select.form-input {
   justify-content: center;
   border-radius: 50%;
   font-weight: 600;
-  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  background: var(--primary);
   color: white;
   flex-shrink: 0;
   overflow: hidden;
@@ -1032,7 +1041,7 @@ select.form-input {
 }
 
 .summary-header {
-  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  background: var(--primary);
   color: white;
   padding: var(--space-lg);
   text-align: center;
@@ -1536,7 +1545,7 @@ select.form-input {
 
 .revenue-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--primary), var(--secondary));
+  background: var(--primary);
   border-radius: 4px;
   transition: width var(--transition-slow);
 }

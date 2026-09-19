@@ -14,7 +14,10 @@ import { DEFAULT_PROFESSION_CATEGORY, getProfessionPreset, isKnownProfessionCate
 //
 // Un negocio sin `context` (cualquier barbería creada antes de esta fase) cae
 // en el preset `beauty` — la misma experiencia que ya tenía, sin escribir
-// nada en la base.
+// nada en la base. Sin ningún negocio activo (landing, login, o cualquier
+// pantalla de plataforma sin slug) no hay legado que preservar: se resuelve
+// a `general`, que ES la identidad propia de Slotly (mismos valores que
+// defaultTheme en theme.js) — no el naranja de un negocio en particular.
 // ============================================================================
 
 const LEGACY_DEFAULT_CATEGORY = 'beauty';
@@ -26,7 +29,9 @@ export function resolveBusinessContext(business) {
     ? context.professionCategory
     : context
       ? DEFAULT_PROFESSION_CATEGORY
-      : LEGACY_DEFAULT_CATEGORY;
+      : business
+        ? LEGACY_DEFAULT_CATEGORY
+        : DEFAULT_PROFESSION_CATEGORY;
 
   const preset = getProfessionPreset(professionCategory);
 
