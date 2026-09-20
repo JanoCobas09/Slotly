@@ -8,10 +8,10 @@ administración, y todo se gestiona desde un panel global de plataforma.
 
 Desarrollado por [SACIA](https://sacia.tech).
 
-> Nació como BarberOS (turnero exclusivo para barberías). El 18/09/2026 se
-> generalizó a cualquier rubro y cambió de nombre. El repo original
-> (`cavanna11/BarberOS`) quedó retirado — este (`JanoCobas09/Slotly`) es el
-> único vigente.
+> Slotly es un producto nuevo e independiente, no una continuación de
+> BarberOS. El código partió de un clon de `cavanna11/BarberOS` como semilla
+> técnica (para no arrancar de cero), pero ese repo quedó retirado para
+> siempre — este (`JanoCobas09/Slotly`) es el único vigente.
 
 ---
 

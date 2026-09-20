@@ -3,13 +3,15 @@
 > Este archivo se carga automáticamente al abrir una sesión de Claude Code en
 > esta carpeta. Leelo primero y no vuelvas a explorar lo que ya está acá.
 >
-> **La carpeta se llama `BarberOS-clone` y por historia más atrás `saciaTurno`.
-> El proyecto es Slotly.** Nació como BarberOS (turnero solo para barberías,
-> repo `cavanna11/BarberOS`) y el 18/09/2026 se volvió multi-rubro y cambió de
-> nombre. Ese repo viejo **quedó retirado para siempre** (era una clonación de
-> partida, nada más) — el único repo vigente es `JanoCobas09/Slotly`, rama
-> `main`. Si ves texto o código que todavía dice "BarberOS"/"barbería" es
-> residuo de esa herencia, no una referencia a usar.
+> **La carpeta se llama `BarberOS-clone` por historia. El proyecto es
+> Slotly, un producto nuevo y completamente distinto** — no una
+> continuación ni un rename de BarberOS. `cavanna11/BarberOS` fue
+> únicamente el punto de partida técnico (se clonó su código como semilla
+> para no arrancar de cero) y **quedó retirado para siempre** (18/09/2026):
+> no se vuelve a pushear ahí, no se lo trata como versión previa de Slotly.
+> El único repo vigente es `JanoCobas09/Slotly`, rama `main`. Si ves texto o
+> código que todavía dice "BarberOS"/"barbería" es residuo de esa semilla
+> técnica, no una referencia a usar ni parte de la identidad del producto.
 
 ---
 
@@ -148,15 +150,67 @@ Consecuencias que siguen ordenando el diseño:
 |---|---|
 | Repo | `github.com/JanoCobas09/Slotly` (rama `main`) — único vigente |
 | Producción | **pendiente de configurar.** El deploy viejo (`barberos.sacia.tech`, Vercel, auto-deploy desde `cavanna11/BarberOS`) quedó congelado en su último commit — no recibe más cambios y no hay que tratarlo como el sitio real. Hay que armar un proyecto de Vercel nuevo apuntando a este repo cuando se vaya a producción. |
-| Firebase | proyecto `barberos-1d60e`, región `southamerica-east1` — **se mantiene sin cambios**: es el backend real (Firestore, Auth, Functions, Messaging) y migrarlo no tiene beneficio; el nombre del proyecto de Firebase es independiente del nombre del producto o del repo |
-| Dueño de plataforma | `cavannaprogramacion@gmail.com` — claim `platform: true` ya asignado |
-| Consola Firestore | `console.firebase.google.com/project/barberos-1d60e/firestore` |
+| Backend | **En migración de Firebase a Supabase** (19/09/2026 en adelante, rama `migration/supabase`) — ver "Migración a Supabase" más abajo. Mientras dure, `main` sigue sobre Firebase (proyecto `barberos-1d60e`, región `southamerica-east1`) y es la versión funcional del día a día; la migración no vive ahí hasta que esté terminada y probada. |
+| Dueño de plataforma | `cavannaprogramacion@gmail.com` — claim `platform: true` ya asignado en Firebase. En Supabase hay que volver a asignarlo (ver la migración). |
+| Consola Firestore (mientras `main` siga en Firebase) | `console.firebase.google.com/project/barberos-1d60e/firestore` |
 
 Repos viejos, **ambos abandonados, no pushear ahí nunca más**:
 - `cavanna11/BarberOS` — el origen de esta clonación. Se dejó de usar por
   decisión explícita (18/09/2026): de acá en adelante todo pasa por
   `JanoCobas09/Slotly`.
 - `cavanna11/saciaTurnos` — más viejo todavía (tenía commits de un ex socio).
+
+---
+
+## Migración a Supabase (19/09/2026 en adelante)
+
+Decisión del usuario: reemplazar Firebase entero (Firestore, Auth, Functions,
+Messaging) por Supabase. Sin datos reales en juego (confirmado: todo lo que
+hay hoy es de prueba), así que se va **directo, sin correr los dos en
+paralelo** — apenas esté terminada y probada, esta rama se mergea a `main` y
+Firebase se apaga. Vive en la rama `migration/supabase`, carpeta `supabase/`.
+
+**Hecho y verificado:**
+- Esquema completo (`supabase/migrations/..._schema.sql`): las 14
+  colecciones de Firestore pasan a 17 tablas relacionadas. `/slugs/{slug}`
+  no se migró (era un mapa aparte solo porque Firestore no permite resolver
+  un slug sin exponer `list()` de todo `businesses`; acá es una columna
+  UNIQUE). `/users/{userId}` tampoco (regla muerta en firestore.rules,
+  ningún archivo la usaba).
+- RLS (`supabase/migrations/..._rls.sql`): cada regla de `firestore.rules`
+  traducida con las mismas funciones helper que ya existían
+  (`isBusinessOwner` → `is_business_owner()`, etc.). Los campos protegidos
+  de `businesses` y la restricción de qué puede tocar un cliente al cancelar
+  su turno pasan de `diff().affectedKeys()` (Firestore) a triggers `BEFORE
+  UPDATE` (Postgres no compara columna vieja vs. nueva dentro de una policy
+  de RLS). El truco de `getAfter()` para tickets no hace falta: una
+  transacción SQL ve sus propios INSERT anteriores sin ese problema.
+- Verificado con `supabase/rls_smoke_test.sql` contra Postgres local
+  (10/10 casos): aislamiento entre negocios, auto-beneficio del dueño
+  bloqueado, cliente no puede colarse un cambio de precio al cancelar. No
+  reemplaza una suite de verdad — eso queda para cuando se construya esa
+  fase (pgTAP, mismo espíritu que `auditar-rules-emulador.mjs`).
+
+**Pendiente:** Auth (Google OAuth + cómo se asignan los custom claims vía
+Edge Function con service role), las Edge Functions (una por cada Cloud
+Function de `functions/index.js`), Realtime (reemplaza `onSnapshot`), Web
+Push real con VAPID (Supabase no tiene equivalente a FCM — mismo patrón que
+ya existe en el proyecto `allin`/Jom! del usuario, que sí lo tiene resuelto),
+y al final reescribir `src/lib/repository.js` y `src/lib/functions.js` — los
+únicos dos archivos que el resto de la app usa para hablar con el backend,
+así que ahí se concentra casi todo el trabajo de adaptación del lado del
+cliente.
+
+**Trampa de esta máquina:** Windows tenía reservado (`netsh interface ipv4
+show excludedportrange protocol=tcp`) el rango `54140-54739` completo — justo
+donde caen TODOS los puertos por defecto del stack local de Supabase
+(54321-54329). Remapeados a `55321-55329` en `supabase/config.toml`. Mismo
+síntoma que el remapeo de puertos del emulador de Firebase (más abajo en este
+archivo), causa distinta: ahí era otro proceso ocupando el puerto, acá es
+Windows reservándolo de antemano para Hyper-V/WSL2.
+
+Para levantar el stack local: `npx supabase start` (requiere Docker Desktop
+corriendo). Studio queda en `http://127.0.0.1:55323`.
 
 ---
 
