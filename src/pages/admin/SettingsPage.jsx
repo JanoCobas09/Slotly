@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { updateBusiness } from '../../lib/repository';
+import { updateBusiness, uploadBusinessLogo, removeBusinessLogo } from '../../lib/repository';
 import { useCurrentBusiness } from '../../hooks/useCurrentBusiness';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
 import { getDayName } from '../../utils/dateUtils';
@@ -24,6 +24,9 @@ export default function SettingsPage() {
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
+  const [subiendoFoto, setSubiendoFoto] = useState(false);
+  const [errorFoto, setErrorFoto] = useState('');
+  const inputFotoRef = useRef(null);
 
   // No se guarda una copia del negocio en el estado, solo LOS CAMBIOS del
   // usuario superpuestos sobre el dato vivo.
@@ -81,6 +84,53 @@ export default function SettingsPage() {
     setTimeout(() => setSaved(false), 3000);
   };
 
+  // La foto se sube y se guarda al toque, aparte del resto del formulario:
+  // es una operación propia (habla con Storage, no solo con Firestore) y no
+  // tiene sentido dejarla "a medio subir" esperando que aprieten Guardar
+  // Cambios — con eso el archivo ya estaría en el bucket pero `logoUrl`
+  // podría quedar desincronizado si la persona navega sin guardar.
+  const handleFotoChange = async (ev) => {
+    const file = ev.target.files?.[0];
+    if (inputFotoRef.current) inputFotoRef.current.value = '';
+    if (!file || !businessId) return;
+
+    setErrorFoto('');
+    if (!file.type.startsWith('image/')) {
+      setErrorFoto('Tiene que ser una imagen.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setErrorFoto('La imagen no puede pesar más de 5 MB.');
+      return;
+    }
+
+    setSubiendoFoto(true);
+    try {
+      const url = await uploadBusinessLogo(businessId, file);
+      await updateBusiness(businessId, { logoUrl: url }, { esPlataforma: user?.isPlatformOwner });
+    } catch (err) {
+      console.error('[SettingsPage] No se pudo subir la foto:', err);
+      setErrorFoto('No se pudo subir la foto: ' + err.message);
+    } finally {
+      setSubiendoFoto(false);
+    }
+  };
+
+  const handleQuitarFoto = async () => {
+    if (!businessId || !form.logoUrl) return;
+    setSubiendoFoto(true);
+    setErrorFoto('');
+    try {
+      await removeBusinessLogo(businessId);
+      await updateBusiness(businessId, { logoUrl: null }, { esPlataforma: user?.isPlatformOwner });
+    } catch (err) {
+      console.error('[SettingsPage] No se pudo quitar la foto:', err);
+      setErrorFoto('No se pudo quitar la foto: ' + err.message);
+    } finally {
+      setSubiendoFoto(false);
+    }
+  };
+
   const toggleScheduleDay = (dayIndex) => {
     const hours = form.businessHours || defaultHours;
     const updatedHours = hours.map((h, i) =>
@@ -110,6 +160,55 @@ export default function SettingsPage() {
           <div className="card">
             <h3 className="mb-lg">Identidad del Negocio</h3>
             <div className="flex flex-col gap-md">
+              <div className="form-group">
+                <label className="form-label">Foto del negocio</label>
+                <div className="flex items-center gap-md">
+                  <div
+                    style={{
+                      width: 72, height: 72, borderRadius: '50%', flexShrink: 0,
+                      background: form.logoUrl ? `center/cover url(${form.logoUrl})` : 'var(--bg-secondary)',
+                      border: '1px solid var(--border-color)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: 'var(--text-muted)', fontSize: 24,
+                    }}
+                  >
+                    {!form.logoUrl && <Icon name="building" />}
+                  </div>
+                  <div className="flex flex-col gap-sm">
+                    <div className="flex gap-sm">
+                      <button
+                        type="button"
+                        className="btn btn-outline btn-sm"
+                        onClick={() => inputFotoRef.current?.click()}
+                        disabled={subiendoFoto}
+                      >
+                        {subiendoFoto ? 'Subiendo…' : form.logoUrl ? 'Cambiar foto' : 'Subir foto'}
+                      </button>
+                      {form.logoUrl && (
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          onClick={handleQuitarFoto}
+                          disabled={subiendoFoto}
+                        >
+                          Quitar
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted">
+                      Es lo primero que ve quien entra a tu link a reservar. JPG o PNG, hasta 5 MB.
+                    </p>
+                  </div>
+                  <input
+                    ref={inputFotoRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFotoChange}
+                    style={{ display: 'none' }}
+                  />
+                </div>
+                {errorFoto && <p className="text-xs" style={{ color: 'var(--danger)', marginTop: 4 }}>{errorFoto}</p>}
+              </div>
               <div className="form-group">
                 <label className="form-label">Nombre del negocio</label>
                 <input className="form-input" value={form.name} onChange={e => editar({ name: e.target.value })} />
@@ -210,6 +309,27 @@ export default function SettingsPage() {
                 <label className="form-label">Dirección</label>
                 <input className="form-input" value={form.address || ''} onChange={e => editar({ address: e.target.value })} />
               </div>
+              <div className="form-group">
+                <label className="form-label">Instagram</label>
+                <input
+                  className="form-input"
+                  placeholder="@mi_negocio"
+                  value={form.socialLinks?.instagram || ''}
+                  onChange={e => editar({ socialLinks: { ...form.socialLinks, instagram: e.target.value } })}
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Link de Google Maps</label>
+                <input
+                  className="form-input"
+                  placeholder="https://maps.app.goo.gl/..."
+                  value={form.mapsUrl || ''}
+                  onChange={e => editar({ mapsUrl: e.target.value })}
+                />
+                <p className="text-xs text-muted" style={{ marginTop: 4 }}>
+                  Abrí tu negocio en Google Maps, tocá "Compartir" y pegá el link acá.
+                </p>
+              </div>
             </div>
           </div>
 
@@ -260,7 +380,13 @@ export default function SettingsPage() {
             <h3 className="mb-lg">Vista Previa</h3>
             <div style={{ background: 'var(--bg)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-lg)', border: '1px solid var(--border)' }}>
               <div className="flex items-center gap-sm mb-lg" style={{ padding: 'var(--space-sm)' }}>
-                <div style={{ width: 32, height: 32, borderRadius: 'var(--radius-sm)', background: `linear-gradient(135deg, ${form.primaryColor}, ${form.secondaryColor})`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '0.75rem', fontWeight: 700 }}>S</div>
+                {form.logoUrl ? (
+                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: `center/cover url(${form.logoUrl})`, flexShrink: 0 }} />
+                ) : (
+                  <div style={{ width: 32, height: 32, borderRadius: 'var(--radius-sm)', background: `linear-gradient(135deg, ${form.primaryColor}, ${form.secondaryColor})`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '0.75rem', fontWeight: 700, flexShrink: 0 }}>
+                    {form.name?.charAt(0).toUpperCase() || 'S'}
+                  </div>
+                )}
                 <strong>{form.name}</strong>
               </div>
               <p className="text-secondary text-sm mb-md">{form.welcomeMessage}</p>

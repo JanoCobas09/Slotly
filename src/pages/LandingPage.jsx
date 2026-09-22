@@ -107,7 +107,7 @@ const FAQ = [
   },
   {
     q: '¿Qué pasa con la información de mis clientes?',
-    a: 'Es tuya. Cada negocio está separado de los demás y nadie ve tus turnos. Si algún día te vas, te la exportamos.',
+    a: 'Es tuya. Cada negocio está separado de los demás: nadie de otro negocio ve tus turnos. Si algún día te vas, coordinamos cómo pasártela.',
   },
 ];
 

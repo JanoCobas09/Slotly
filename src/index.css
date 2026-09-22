@@ -733,6 +733,17 @@ select.form-input {
   flex-shrink: 0;
 }
 
+/* Foto que subió el negocio (logoUrl): redonda, como una foto de perfil —
+   a diferencia de .header-logo-icon, que es el cuadrado de marca por defecto
+   cuando el negocio todavía no subió una. */
+.header-logo-photo {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
 .header-actions {
   display: flex;
   align-items: center;
@@ -778,6 +789,34 @@ select.form-input {
   margin: 0 auto;
   padding: var(--space-xl) var(--space-md);
   min-height: calc(100vh - 64px - 73px);
+}
+
+.booking-contact-bar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-sm);
+  margin: var(--space-md) 0 var(--space-lg);
+}
+
+.booking-contact-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: all var(--transition);
+}
+
+.booking-contact-item:hover {
+  border-color: var(--primary);
+  color: var(--primary);
 }
 
 .booking-step-title {
@@ -844,6 +883,14 @@ select.form-input {
 .service-info h3 {
   font-size: 0.9375rem;
   margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.service-promo-badge {
+  font-size: 0.6875rem;
+  font-weight: 700;
 }
 
 .service-info p {
@@ -1008,6 +1055,25 @@ select.form-input {
   border-color: var(--primary);
   color: white;
   font-weight: 600;
+}
+
+/* Horario con promo activa: se nota aunque no esté seleccionado. */
+.timeslot.timeslot-promo {
+  border-color: var(--warning);
+  background: var(--warning-light);
+  color: var(--warning);
+  font-weight: 700;
+}
+
+.timeslot.timeslot-promo.selected {
+  background: var(--warning);
+  border-color: var(--warning);
+  color: white;
+}
+
+.timeslot-promo-icon {
+  margin-left: 4px;
+  font-size: 0.75em;
 }
 
 .timeslot.unavailable {
@@ -1348,6 +1414,8 @@ select.form-input {
 
 .admin-nav {
   flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   padding: var(--space-md);
   display: flex;
   flex-direction: column;
@@ -1629,10 +1697,52 @@ select.form-input {
 
 .schedule-row {
   display: grid;
-  grid-template-columns: 100px auto 1fr 1fr;
+  grid-template-columns: 100px auto 1fr 1fr 28px;
   gap: var(--space-sm);
   align-items: center;
   padding: var(--space-sm) 0;
+}
+
+/* Franjas de un mismo día, aparte de la primera: sin borde de fila propio,
+   se leen pegadas a la de arriba. */
+.schedule-row + .schedule-row {
+  padding-top: 0;
+}
+
+.schedule-franja-quitar {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+}
+
+.schedule-franja-quitar:hover {
+  color: var(--danger);
+  background: var(--danger-light);
+}
+
+.schedule-franja-agregar {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 2px 0 var(--space-sm) 128px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--primary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.schedule-franja-agregar:hover {
+  text-decoration: underline;
 }
 
 .schedule-row label {
@@ -1744,7 +1854,7 @@ select.form-input {
   }
 
   .schedule-row {
-    grid-template-columns: 80px auto 1fr 1fr;
+    grid-template-columns: 80px auto 1fr 1fr 24px;
     font-size: 0.8125rem;
   }
 
@@ -2412,8 +2522,11 @@ select.form-input {
   border-left-color: var(--primary);
 }
 
-.row-time strong { font-family: var(--font-mono); display: block; font-size: 0.85rem; }
-.row-dur { font-family: var(--font-mono); font-size: 9px; color: var(--text-muted); }
+/* Misma tipografía que .row-price (hereda --font, la principal del sistema):
+   la hora y el precio están en la misma fila y tienen que leerse como parte
+   de un mismo dato, no como si la hora fuera una etiqueta de otro sistema. */
+.row-time strong { display: block; font-size: 0.85rem; }
+.row-dur { font-size: 9px; color: var(--text-muted); }
 .row-client strong { display: block; font-size: 0.825rem; color: var(--text); }
 .row-client span { display: block; font-size: 0.75rem; color: var(--text-secondary); }
 .row-price { font-weight: 700; font-size: 0.825rem; }
@@ -2673,7 +2786,8 @@ select.form-input {
 .slots-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-bottom: 6px; }
 
 .slot-btn {
-  font-family: var(--font-mono);
+  /* Igual que .timeslot (el botón de horario real, en BookingPage): tipografía
+     principal, no la monoespaciada — el horario acá tampoco es una etiqueta. */
   font-size: 10px;
   font-weight: 700;
   padding: 6px 0;

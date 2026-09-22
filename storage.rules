@@ -1,0 +1,47 @@
+rules_version = '2';
+
+// ============================================================================
+// Slotly — Storage Security Rules
+// ============================================================================
+// Mismo criterio que firestore.rules: los custom claims del token son la
+// única fuente de permiso, nunca el frontend. Acá vive un solo tipo de
+// archivo por ahora: la foto del negocio (logo), que se muestra como avatar
+// en el link público de reserva.
+// ============================================================================
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // /businesses/{businessId}/logo — un solo archivo por negocio (sin
+    // extensión en el nombre: el content-type lo pone el upload, no el path).
+    // Subir uno nuevo pisa el anterior a propósito, así no quedan huérfanos
+    // acumulándose en el bucket cada vez que el dueño cambia la foto.
+    match /businesses/{businessId}/logo {
+      // Pública, igual que el documento del negocio: la página de reservas
+      // la muestra antes del login.
+      allow read: if true;
+
+      allow write: if request.auth != null
+                      && (
+                        request.auth.token.platform == true ||
+                        (request.auth.token.businessId == businessId && request.auth.token.role == 'owner')
+                      )
+                      // 5 MB como tope: una foto de perfil no necesita más, y
+                      // evita que alguien con la consola abierta suba un
+                      // archivo gigante a costa del negocio.
+                      && request.resource.size < 5 * 1024 * 1024
+                      && request.resource.contentType.matches('image/.*');
+
+      allow delete: if request.auth != null
+                       && (
+                         request.auth.token.platform == true ||
+                         (request.auth.token.businessId == businessId && request.auth.token.role == 'owner')
+                       );
+    }
+
+    // Todo lo que no esté declarado arriba queda cerrado.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

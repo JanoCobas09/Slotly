@@ -23,6 +23,7 @@ const { initializeApp } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { getAuth } = require('firebase-admin/auth');
 const { getMessaging } = require('firebase-admin/messaging');
+const nodemailer = require('nodemailer');
 
 // Se usan los submódulos y no el namespace `admin.*` a propósito: el emulador
 // de Functions envuelve firebase-admin en un proxy para interceptar
@@ -560,41 +561,66 @@ exports.createAppointment = onCall(async (request) => {
   const inicio = timeToMinutes(startTime);
   const fin = inicio + duracion;
 
-  const horarios = await db.collection(`businesses/${businessId}/schedules`)
+  // Puede haber más de una franja el mismo día (horario cortado: ej. 9 a 13
+  // y de nuevo 17 a 21) — alcanza con que el turno entre en CUALQUIERA de
+  // ellas, así que se traen todas en vez de una sola.
+  const horariosSnap = await db.collection(`businesses/${businessId}/schedules`)
     .where('professionalId', '==', professionalId)
     .where('dayOfWeek', '==', dow)
-    .limit(1).get();
-  const horario = horarios.empty ? null : horarios.docs[0].data();
-  if (!horario || horario.isActive === false || !horario.startTime || !horario.endTime) {
+    .get();
+  const franjas = horariosSnap.docs
+    .map((d) => d.data())
+    .filter((h) => h.isActive !== false && h.startTime && h.endTime);
+  if (franjas.length === 0) {
     throw new HttpsError('failed-precondition', 'El profesional no trabaja ese día.');
   }
 
-  let desde = timeToMinutes(horario.startTime);
-  let hasta = timeToMinutes(horario.endTime);
-
   // El horario del negocio recorta el del profesional, igual que en el motor
-  // del front.
+  // del front. Es el mismo recorte para todas las franjas, así que se calcula
+  // una sola vez.
   const diaNegocio = (negocio.businessHours || []).find((b) => b.dayOfWeek === dow);
-  if (diaNegocio) {
-    if (diaNegocio.isActive === false) {
-      throw new HttpsError('failed-precondition', 'El negocio no abre ese día.');
-    }
-    if (diaNegocio.startTime && diaNegocio.endTime) {
+  if (diaNegocio && diaNegocio.isActive === false) {
+    throw new HttpsError('failed-precondition', 'El negocio no abre ese día.');
+  }
+
+  const entraEnAlgunaFranja = franjas.some((horario) => {
+    let desde = timeToMinutes(horario.startTime);
+    let hasta = timeToMinutes(horario.endTime);
+    if (diaNegocio && diaNegocio.startTime && diaNegocio.endTime) {
       desde = Math.max(desde, timeToMinutes(diaNegocio.startTime));
       hasta = Math.min(hasta, timeToMinutes(diaNegocio.endTime));
     }
-  }
+    if (inicio < desde || fin > hasta) return false;
+    // Una franja vieja puede traer su propio breakStart/breakEnd (de antes
+    // del horario cortado): se sigue respetando igual.
+    if (horario.breakStart && horario.breakEnd) {
+      const dStart = timeToMinutes(horario.breakStart), dEnd = timeToMinutes(horario.breakEnd);
+      if (inicio < dEnd && fin > dStart) return false;
+    }
+    return true;
+  });
 
-  if (inicio < desde || fin > hasta) {
+  if (!entraEnAlgunaFranja) {
     throw new HttpsError('failed-precondition', 'Ese horario está fuera del horario de atención.');
   }
 
-  if (horario.breakStart && horario.breakEnd) {
-    const dStart = timeToMinutes(horario.breakStart), dEnd = timeToMinutes(horario.breakEnd);
-    if (inicio < dEnd && fin > dStart) {
-      throw new HttpsError('failed-precondition', 'Ese horario cae en el descanso del profesional.');
-    }
-  }
+  // ── Promoción, si hay una activa para este servicio+día+horario ──────────
+  // Mismo criterio que el precio del servicio: se calcula acá, nunca se
+  // confía en lo que mande el cliente. src/utils/promoEngine.js hace este
+  // mismo cálculo del lado del browser, pero solo para MOSTRAR el precio
+  // antes de confirmar — lo que de verdad se cobra sale de acá.
+  const promosSnap = await db.collection(`businesses/${businessId}/promotions`)
+    .where('serviceId', '==', serviceId)
+    .where('dayOfWeek', '==', dow)
+    .get();
+  const promo = promosSnap.docs
+    .map((d) => d.data())
+    .find((p) => p.isActive !== false && inicio >= timeToMinutes(p.startTime) && inicio < timeToMinutes(p.endTime));
+  const precioFinal = promo
+    ? (promo.discountType === 'fixed'
+        ? Number(promo.discountValue)
+        : Math.round(precio * (1 - Number(promo.discountValue) / 100)))
+    : precio;
 
   // ── Solapamiento, en transacción ──────────────────────────────────────────
   // Va en transacción y no en un get suelto porque dos personas mirando la
@@ -661,8 +687,11 @@ exports.createAppointment = onCall(async (request) => {
       appointmentDate,
       startTime,
       endTime: minutesToTime(fin),
-      // Del servicio, no del cliente.
-      price: precio,
+      // Del servicio (con la promo aplicada, si corresponde), nunca del cliente.
+      price: precioFinal,
+      // Para que el turno quede con memoria de que tuvo descuento — el panel
+      // y las estadísticas lo pueden mostrar sin tener que recalcular nada.
+      ...(promo ? { originalPrice: precio, promoId: promo.id || null } : {}),
       durationMinutes: duracion,
       serviceName: servicio.name || '',
       clientName: String(clientName).slice(0, 120),
@@ -675,7 +704,7 @@ exports.createAppointment = onCall(async (request) => {
     });
   });
 
-  return { status: 'created', id: ref.id, price: precio, endTime: minutesToTime(fin) };
+  return { status: 'created', id: ref.id, price: precioFinal, endTime: minutesToTime(fin) };
 });
 
 /**
@@ -1395,3 +1424,168 @@ exports.setPlatformModerator = onCall(async (request) => {
 //     // control de cuota del panel global.
 //   }
 // );
+
+// ============================================================================
+// 3b. RECORDATORIOS POR EMAIL
+// ============================================================================
+// Mientras no esté aprobado WhatsApp, el recordatorio va por mail: ~3 horas
+// antes del turno cuando el horario lo permite, entre las 7:00 y las 20:00
+// (hora de Buenos Aires) — un turno de la mañana temprano recibe el aviso
+// apenas abre la ventana a las 7:00, nunca antes.
+//
+// Remitente único para todos los negocios, misma idea que el número de
+// WhatsApp de SACIA: una casilla de Gmail dedicada (nunca la personal de
+// nadie), con verificación en dos pasos y una contraseña de aplicación
+// (myaccount.google.com/apppasswords) — la contraseña normal de la cuenta no
+// sirve para SMTP.
+//   firebase functions:secrets:set GMAIL_USER
+//   firebase functions:secrets:set GMAIL_APP_PASSWORD
+//
+// Sin esas dos variables, la función no manda nada y lo deja en los logs —
+// nunca rompe el resto de la app por faltar esto, mismo criterio que
+// VITE_FIREBASE_VAPID_KEY o VITE_RECAPTCHA_SITE_KEY del lado del cliente.
+
+let transportadorMail = null;
+function obtenerTransportador() {
+  if (transportadorMail) return transportadorMail;
+  const { GMAIL_USER, GMAIL_APP_PASSWORD } = process.env;
+  if (!GMAIL_USER || !GMAIL_APP_PASSWORD) return null;
+  transportadorMail = nodemailer.createTransport({
+    service: 'gmail',
+    auth: { user: GMAIL_USER, pass: GMAIL_APP_PASSWORD },
+  });
+  return transportadorMail;
+}
+
+/**
+ * Fecha y hora actuales en Buenos Aires: { fecha: 'YYYY-MM-DD', hour, minute }.
+ * Recibe el instante como parámetro (default `new Date()`) para que
+ * test-recordatorios-emulador.mjs pueda fijar un "ahora" de prueba en vez de
+ * depender de la hora real de la máquina que corre el test.
+ */
+function ahoraEnArgentina(instante = new Date()) {
+  const partes = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  }).formatToParts(instante);
+  const parte = (tipo) => partes.find((p) => p.type === tipo).value;
+  return {
+    fecha: `${parte('year')}-${parte('month')}-${parte('day')}`,
+    hour: Number(parte('hour')),
+    minute: Number(parte('minute')),
+  };
+}
+
+const VENTANA_RECORDATORIO_MIN = 3 * 60; // "en lo posible 3 horas antes"
+const HORA_DESDE_RECORDATORIO = 7;  // nunca antes de las 7:00
+const HORA_HASTA_RECORDATORIO = 20; // nunca después de las 20:00
+
+function textoRecordatorio({ negocio, apt, profesional }) {
+  const conProfesional = profesional?.name ? ` con ${profesional.name}` : '';
+  const asunto = `Recordatorio: tu turno hoy a las ${apt.startTime} en ${negocio.name}`;
+  const texto =
+    `Hola ${apt.clientName || ''},\n\n` +
+    `Te recordamos tu turno${conProfesional} en ${negocio.name}, hoy a las ${apt.startTime}.\n` +
+    (apt.serviceName ? `Servicio: ${apt.serviceName}\n` : '') +
+    (negocio.address ? `Dirección: ${negocio.address}\n` : '') +
+    (negocio.phone ? `Teléfono: ${negocio.phone}\n` : '') +
+    `\nSi no podés asistir, avisale al negocio con anticipación.`;
+  return { asunto, texto };
+}
+
+/**
+ * El cuerpo de la función, aparte del disparador — mismo criterio que
+ * procesarFacturacion: separarlo deja que un script lo llame directo, sin
+ * pasar por el scheduler (ver test-recordatorios-emulador.mjs).
+ *
+ * Dos parámetros inyectables, los dos con default de producción:
+ *   - `instante`: el test fija un "ahora" de prueba en vez de depender de la
+ *     hora real de la máquina que corre el test.
+ *   - `enviarMailOverride`: el test pasa una función falsa que solo anota el
+ *     envío en memoria, así no hace falta un Gmail real para probar esto ni
+ *     se manda correo de verdad al correr la suite. No se logra parcheando
+ *     nodemailer desde el script de test: scripts/ y functions/ instalan cada
+ *     uno su propia copia del paquete (mismo motivo por el que scripts/ tiene
+ *     su propio firebase-admin en el package.json de la raíz), así que son
+ *     dos módulos distintos en memoria y parchear uno no toca el otro.
+ */
+async function procesarRecordatorios(instante = new Date(), enviarMailOverride = null) {
+  const { fecha: hoy, hour, minute } = ahoraEnArgentina(instante);
+  if (hour < HORA_DESDE_RECORDATORIO || hour >= HORA_HASTA_RECORDATORIO) {
+    console.log(`[recordatorios] Fuera de la ventana horaria (${hour}:${String(minute).padStart(2, '0')}), no se manda nada.`);
+    return { enviados: 0, fallidos: 0, motivo: 'fuera-de-horario' };
+  }
+
+  let enviarMail = enviarMailOverride;
+  if (!enviarMail) {
+    const transportador = obtenerTransportador();
+    if (!transportador) {
+      console.warn('[recordatorios] Faltan GMAIL_USER / GMAIL_APP_PASSWORD: no se manda nada.');
+      return { enviados: 0, fallidos: 0, motivo: 'sin-credenciales' };
+    }
+    enviarMail = (opts) => transportador.sendMail(opts);
+  }
+
+  const nowMin = hour * 60 + minute;
+
+  const snap = await db.collectionGroup('appointments').where('appointmentDate', '==', hoy).get();
+
+  const candidatos = snap.docs.filter((d) => {
+    const a = d.data();
+    if (a.status !== 'pendiente' && a.status !== 'confirmada') return false;
+    if (a.reminderSentAt) return false;
+    if (!a.clientEmail) return false;
+    const inicio = timeToMinutes(a.startTime);
+    return inicio > nowMin && inicio - nowMin <= VENTANA_RECORDATORIO_MIN;
+  });
+
+  // Una sola lectura por negocio/profesional aunque varios turnos los compartan.
+  const negocios = new Map();
+  const profesionales = new Map();
+
+  let enviados = 0, fallidos = 0;
+  for (const doc of candidatos) {
+    const a = doc.data();
+    const bizId = a.businessId;
+    try {
+      if (!negocios.has(bizId)) {
+        const bizSnap = await db.doc(`businesses/${bizId}`).get();
+        negocios.set(bizId, bizSnap.exists ? bizSnap.data() : null);
+      }
+      const negocio = negocios.get(bizId);
+      if (!negocio) continue; // negocio borrado, turno huérfano: nada que avisar
+
+      const profKey = `${bizId}/${a.professionalId}`;
+      if (!profesionales.has(profKey)) {
+        const profSnap = await db.doc(`businesses/${bizId}/professionals/${a.professionalId}`).get();
+        profesionales.set(profKey, profSnap.exists ? profSnap.data() : null);
+      }
+
+      const { asunto, texto } = textoRecordatorio({ negocio, apt: a, profesional: profesionales.get(profKey) });
+
+      await enviarMail({
+        from: `"${negocio.name} vía Slotly" <${process.env.GMAIL_USER}>`,
+        to: a.clientEmail,
+        subject: asunto,
+        text: texto,
+      });
+
+      await doc.ref.update({ reminderSentAt: FieldValue.serverTimestamp() });
+      enviados++;
+    } catch (err) {
+      fallidos++;
+      console.error(`[recordatorios] No se pudo avisar a ${a.clientEmail} (turno ${doc.ref.path}):`, err);
+    }
+  }
+
+  console.log(`[recordatorios] ${hoy} ${hour}:${String(minute).padStart(2, '0')}: ${enviados} enviados, ${fallidos} fallidos de ${candidatos.length} candidatos.`);
+  return { enviados, fallidos, candidatos: candidatos.length };
+}
+
+exports.procesarRecordatorios = procesarRecordatorios;
+
+exports.enviarRecordatorios = onSchedule(
+  { schedule: '*/15 * * * *', timeZone: 'America/Argentina/Buenos_Aires', secrets: ['GMAIL_USER', 'GMAIL_APP_PASSWORD'] },
+  procesarRecordatorios
+);

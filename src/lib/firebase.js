@@ -12,6 +12,7 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, connectAuthEmulator } from 'firebase/auth';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
+import { getStorage, connectStorageEmulator } from 'firebase/storage';
 import { getMessaging, isSupported as isMessagingSupported } from 'firebase/messaging';
 import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
 
@@ -54,10 +55,8 @@ const app = firebaseListo ? initializeApp(firebaseConfig) : null;
 export const auth = app ? getAuth(app) : null;
 export const db = app ? getFirestore(app) : null;
 export const functions = app ? getFunctions(app, 'southamerica-east1') : null;
-
-// Storage no se importa todavía a propósito: el SDK pesa y no hay ninguna
-// función que lo use (el logo por barbería está pendiente). Cuando se active,
-// va acá y también al manualChunks de vite.config.js.
+// Foto del negocio (logoUrl). También listado en manualChunks de vite.config.js.
+export const storage = app ? getStorage(app) : null;
 
 /**
  * Instancia de Messaging (notificaciones push), o null si el browser no lo
@@ -119,6 +118,7 @@ if (app && import.meta.env.DEV && import.meta.env.VITE_USE_EMULATORS === 'true')
   connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
   connectFirestoreEmulator(db, '127.0.0.1', 8180);
   connectFunctionsEmulator(functions, '127.0.0.1', 5001);
+  connectStorageEmulator(storage, '127.0.0.1', 9199);
   console.info('[firebase] Usando emuladores locales.');
 }
 

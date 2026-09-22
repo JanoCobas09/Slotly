@@ -12,6 +12,7 @@ const ownerNavItems = [
   { to: '/admin',               icon: 'dashboard', label: 'Dashboard',        end: true },
   { to: '/admin/profesionales', icon: 'users',      label: 'Profesionales' },
   { to: '/admin/servicios',     icon: 'services',   label: 'Servicios' },
+  { to: '/admin/promociones',   icon: 'tag',        label: 'Promociones' },
   { to: '/admin/citas',         icon: 'calendar',   label: 'Citas' },
   { to: '/admin/admins',        icon: 'shield',     label: 'Administradores' },
   { to: '/admin/configuracion', icon: 'settings',   label: 'Configuración' },

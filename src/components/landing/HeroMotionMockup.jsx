@@ -334,7 +334,7 @@ export default function HeroMotionMockup() {
                 <div className="step-view animate-fade-in text-center">
                   <div className="success-icon"><Icon name="confetti" /></div>
                   <h3 className="step-title">¡Turno Reservado!</h3>
-                  <p className="step-sub">Te enviamos el recordatorio por WhatsApp</p>
+                  <p className="step-sub">Ya quedó en la agenda del negocio</p>
                   
                   <div className="summary-box">
                     <div><strong>Cliente:</strong> Santiago Rossi</div>

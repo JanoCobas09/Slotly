@@ -5,7 +5,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../hooks/useTenantData';
 import { createAppointment, getBusySlots } from '../../lib/functions';
 import { calculateAvailableSlots, professionalWorksOnDate } from '../../utils/availabilityEngine';
-import { formatDate, formatPrice, toDateString, getMonthName } from '../../utils/dateUtils';
+import { promoParaSlot, precioConPromo } from '../../utils/promoEngine';
+import { formatDate, formatPrice, toDateString, getMonthName, getLocalDayOfWeek } from '../../utils/dateUtils';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
 import Icon from '../../components/Icon';
 
@@ -30,6 +31,36 @@ function Stepper({ step }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ---- CONTACTO DEL NEGOCIO (IG, teléfono, cómo llegar) ----
+// Visible en todos los pasos de la reserva: es lo primero que un cliente
+// busca si tiene una duda antes de confirmar, o si prefiere escribir en vez
+// de reservar solo. Cada dato es opcional — el negocio puede no haber
+// cargado alguno, y no se muestra un link roto por eso.
+function BusinessContactBar({ business }) {
+  const items = [];
+  if (business.phone) {
+    items.push({ key: 'phone', icon: 'phone', label: business.phone, href: `tel:${business.phone.replace(/[^+\d]/g, '')}` });
+  }
+  const handle = business.socialLinks?.instagram?.trim().replace(/^@/, '');
+  if (handle) {
+    items.push({ key: 'ig', icon: 'instagram', label: `@${handle}`, href: `https://instagram.com/${handle}` });
+  }
+  if (business.mapsUrl) {
+    items.push({ key: 'maps', icon: 'pin', label: 'Cómo llegar', href: business.mapsUrl });
+  }
+  if (items.length === 0) return null;
+
+  return (
+    <div className="booking-contact-bar">
+      {items.map((it) => (
+        <a key={it.key} href={it.href} target="_blank" rel="noreferrer" className="booking-contact-item">
+          <Icon name={it.icon} /> {it.label}
+        </a>
+      ))}
     </div>
   );
 }
@@ -60,7 +91,7 @@ function ProfessionalSelect({ professionals, selectedId, onSelect }) {
 }
 
 // ---- SERVICE SELECT ----
-function ServiceSelect({ services, professionalServices, professionalId, selectedId, onSelect, currency }) {
+function ServiceSelect({ services, professionalServices, professionalId, selectedId, onSelect, currency, promotions }) {
   const available = useMemo(() => {
     const psIds = professionalServices
       .filter(ps => ps.professionalId === professionalId)
@@ -70,6 +101,11 @@ function ServiceSelect({ services, professionalServices, professionalId, selecte
       return { ...s, finalPrice: ps?.customPrice || s.price, finalDuration: ps?.customDuration || s.durationMinutes };
     });
   }, [services, professionalServices, professionalId]);
+
+  // Todavía no se eligió fecha ni hora acá: solo se puede avisar que ESTE
+  // servicio tiene alguna promo cargada, no si aplica al horario que elija
+  // después — eso se ve recién en el paso de horario.
+  const tienePromo = (serviceId) => promotions.some((p) => p.serviceId === serviceId && p.isActive !== false);
 
   return (
     <div>
@@ -83,7 +119,10 @@ function ServiceSelect({ services, professionalServices, professionalId, selecte
             onClick={() => onSelect(service.id)}
           >
             <div className="service-info">
-              <h3>{service.name}</h3>
+              <h3>
+                {service.name}
+                {tienePromo(service.id) && <span className="badge badge-warning service-promo-badge"><Icon name="tag" /> Promo</span>}
+              </h3>
               <p>{service.description}</p>
             </div>
             <div className="service-meta">
@@ -158,9 +197,10 @@ function DatePicker({ selectedDate, onSelect, professionalId, schedules: allSche
 }
 
 // ---- TIME SLOT GRID ----
-function TimeSlotGrid({ slots, selectedSlot, onSelect, date, cargando }) {
+function TimeSlotGrid({ slots, selectedSlot, onSelect, date, cargando, serviceId, dayOfWeek, promotions }) {
   const morning = slots.filter(s => parseInt(s.startTime.split(':')[0]) < 13);
   const afternoon = slots.filter(s => parseInt(s.startTime.split(':')[0]) >= 13);
+  const esPromo = (slot) => Boolean(promoParaSlot(promotions, { serviceId, dayOfWeek, startTime: slot.startTime }));
 
   if (cargando) {
     return (
@@ -200,10 +240,11 @@ function TimeSlotGrid({ slots, selectedSlot, onSelect, date, cargando }) {
               {morning.map(slot => (
                 <button
                   key={slot.startTime}
-                  className={`timeslot ${selectedSlot?.startTime === slot.startTime ? 'selected' : ''}`}
+                  className={`timeslot ${selectedSlot?.startTime === slot.startTime ? 'selected' : ''} ${esPromo(slot) ? 'timeslot-promo' : ''}`}
                   onClick={() => onSelect(slot)}
                 >
                   {slot.startTime}
+                  {esPromo(slot) && <Icon name="tag" className="timeslot-promo-icon" />}
                 </button>
               ))}
             </div>
@@ -216,10 +257,11 @@ function TimeSlotGrid({ slots, selectedSlot, onSelect, date, cargando }) {
               {afternoon.map(slot => (
                 <button
                   key={slot.startTime}
-                  className={`timeslot ${selectedSlot?.startTime === slot.startTime ? 'selected' : ''}`}
+                  className={`timeslot ${selectedSlot?.startTime === slot.startTime ? 'selected' : ''} ${esPromo(slot) ? 'timeslot-promo' : ''}`}
                   onClick={() => onSelect(slot)}
                 >
                   {slot.startTime}
+                  {esPromo(slot) && <Icon name="tag" className="timeslot-promo-icon" />}
                 </button>
               ))}
             </div>
@@ -310,7 +352,7 @@ function PersonalInfoStep({ user, phone, onPhoneChange, customFields, customFiel
 }
 
 // ---- SUMMARY ----
-function BookingSummary({ professional, service, date, timeSlot, price, currency, clientName, clientPhone, notes }) {
+function BookingSummary({ professional, service, date, timeSlot, price, originalPrice, currency, clientName, clientPhone, notes, promo }) {
   const { terminology } = useBusinessContext();
   return (
     <div>
@@ -344,7 +386,21 @@ function BookingSummary({ professional, service, date, timeSlot, price, currency
             </div>
             <div className="summary-row">
               <span className="summary-label"><Icon name="money" /> Total</span>
-              <span className="summary-value">{formatPrice(price, currency)}</span>
+              <span className="summary-value">
+                {promo ? (
+                  <>
+                    <span style={{ textDecoration: 'line-through', opacity: 0.6, marginRight: 6, fontWeight: 400 }}>
+                      {formatPrice(originalPrice, currency)}
+                    </span>
+                    {formatPrice(price, currency)}
+                    <span className="badge badge-warning" style={{ marginLeft: 6, fontSize: 11 }}>
+                      <Icon name="tag" /> Promo
+                    </span>
+                  </>
+                ) : (
+                  formatPrice(price, currency)
+                )}
+              </span>
             </div>
             <div className="summary-row" style={{ borderTop: '1px solid var(--border-color)', marginTop: 'var(--space-sm)', paddingTop: 'var(--space-sm)' }}>
               <span className="summary-label"><Icon name="user" /> Cliente</span>
@@ -419,10 +475,13 @@ export default function BookingPage() {
   const [reservando, setReservando] = useState(false);
 
   // Datos ya filtrados por el negocio del slug de la URL.
-  const { professionals, services, professionalServices, schedules, appointments, business, slug, businessId } =
+  const { professionals, services, professionalServices, schedules, appointments, business, slug, businessId, promotions } =
     useTenant();
   const { customerFields } = useBusinessContext();
   const { step, professionalId, serviceId, date, timeSlot, personalInfo, customFieldValues } = booking;
+  // Día de la semana de la fecha elegida, para saber si hay una promo activa
+  // en ese día — mismo remapeo que usa availabilityEngine (0=Lunes).
+  const dayOfWeek = date ? getLocalDayOfWeek(new Date(date + 'T00:00:00')) : null;
   const faltanCamposExtra = customerFields.some(
     (f) => f.required && !String(customFieldValues[f.key] || '').trim()
   );
@@ -473,6 +532,14 @@ export default function BookingPage() {
   const ps = professionalServices.find(p => p.professionalId === professionalId && p.serviceId === serviceId);
   const finalPrice = ps?.customPrice || selectedService?.price || 0;
   const finalDuration = ps?.customDuration || selectedService?.durationMinutes || 30;
+
+  // Promo activa para el horario elegido, si hay uno elegido. Es solo para
+  // MOSTRAR el precio con descuento antes de confirmar: quien de verdad lo
+  // calcula y lo cobra es createAppointment, del lado del servidor.
+  const promoAplicada = timeSlot
+    ? promoParaSlot(promotions, { serviceId, dayOfWeek, startTime: timeSlot.startTime })
+    : null;
+  const precioConDescuento = precioConPromo(finalPrice, promoAplicada);
 
   // Volvió del login con el horario ya elegido: seguir al paso 5 solo, sin
   // pedirle que aprete "Siguiente" otra vez.
@@ -640,6 +707,7 @@ export default function BookingPage() {
   return (
     <div className="booking-container">
       <Stepper step={step} />
+      <BusinessContactBar business={business} />
 
       {error && (
         <div className="badge badge-danger mb-md" style={{ display: 'block', textAlign: 'center', padding: '12px', borderRadius: '8px', fontSize: '14px' }}>
@@ -663,6 +731,7 @@ export default function BookingPage() {
           selectedId={serviceId}
           onSelect={id => dispatch({ type: 'SET_SERVICE', payload: id })}
           currency={business.currency}
+          promotions={promotions}
         />
       )}
 
@@ -683,6 +752,9 @@ export default function BookingPage() {
           onSelect={s => dispatch({ type: 'SET_TIMESLOT', payload: s })}
           date={date}
           cargando={cargandoOcupados}
+          serviceId={serviceId}
+          dayOfWeek={dayOfWeek}
+          promotions={promotions}
         />
       )}
 
@@ -703,11 +775,13 @@ export default function BookingPage() {
           service={{ ...selectedService, finalDuration }}
           date={date}
           timeSlot={timeSlot}
-          price={finalPrice}
+          price={precioConDescuento}
+          originalPrice={finalPrice}
           currency={business.currency}
           notes={customFieldsNotes}
           clientName={user.name}
           clientPhone={personalInfo.phone}
+          promo={promoAplicada}
         />
       )}
 

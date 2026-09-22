@@ -34,12 +34,14 @@ export function calculateAvailableSlots({
     }
   }
 
-  // 2. Obtener el horario del profesional para este día
-  const schedule = schedules.find(
-    (s) => s.professionalId === professionalId && s.dayOfWeek === dayOfWeek && s.isActive
+  // 2. Horario del profesional para este día — puede ser más de una franja
+  // (horario cortado: ej. 9 a 13 y de nuevo 17 a 21). Cada franja es
+  // independiente; un profesional sin ninguna franja ese día no trabaja.
+  const franjasDelDia = schedules.filter(
+    (s) => s.professionalId === professionalId && s.dayOfWeek === dayOfWeek && s.isActive && s.startTime && s.endTime
   );
 
-  if (!schedule || !schedule.startTime || !schedule.endTime) {
+  if (franjasDelDia.length === 0) {
     return [];
   }
 
@@ -52,41 +54,44 @@ export function calculateAvailableSlots({
 
   const duration = (ps && ps.customDuration) || service.durationMinutes;
 
-  // 4. Generar todos los slots posibles
+  // 4. Generar los slots posibles de cada franja, clipeada contra el horario
+  // comercial. Una franja vieja puede traer su propio breakStart/breakEnd
+  // (dato de antes de que existiera el horario cortado): se sigue
+  // respetando igual, no hace falta migrarla para que ande.
+  const vistos = new Set(); // por si dos franjas se solapan, no duplicar el slot
   const allSlots = [];
-  let scheduleStart = timeToMinutes(schedule.startTime);
-  let scheduleEnd = timeToMinutes(schedule.endTime);
+  for (const franja of franjasDelDia) {
+    let scheduleStart = timeToMinutes(franja.startTime);
+    let scheduleEnd = timeToMinutes(franja.endTime);
 
-  // Intersectar con el horario comercial si está configurado
-  if (businessStart !== null && businessEnd !== null) {
-    scheduleStart = Math.max(scheduleStart, businessStart);
-    scheduleEnd = Math.min(scheduleEnd, businessEnd);
-  }
-
-  if (scheduleStart + duration > scheduleEnd) {
-    return []; // No hay tiempo suficiente dentro del horario cruzado
-  }
-
-  const breakStart = schedule.breakStart ? timeToMinutes(schedule.breakStart) : null;
-  const breakEnd = schedule.breakEnd ? timeToMinutes(schedule.breakEnd) : null;
-
-  for (let cursor = scheduleStart; cursor + duration <= scheduleEnd; cursor += slotInterval) {
-    const slotEnd = cursor + duration;
-
-    // Verificar si toca el descanso
-    if (breakStart !== null && breakEnd !== null) {
-      if (cursor < breakEnd && slotEnd > breakStart) {
-        continue; // El slot se solapa con el descanso
-      }
+    if (businessStart !== null && businessEnd !== null) {
+      scheduleStart = Math.max(scheduleStart, businessStart);
+      scheduleEnd = Math.min(scheduleEnd, businessEnd);
     }
 
-    allSlots.push({
-      startTime: minutesToTime(cursor),
-      endTime: minutesToTime(slotEnd),
-      startMinutes: cursor,
-      endMinutes: slotEnd,
-    });
+    if (scheduleStart + duration > scheduleEnd) continue; // esta franja no alcanza, probar la próxima
+
+    const breakStart = franja.breakStart ? timeToMinutes(franja.breakStart) : null;
+    const breakEnd = franja.breakEnd ? timeToMinutes(franja.breakEnd) : null;
+
+    for (let cursor = scheduleStart; cursor + duration <= scheduleEnd; cursor += slotInterval) {
+      const slotEnd = cursor + duration;
+
+      if (breakStart !== null && breakEnd !== null && cursor < breakEnd && slotEnd > breakStart) {
+        continue; // se solapa con el descanso interno de esta franja
+      }
+      if (vistos.has(cursor)) continue;
+      vistos.add(cursor);
+
+      allSlots.push({
+        startTime: minutesToTime(cursor),
+        endTime: minutesToTime(slotEnd),
+        startMinutes: cursor,
+        endMinutes: slotEnd,
+      });
+    }
   }
+  allSlots.sort((a, b) => a.startMinutes - b.startMinutes);
 
   // 5. Obtener citas existentes que bloquean
   const existingAppointments = appointments.filter(

@@ -8,7 +8,7 @@ import { initializeApp } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 
-process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8080';
+process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8180';
 process.env.FIREBASE_AUTH_EMULATOR_HOST = '127.0.0.1:9099';
 
 const PROJECT = 'barberos-1d60e';
@@ -251,6 +251,13 @@ chequear('y en su primer login le toma el rol', r.ok?.status === 'applied' && r.
 // mail que quiera (sin verificar). Si eso alcanzara para reclamar un pendiente,
 // se robaba el rol de un barbero, un dueño o un moderador.
 console.log('\n-- Cuentas sin verificar --');
+// Si esta suite ya corrió antes contra el mismo emulador, victima@gmail.com
+// puede haber quedado de la corrida anterior (y verificada, por la línea que
+// más abajo hace `emailVerified: true`) — sin este borrado, el primer chequeo
+// de abajo encuentra la cuenta vieja y aplica el permiso al toque en vez de
+// dejarlo pendiente. `crearUsuario` hace el mismo borrado, pero recién en la
+// línea siguiente, tarde para este primer chequeo.
+try { await auth.deleteUser((await auth.getUserByEmail('victima@gmail.com')).uid); } catch { /* no existía */ }
 r = await llamar('setBusinessAdmin', tPlataforma, { email: 'victima@gmail.com', businessId: B1, role: 'admin', professionalId: 'prof-1' });
 chequear('la plataforma deja pendiente a victima@gmail.com', r.ok?.status === 'pending', JSON.stringify(r));
 const uidIntruso = await crearUsuario('victima@gmail.com', null, { verificado: false });

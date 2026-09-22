@@ -43,6 +43,12 @@ export function useProfessionalServices() {
   return state.professionalServices || [];
 }
 
+/** Promociones (descuento por servicio + día + horario) del negocio activo. */
+export function usePromotions() {
+  const { state } = useBusiness();
+  return state.promotions || [];
+}
+
 /** Notificaciones del staff (las escribe un trigger de Functions). */
 export function useNotifications() {
   const { state } = useBusiness();
@@ -69,6 +75,7 @@ export function useTenant() {
   const appointments = useAppointments();
   const schedules = useSchedules();
   const professionalServices = useProfessionalServices();
+  const promotions = usePromotions();
   const authorizedAdmins = useAuthorizedAdmins();
 
   return useMemo(
@@ -83,6 +90,7 @@ export function useTenant() {
       appointments,
       schedules,
       professionalServices,
+      promotions,
       authorizedAdmins,
     }),
     [
@@ -96,6 +104,7 @@ export function useTenant() {
       appointments,
       schedules,
       professionalServices,
+      promotions,
       authorizedAdmins,
     ]
   );

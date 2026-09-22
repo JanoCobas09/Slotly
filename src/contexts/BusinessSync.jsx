@@ -19,13 +19,14 @@ const COLECCIONES = [
   'services',
   'schedules',
   'professionalServices',
+  'promotions',
   'appointments',
   'admins',
 ];
 
 // Lo que puede leer cualquiera sin estar logueado: lo que la página de reservas
 // necesita para armar la grilla.
-const PUBLICAS = ['professionals', 'services', 'schedules', 'professionalServices'];
+const PUBLICAS = ['professionals', 'services', 'schedules', 'professionalServices', 'promotions'];
 
 const VACIO = { ...Object.fromEntries(COLECCIONES.map((c) => [c, []])), notifications: [] };
 

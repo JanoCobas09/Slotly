@@ -9,7 +9,7 @@ import {
   saveStaffContact,
   removeStaffContact,
 } from '../../lib/repository';
-import { getDayName, generateId } from '../../utils/dateUtils';
+import { getDayName } from '../../utils/dateUtils';
 import { getPlan } from '../../config/plans';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
 import { capitalize } from '../../utils/text';
@@ -65,17 +65,23 @@ export default function ProfessionalsPage() {
   const activeServices = services.filter(s => s.isActive);
 
   // ── Abrir modal NUEVO ──────────────────────────────────────────────────────
+  // Cada día tiene una lista de "franjas" (bloques de trabajo), no un único
+  // horario con un descanso: un franja de 9 a 13 y otra de 14 a 19 ES el
+  // horario cortado, sin un concepto de "descanso" aparte. Ver handleSave y
+  // openEdit para cómo esto convive con horarios viejos (un solo bloque con
+  // breakStart/breakEnd) que ya estaban guardados así.
   const openAdd = () => {
     if (llegoAlTope) return;
     setEditing(null);
     setForm({ name: '', specialty: '', phone: '', email: '', bio: '' });
     setEditSchedules(Array.from({ length: 7 }, (_, i) => ({
-      id: generateId(), professionalId: '', dayOfWeek: i,
-      startTime: i < 5 ? '09:00' : i === 5 ? '09:00' : '',
-      endTime:   i < 5 ? '19:00' : i === 5 ? '14:00' : '',
-      breakStart: i < 5 ? '13:00' : null,
-      breakEnd:   i < 5 ? '14:00' : null,
+      dayOfWeek: i,
       isActive: i < 6,
+      franjas: i < 5
+        ? [{ startTime: '09:00', endTime: '13:00' }, { startTime: '14:00', endTime: '19:00' }]
+        : i === 5
+          ? [{ startTime: '09:00', endTime: '14:00' }]
+          : [{ startTime: '', endTime: '' }],
     })));
     // Por defecto seleccionar TODOS los servicios activos
     setEditServices(activeServices.map(s => s.id));
@@ -89,11 +95,25 @@ export default function ProfessionalsPage() {
     setForm({ name: prof.name, specialty: prof.specialty || '', phone: contacto.phone || '', email: contacto.email || '', bio: prof.bio || '' });
     const profSchedules = schedules.filter(s => s.professionalId === prof.id);
     setEditSchedules(Array.from({ length: 7 }, (_, i) => {
-      const existing = profSchedules.find(s => s.dayOfWeek === i);
-      return existing || {
-        id: generateId(), professionalId: prof.id, dayOfWeek: i,
-        startTime: '', endTime: '', breakStart: null, breakEnd: null, isActive: false,
-      };
+      // Puede haber más de un documento guardado para el mismo día (ya venía
+      // con varias franjas de antes) — se agrupan todos acá.
+      const delDia = profSchedules.filter(s => s.dayOfWeek === i && s.isActive !== false);
+      if (delDia.length === 0) {
+        return { dayOfWeek: i, isActive: false, franjas: [{ startTime: '', endTime: '' }] };
+      }
+      // Un documento viejo con descanso interno (breakStart/breakEnd) se ve
+      // acá como dos franjas separadas: es exactamente el mismo horario
+      // resultante. Al guardar queda escrito así, como dos documentos
+      // simples — la migración pasa sola la primera vez que se toca.
+      const franjas = delDia
+        .flatMap((s) => (s.breakStart && s.breakEnd
+          ? [
+              { startTime: s.startTime, endTime: s.breakStart },
+              { startTime: s.breakEnd, endTime: s.endTime },
+            ]
+          : [{ startTime: s.startTime, endTime: s.endTime }]))
+        .sort((a, b) => a.startTime.localeCompare(b.startTime));
+      return { dayOfWeek: i, isActive: true, franjas };
     }));
     // Servicios ya asignados a este profesional
     const assigned = professionalServices
@@ -139,12 +159,22 @@ export default function ProfessionalsPage() {
 
       // Horarios y servicios asignados se reemplazan enteros: lo natural acá es
       // "estos son los que quedan", no ir agregando y borrando de a uno.
+      // Un día inactivo no deja ningún documento (nada que buscar ahí);  un
+      // día activo deja un documento simple POR FRANJA — nunca breakStart/
+      // breakEnd, eso solo puede venir de datos viejos sin resguardar.
+      const schedulesAGuardar = editSchedules.flatMap((dia) => {
+        if (!dia.isActive) return [];
+        return dia.franjas
+          .filter((f) => f.startTime && f.endTime)
+          .map((f) => ({ dayOfWeek: dia.dayOfWeek, startTime: f.startTime, endTime: f.endTime, isActive: true }));
+      });
+
       await replaceMatching(
         businessId,
         'schedules',
         'professionalId',
         profId,
-        editSchedules.map((sch) => ({ ...sch, id: undefined, professionalId: profId }))
+        schedulesAGuardar.map((sch) => ({ ...sch, professionalId: profId }))
       );
 
       await replaceMatching(
@@ -187,11 +217,35 @@ export default function ProfessionalsPage() {
 
   // ── Horario helpers ────────────────────────────────────────────────────────
   const toggleScheduleDay = (dayIndex) => {
-    setEditSchedules(prev => prev.map((s, i) => i === dayIndex ? { ...s, isActive: !s.isActive } : s));
+    setEditSchedules(prev => prev.map((d, i) => i === dayIndex ? { ...d, isActive: !d.isActive } : d));
   };
 
-  const updateSchedule = (dayIndex, field, value) => {
-    setEditSchedules(prev => prev.map((s, i) => i === dayIndex ? { ...s, [field]: value } : s));
+  const updateFranja = (dayIndex, franjaIdx, field, value) => {
+    setEditSchedules(prev => prev.map((d, i) => {
+      if (i !== dayIndex) return d;
+      return { ...d, franjas: d.franjas.map((f, j) => j === franjaIdx ? { ...f, [field]: value } : f) };
+    }));
+  };
+
+  /** Agrega una franja más al día, para el horario cortado ("de 9 a 13, y de nuevo de 17 a 21"). */
+  const agregarFranja = (dayIndex) => {
+    setEditSchedules(prev => prev.map((d, i) => {
+      if (i !== dayIndex) return d;
+      // Arranca donde termina la última franja cargada, para no pisarla —
+      // solo hay que ajustar el fin.
+      const ultima = d.franjas[d.franjas.length - 1];
+      return { ...d, franjas: [...d.franjas, { startTime: ultima?.endTime || '', endTime: '' }] };
+    }));
+  };
+
+  const quitarFranja = (dayIndex, franjaIdx) => {
+    setEditSchedules(prev => prev.map((d, i) => {
+      if (i !== dayIndex) return d;
+      const franjas = d.franjas.filter((_, j) => j !== franjaIdx);
+      // Nunca queda un día activo sin ninguna fila: si se borra la última,
+      // queda una vacía para completar (o se desactiva el día con el toggle).
+      return { ...d, franjas: franjas.length ? franjas : [{ startTime: '', endTime: '' }] };
+    }));
   };
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -240,7 +294,10 @@ export default function ProfessionalsPage() {
               const profPS      = professionalServices.filter(ps => ps.professionalId === prof.id);
               const profSched   = schedules.filter(s => s.professionalId === prof.id && s.isActive);
               const srvNames    = profPS.map(ps => services.find(s => s.id === ps.serviceId)?.name).filter(Boolean);
-              const days        = [...profSched].sort((a, b) => a.dayOfWeek - b.dayOfWeek).map(s => getDayName(s.dayOfWeek).substring(0, 3)).join(', ');
+              // Un día puede tener más de una franja (horario cortado): se
+              // cuenta una sola vez cada uno, no una por franja.
+              const diasTrabajados = [...new Set(profSched.map(s => s.dayOfWeek))].sort((a, b) => a - b);
+              const days        = diasTrabajados.map(d => getDayName(d).substring(0, 3)).join(', ');
               return (
                 <tr key={prof.id}>
                   <td>
@@ -388,25 +445,55 @@ export default function ProfessionalsPage() {
 
                 {/* ─ Horario ─ */}
                 <div>
-                  <h3 style={{ marginBottom: 'var(--space-sm)' }}>Horario de Trabajo</h3>
+                  <h3 style={{ marginBottom: 4 }}>Horario de Trabajo</h3>
+                  <p className="text-xs text-muted" style={{ marginBottom: 'var(--space-sm)' }}>
+                    Para horario cortado, agregá más de una franja el mismo día — ej. de 9 a 13 y de nuevo de 17 a 21.
+                  </p>
                   <div className="schedule-grid">
-                    {editSchedules.map((sch, idx) => (
-                      <div key={idx} className="schedule-row">
-                        <label>{getDayName(idx).substring(0, 3)}</label>
-                        <button
-                          className={`schedule-toggle ${sch.isActive ? 'active' : ''}`}
-                          onClick={() => toggleScheduleDay(idx)}
-                        />
-                        {sch.isActive ? (
-                          <>
-                            <input className="form-input" type="time" value={sch.startTime} onChange={e => updateSchedule(idx, 'startTime', e.target.value)} />
-                            <input className="form-input" type="time" value={sch.endTime}   onChange={e => updateSchedule(idx, 'endTime',   e.target.value)} />
-                          </>
+                    {editSchedules.map((dia, dayIdx) => (
+                      <div key={dayIdx}>
+                        {dia.isActive ? (
+                          dia.franjas.map((franja, franjaIdx) => (
+                            <div key={franjaIdx} className="schedule-row">
+                              {franjaIdx === 0 ? (
+                                <>
+                                  <label>{getDayName(dayIdx).substring(0, 3)}</label>
+                                  <button className="schedule-toggle active" onClick={() => toggleScheduleDay(dayIdx)} />
+                                </>
+                              ) : (
+                                <><span /><span /></>
+                              )}
+                              <input
+                                className="form-input" type="time" value={franja.startTime}
+                                onChange={e => updateFranja(dayIdx, franjaIdx, 'startTime', e.target.value)}
+                              />
+                              <input
+                                className="form-input" type="time" value={franja.endTime}
+                                onChange={e => updateFranja(dayIdx, franjaIdx, 'endTime', e.target.value)}
+                              />
+                              {dia.franjas.length > 1 ? (
+                                <button
+                                  type="button" className="schedule-franja-quitar" title="Quitar franja"
+                                  onClick={() => quitarFranja(dayIdx, franjaIdx)}
+                                >
+                                  <Icon name="x" />
+                                </button>
+                              ) : <span />}
+                            </div>
+                          ))
                         ) : (
-                          <>
+                          <div className="schedule-row">
+                            <label>{getDayName(dayIdx).substring(0, 3)}</label>
+                            <button className="schedule-toggle" onClick={() => toggleScheduleDay(dayIdx)} />
                             <span className="text-muted text-sm">—</span>
                             <span className="text-muted text-sm">—</span>
-                          </>
+                            <span />
+                          </div>
+                        )}
+                        {dia.isActive && (
+                          <button type="button" className="schedule-franja-agregar" onClick={() => agregarFranja(dayIdx)}>
+                            <Icon name="link" size="0.85em" /> Agregar franja
+                          </button>
                         )}
                       </div>
                     ))}

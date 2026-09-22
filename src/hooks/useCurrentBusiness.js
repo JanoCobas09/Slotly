@@ -8,8 +8,12 @@ import { isPlatformOwner } from '../config/platform';
  * Resuelve cuál es el negocio (tenant) activo para el usuario actual.
  *
  * Orden de resolución:
- *   1. Dueño de plataforma → el negocio que esté "impersonando" (currentBusinessId),
- *      o el slug de la URL, o el primero de la lista.
+ *   1. Dueño de plataforma / moderador → el slug de la URL (si está viendo el
+ *      link público de un negocio puntual), si no el que esté "impersonando"
+ *      (currentBusinessId, seteado desde "Administrar esta cuenta" en
+ *      /super-admin), si no el primero de la lista. El slug va primero: entrar
+ *      al link público de un negocio tiene que mostrar ESE negocio, no el que
+ *      se estaba administrando antes en otra pestaña de este mismo panel.
  *   2. Admin / owner de un negocio → SIEMPRE su propio businessId.
  *      El slug de la URL se ignora a propósito: un admin no puede espiar otro
  *      tenant cambiando la URL a mano.
@@ -25,7 +29,15 @@ export function useResolvedBusiness() {
   const { user } = useAuth();
 
   const businesses = state.businesses || [];
-  const platformOwner = isPlatformOwner(user?.email);
+  // Claims (isPlatformTeam: dueño o moderador) es la fuente real de verdad —
+  // la misma que usa BusinessSync para decidir si suscribirse a TODOS los
+  // negocios. isPlatformOwner(email) queda solo como red de seguridad
+  // adicional (comodidad de UI, ver platform.js): sin el claim como
+  // condición principal, cualquier dueño de plataforma o moderador que no
+  // esté en esa lista hardcodeada se quedaba sin negocio al entrar a
+  // /admin directo o al usar "Administrar esta cuenta"/"Configurar ahora"
+  // desde /super-admin — el resto de la app ya combina ambas condiciones.
+  const platformOwner = user?.isPlatformTeam === true || isPlatformOwner(user?.email);
 
   // Sin useMemo a propósito: la lista de negocios es chica y el resultado se
   // consume por `businessId` (string estable), así que recalcular por render
@@ -37,8 +49,8 @@ export function useResolvedBusiness() {
   let business;
   if (platformOwner) {
     business =
-      businesses.find((b) => b.id === state.currentBusinessId) ||
       bySlug ||
+      businesses.find((b) => b.id === state.currentBusinessId) ||
       businesses[0] ||
       null;
   } else if (user?.businessId) {

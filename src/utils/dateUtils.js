@@ -46,7 +46,7 @@ export function formatPrice(price, currency = 'ARS') {
     currency: currency,
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(price);
+  }).format(Number.isFinite(price) ? price : 0);
 }
 
 export function toDateString(date) {

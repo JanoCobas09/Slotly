@@ -8,10 +8,10 @@ import { initializeApp } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 
-process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8080';
+process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8180';
 process.env.FIREBASE_AUTH_EMULATOR_HOST = '127.0.0.1:9099';
 const PROJECT = 'barberos-1d60e';
-const DOCS = `http://127.0.0.1:8080/v1/projects/${PROJECT}/databases/(default)/documents`;
+const DOCS = `http://127.0.0.1:8180/v1/projects/${PROJECT}/databases/(default)/documents`;
 const AUTH = 'http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1';
 
 initializeApp({ projectId: PROJECT });

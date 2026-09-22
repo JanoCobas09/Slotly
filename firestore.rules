@@ -189,6 +189,17 @@ service cloud.firestore {
         allow write: if canManage(bizId);
       }
 
+      // ── Promociones ──────────────────────────────────────────────────────
+      // Descuento por día y horario para un servicio puntual. Lectura pública:
+      // el cliente tiene que verla al elegir el horario, antes de loguearse,
+      // igual que el resto del catálogo. `createAppointment` es quien de
+      // verdad calcula el precio con la promo aplicada — esto solo la
+      // muestra, nunca se confía en un precio que mande el browser.
+      match /promotions/{promoId} {
+        allow read: if true;
+        allow write: if canManage(bizId);
+      }
+
       // ── Turnos ───────────────────────────────────────────────────────────
       match /appointments/{aptId} {
         // El dueño ve toda la agenda; el barbero solo los suyos; el cliente

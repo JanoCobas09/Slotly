@@ -39,7 +39,8 @@ import {
   writeBatch,
   serverTimestamp,
 } from 'firebase/firestore';
-import { db } from './firebase';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { db, storage } from './firebase';
 
 // ── Helpers de rutas ───────────────────────────────────────────────────────
 const businessesCol = () => collection(db, 'businesses');
@@ -146,6 +147,39 @@ export async function setBusinessFrozen(businessId, isFrozen) {
 
 // Borrar un negocio es `deleteBusiness` en lib/functions.js: en cascada, con
 // el Admin SDK. Desde el browser no se puede hacer entero.
+
+// ============================================================================
+// FOTO DEL NEGOCIO (logo)
+// ============================================================================
+// Un solo archivo fijo por negocio (storage.rules le pone el mismo criterio
+// de permiso que las Rules de Firestore: solo el dueño o la plataforma
+// escriben ahí). Subir uno nuevo pisa el anterior a propósito, así no quedan
+// archivos huérfanos en el bucket cada vez que el dueño cambia la foto.
+
+const logoRef = (businessId) => ref(storage, `businesses/${businessId}/logo`);
+
+/**
+ * Sube la foto del negocio y devuelve su URL pública. No guarda `logoUrl` en
+ * Firestore: eso lo hace quien llama (junto con el resto del formulario, o
+ * solo, según convenga a la pantalla), igual que con cualquier otro campo de
+ * `updateBusiness`.
+ */
+export async function uploadBusinessLogo(businessId, file) {
+  const destino = logoRef(businessId);
+  await uploadBytes(destino, file, { contentType: file.type });
+  return getDownloadURL(destino);
+}
+
+/** Borra el archivo del bucket. Quien llama todavía tiene que limpiar `logoUrl`. */
+export async function removeBusinessLogo(businessId) {
+  try {
+    await deleteObject(logoRef(businessId));
+  } catch (err) {
+    // Ya no estaba (por ejemplo, se borró desde otra pestaña): no es un error
+    // real, el resultado que quería quien llama ya se cumplió.
+    if (err.code !== 'storage/object-not-found') throw err;
+  }
+}
 
 // ============================================================================
 // FACTURACIÓN (privada — solo dueño de plataforma)

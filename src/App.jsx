@@ -32,6 +32,7 @@ const OnboardingPage   = lazy(() => import('./pages/client/OnboardingPage'));
 const DashboardPage       = lazy(() => import('./pages/admin/DashboardPage'));
 const ProfessionalsPage   = lazy(() => import('./pages/admin/ProfessionalsPage'));
 const ServicesPage        = lazy(() => import('./pages/admin/ServicesPage'));
+const PromotionsPage      = lazy(() => import('./pages/admin/PromotionsPage'));
 const AppointmentsPage    = lazy(() => import('./pages/admin/AppointmentsPage'));
 const SettingsPage        = lazy(() => import('./pages/admin/SettingsPage'));
 const AdminsPage          = lazy(() => import('./pages/admin/AdminsPage'));
@@ -196,6 +197,7 @@ export default function App() {
           <Route index element={<DashboardPage />} />
           <Route path="profesionales" element={<ProfessionalsPage />} />
           <Route path="servicios" element={<ServicesPage />} />
+          <Route path="promociones" element={<PromotionsPage />} />
           <Route path="citas" element={<AppointmentsPage />} />
           <Route path="admins" element={<AdminsPage />} />
           <Route path="configuracion" element={<SettingsPage />} />

@@ -32,4 +32,11 @@ export function applyTheme(theme) {
   root.style.setProperty('--primary-light', theme.primaryLight || defaultTheme.primaryLight);
   root.style.setProperty('--secondary', theme.secondaryColor || defaultTheme.secondaryColor);
   root.style.setProperty('--accent', theme.accentColor || defaultTheme.accentColor);
+  // El resaltado del ítem activo del sidebar (--sidebar-active, en index.css)
+  // usa esta variable. Antes quedaba fija en el teal de Slotly sin importar
+  // el rubro: el accent de cada preset ya está elegido a propósito para
+  // contrastar bien sobre el sidebar oscuro (ej. ámbar en automotor), a
+  // diferencia de primaryColor, que en varios rubros es un color oscuro que
+  // se vería apagado ahí.
+  root.style.setProperty('--primary-soft', theme.accentColor || theme.secondaryColor || defaultTheme.accentColor);
 }

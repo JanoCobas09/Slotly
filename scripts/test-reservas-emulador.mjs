@@ -11,7 +11,7 @@ import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 
-process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8080';
+process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8180';
 process.env.FIREBASE_AUTH_EMULATOR_HOST = '127.0.0.1:9099';
 
 const PROJECT = 'barberos-1d60e';
@@ -123,6 +123,66 @@ r = await reservar(cliente, { ...base, startTime: '13:15' });
 chequear('cae en el descanso, rechazado', r.error === 'FAILED_PRECONDITION', JSON.stringify(r));
 r = await reservar(cliente, { ...base, appointmentDate: '2027-03-01' });
 chequear('día que no trabaja, rechazado', r.error === 'FAILED_PRECONDITION', JSON.stringify(r));
+
+titulo('Horario cortado (varias franjas el mismo día):');
+// Profesional aparte, con DOS documentos de horario el mismo día (9 a 12, y
+// de nuevo 15 a 18) en vez de uno solo con descanso — así no interfiere con
+// PROF, que prueba el formato viejo (un documento con breakStart/breakEnd).
+const PROF2 = 'prof-2';
+await db.doc(`businesses/${BID}/professionals/${PROF2}`).set({ name: 'Cortado', isActive: true });
+await db.doc(`businesses/${BID}/professionalServices/ps-2`).set({ professionalId: PROF2, serviceId: SRV });
+await db.doc(`businesses/${BID}/schedules/sch-2a`).set({ professionalId: PROF2, dayOfWeek: DOW, startTime: '09:00', endTime: '12:00', isActive: true });
+await db.doc(`businesses/${BID}/schedules/sch-2b`).set({ professionalId: PROF2, dayOfWeek: DOW, startTime: '15:00', endTime: '18:00', isActive: true });
+
+const c2b = await usuario('c2b@gmail.com');
+r = await reservar(c2b, { ...base, professionalId: PROF2, startTime: '09:30' });
+chequear('entra en la primera franja (9 a 12)', r.ok?.status === 'created', JSON.stringify(r));
+
+const c2c = await usuario('c2c@gmail.com');
+r = await reservar(c2c, { ...base, professionalId: PROF2, startTime: '15:30' });
+chequear('entra en la segunda franja (15 a 18)', r.ok?.status === 'created', JSON.stringify(r));
+
+const c2d = await usuario('c2d@gmail.com');
+r = await reservar(c2d, { ...base, professionalId: PROF2, startTime: '13:00' });
+chequear('rechazado en el hueco entre las dos franjas (12 a 15)', r.error === 'FAILED_PRECONDITION', JSON.stringify(r));
+
+const c2e = await usuario('c2e@gmail.com');
+r = await reservar(c2e, { ...base, professionalId: PROF2, startTime: '11:45' });
+chequear('rechazado si cruza el borde de la primera franja (11:45 a 12:15)', r.error === 'FAILED_PRECONDITION', JSON.stringify(r));
+
+titulo('Promociones (descuento por servicio + día + horario):');
+// Con PROF2 (franjas 9-12 y 15-18) y horarios que no usa ninguna otra prueba
+// de este archivo, para no pisar los horarios que "Teléfono" y "Tope de
+// turnos" reservan más abajo con PROF.
+for (const d of (await db.collection(`businesses/${BID}/promotions`).get()).docs) await d.ref.delete();
+await db.doc(`businesses/${BID}/promotions/promo-pct`).set({
+  id: 'promo-pct', serviceId: SRV, dayOfWeek: DOW, startTime: '10:00', endTime: '10:30',
+  discountType: 'percentage', discountValue: 25, isActive: true,
+});
+await db.doc(`businesses/${BID}/promotions/promo-fijo`).set({
+  id: 'promo-fijo', serviceId: SRV, dayOfWeek: DOW, startTime: '10:30', endTime: '11:00',
+  discountType: 'fixed', discountValue: 5000, isActive: true,
+});
+await db.doc(`businesses/${BID}/promotions/promo-pausada`).set({
+  id: 'promo-pausada', serviceId: SRV, dayOfWeek: DOW, startTime: '11:00', endTime: '11:30',
+  discountType: 'fixed', discountValue: 1, isActive: false,
+});
+
+const cp1 = await usuario('cp1@gmail.com');
+r = await reservar(cp1, { ...base, professionalId: PROF2, startTime: '10:00' });
+chequear('25% OFF aplicado (12000 → 9000)', r.ok?.price === 9000, JSON.stringify(r));
+
+const cp2 = await usuario('cp2@gmail.com');
+r = await reservar(cp2, { ...base, professionalId: PROF2, startTime: '10:30' });
+chequear('precio fijo de promo aplicado (5000)', r.ok?.price === 5000, JSON.stringify(r));
+
+const cp3 = await usuario('cp3@gmail.com');
+r = await reservar(cp3, { ...base, professionalId: PROF2, startTime: '11:00' });
+chequear('promo pausada (isActive:false) NO se aplica, precio normal', r.ok?.price === 12000, JSON.stringify(r));
+
+const cp4 = await usuario('cp4@gmail.com');
+r = await reservar(cp4, { ...base, professionalId: PROF2, startTime: '17:00' });
+chequear('fuera de cualquier ventana de promo, precio normal', r.ok?.price === 12000, JSON.stringify(r));
 
 titulo('Teléfono:');
 const c3 = await usuario('c3@gmail.com');

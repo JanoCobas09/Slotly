@@ -10,7 +10,7 @@ import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 
 const PROJECT = 'barberos-1d60e';
-process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8080';
+process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8180';
 // El initializeApp() sin argumentos de functions/index.js saca el proyecto de
 // acá; fuera de Cloud Functions no hay metadata server que se lo diga.
 process.env.GCLOUD_PROJECT = PROJECT;

@@ -20,9 +20,13 @@ export default function Header() {
     <header className="header">
       <Link to={home} className="header-logo">
         {slug && business ? (
-          <span className="header-logo-icon">
-            <Icon name={rubroIcon} size="18" />
-          </span>
+          business.logoUrl ? (
+            <img src={business.logoUrl} alt={business.name} className="header-logo-photo" />
+          ) : (
+            <span className="header-logo-icon">
+              <Icon name={rubroIcon} size="18" />
+            </span>
+          )
         ) : (
           <img src="/img/slotly-icon.svg" alt="Slotly" width="32" height="32" className="header-logo-img" />
         )}
