@@ -1,8 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { isPlatformOwner, PLATFORM_OWNERS } from '../../config/platform';
 import Icon from '../../components/Icon';
+
+// El login con Google de Supabase es un redirect de página completa (a
+// diferencia del popup de Firebase): esta pestaña se destruye y vuelve a
+// cargar de cero al volver de accounts.google.com, así que `location.state`
+// (de dónde venía, para saber a dónde mandarlo después) no sobrevive el
+// viaje. Se guarda acá para leerlo de nuevo cuando la sesión aparezca.
+const REDIRECT_TRAS_GOOGLE = 'slotly:loginRedirectFrom';
 
 /**
  * Cuentas del emulador local (ver scripts/seed-local-demo.mjs). Son sesiones
@@ -32,9 +39,12 @@ export default function LoginPage() {
   // pantalla al cliente que viene a reservar un turno.
   const [verFormulario, setVerFormulario] = useState(false);
   const [cred, setCred] = useState({ email: '', password: '' });
-  const { loginWithGoogle, loginWithPassword, loginBypass } = useAuth();
+  const { loginWithGoogle, loginWithPassword, loginBypass, user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  // Evita redirigir dos veces si el efecto de "volví de Google" corre más
+  // de una vez (StrictMode monta los effects dos veces en dev).
+  const yaRedirigido = useRef(false);
 
   // Si el usuario venía de un link de negocio (`/mi-negocio`) y lo mandamos
   // a loguearse, después lo devolvemos ahí en vez de tirarlo a la raíz.
@@ -47,14 +57,14 @@ export default function LoginPage() {
   // título de reserva lo confunde.
   const vieneDeReserva = Boolean(from) && !/^\/(admin|super-admin|cuenta)(\/|$)/.test(from);
 
-  const redirectAfterLogin = (user) => {
+  const redirectAfterLogin = (user, destino = from) => {
     if (user.isPlatformTeam || isPlatformOwner(user.email)) {
       navigate('/super-admin');
     } else if (user.role === 'owner' || user.role === 'admin') {
       navigate('/admin');
-    } else if (from) {
+    } else if (destino) {
       // Venía del link de un negocio: se lo devuelve ahí a terminar de reservar.
-      navigate(from);
+      navigate(destino);
     } else {
       // Entró por "Iniciar Sesión" desde la landing y no tiene negocio. Antes
       // se lo mandaba a /cuenta (solo la opción de WhatsApp) o, más atrás
@@ -65,20 +75,47 @@ export default function LoginPage() {
     }
   };
 
+  // El login con Google es un redirect de página completa: esta pantalla se
+  // recarga de cero al volver de accounts.google.com. Cuando eso pasa, el
+  // AuthProvider ya detectó la sesión sola (ver AuthContext) y acá solo hace
+  // falta leer a dónde había que ir (guardado antes de salir) y navegar.
+  useEffect(() => {
+    if (!isAuthenticated || !user || yaRedirigido.current) return;
+    let destino = null;
+    try {
+      destino = sessionStorage.getItem(REDIRECT_TRAS_GOOGLE);
+      sessionStorage.removeItem(REDIRECT_TRAS_GOOGLE);
+    } catch { /* sin sessionStorage, se pierde el destino — vuelve al default */ }
+    // Solo si esta pantalla fue la que disparó el login (dejó la marca). Si
+    // alguien ya logueado navega directo a /login por error, no hace nada acá
+    // — otras rutas ya lo redirigen por su cuenta.
+    if (destino === null) return;
+    yaRedirigido.current = true;
+    redirectAfterLogin(user, destino || from);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, user]);
+
   /**
-   * Abre el popup de Firebase Auth.
-   * Antes esto usaba el widget de @react-oauth/google, que solo decodificaba
-   * el token en el cliente: no creaba sesión de servidor, y sin eso las
-   * Security Rules de Firestore no tienen contra qué validar.
+   * Dispara el redirect a Google (supabase.auth.signInWithOAuth). A
+   * diferencia del popup de Firebase, esta función no devuelve el usuario
+   * logueado: la pestaña entera navega a accounts.google.com y vuelve. Por
+   * eso se guarda `from` en sessionStorage antes de salir — es lo único que
+   * sobrevive el viaje — y el redirect final lo hace el useEffect de arriba.
    */
   const handleGoogle = async () => {
     setError('');
     setEntrando(true);
+    try {
+      sessionStorage.setItem(REDIRECT_TRAS_GOOGLE, from || '');
+    } catch { /* sin sessionStorage, el destino cae al default post-login */ }
     const result = await loginWithGoogle();
-    setEntrando(false);
-
-    if (result.success) redirectAfterLogin(result.user);
-    else if (!result.cancelled) setError(result.error);
+    if (!result.success) {
+      setEntrando(false);
+      setError(result.error);
+      try { sessionStorage.removeItem(REDIRECT_TRAS_GOOGLE); } catch { /* nada */ }
+    }
+    // Si tuvo éxito, la página está a punto de navegar a Google — no hay
+    // nada más para hacer acá.
   };
 
   const handlePassword = async (ev) => {
