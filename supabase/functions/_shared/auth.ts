@@ -35,6 +35,35 @@ export const invalidArgument = (msg: string) => new HttpError(400, 'invalid-argu
 export const notFound = (msg: string) => new HttpError(404, 'not-found', msg);
 export const alreadyExists = (msg: string) => new HttpError(409, 'already-exists', msg);
 export const failedPrecondition = (msg: string) => new HttpError(412, 'failed-precondition', msg);
+export const resourceExhausted = (msg: string) => new HttpError(429, 'resource-exhausted', msg);
+
+/**
+ * Las funciones SQL como create_appointment tiran sus errores de negocio
+ * como RAISE EXCEPTION 'codigo: mensaje' (ver el comentario al principio de
+ * esa migración) — mismos códigos que ya usan los HttpError de acá arriba.
+ * Esto separa el prefijo del mensaje y arma el mismo HttpError, así una
+ * función SQL "narra" su propio error sin que la Edge Function tenga que
+ * adivinar de memoria qué código le corresponde a cada RAISE.
+ */
+const CODIGOS_SQL: Record<string, (msg: string) => HttpError> = {
+  'invalid-argument': invalidArgument,
+  'not-found': notFound,
+  'failed-precondition': failedPrecondition,
+  'already-exists': alreadyExists,
+  'resource-exhausted': resourceExhausted,
+};
+
+export function errorDeFuncionSql(pgError: { message?: string } | null | undefined): HttpError {
+  const texto = pgError?.message || '';
+  const separador = texto.indexOf(': ');
+  if (separador > 0) {
+    const codigo = texto.slice(0, separador);
+    const mensaje = texto.slice(separador + 2);
+    if (CODIGOS_SQL[codigo]) return CODIGOS_SQL[codigo](mensaje);
+  }
+  console.error('[edge-function] Error SQL sin código reconocido:', texto);
+  return new HttpError(500, 'internal', 'No se pudo completar la operación.');
+}
 
 /** Cliente con la service role key: bypassa RLS, igual que el Admin SDK de Firebase. */
 export function supabaseAdmin(): SupabaseClient {
