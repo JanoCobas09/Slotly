@@ -2,19 +2,19 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
 import App from './App';
-import { firebaseListo } from './lib/firebase';
+import { supabaseListo } from './lib/supabase';
 import ConfigErrorPage from './pages/ConfigErrorPage';
 import { BusinessProvider } from './contexts/BusinessContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { BookingProvider } from './contexts/BookingContext';
 import { registerServiceWorker } from './lib/push';
 
-// El login pasa por Firebase Auth (signInWithPopup), que crea la sesión de
-// servidor que necesitan las Security Rules. La config se inicializa en
-// src/lib/firebase.js.
+// El login pasa por Supabase Auth (signInWithOAuth/signInWithPassword), que
+// crea la sesión que necesita RLS para saber quién sos. La config se
+// inicializa en src/lib/supabase.js.
 
 // Si el build salió sin las variables de entorno, no se monta la app: sus
-// providers se conectarían a un Firebase inexistente. En vez de la pantalla en
+// providers se conectarían a un Supabase inexistente. En vez de la pantalla en
 // blanco, se muestra qué falta y cómo arreglarlo.
 const raiz = createRoot(document.getElementById('root'));
 
@@ -24,7 +24,7 @@ const raiz = createRoot(document.getElementById('root'));
 // dolores de cabeza (assets cacheados viejos) que beneficio.
 if (import.meta.env.PROD) registerServiceWorker();
 
-if (!firebaseListo) {
+if (!supabaseListo) {
   raiz.render(<ConfigErrorPage />);
 } else {
   raiz.render(

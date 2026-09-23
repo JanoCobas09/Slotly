@@ -1,8 +1,8 @@
-import { faltanVariables } from '../lib/firebase';
+import { faltanVariables } from '../lib/supabase';
 
 /**
  * Pantalla de diagnóstico cuando el build salió sin la configuración de
- * Firebase. Existe porque el modo de falla anterior era una pantalla en blanco
+ * Supabase. Existe porque el modo de falla anterior era una pantalla en blanco
  * sin ninguna pista: el error solo aparecía en la consola del navegador.
  *
  * Pasa típicamente en Vercel: `.env` está en .gitignore (bien, tiene el client
@@ -24,7 +24,7 @@ export default function ConfigErrorPage() {
     >
       <div className="card" style={{ maxWidth: 560, padding: 'var(--space-xl)' }}>
         <span className="eyebrow">• Error de configuración</span>
-        <h1 style={{ margin: '10px 0 var(--space-md)' }}>Falta la configuración de Firebase</h1>
+        <h1 style={{ margin: '10px 0 var(--space-md)' }}>Falta la configuración de Supabase</h1>
 
         <p className="text-secondary" style={{ fontSize: 14, lineHeight: 1.6 }}>
           La app compiló sin las variables de entorno, así que no puede conectarse
