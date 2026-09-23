@@ -13,7 +13,7 @@
 // auth.users.raw_app_meta_data, así que se recorren acá con la Admin API
 // (paginada, igual que el listUsers() de Firebase) ANTES de borrar la fila.
 import { corsHeaders } from '../_shared/cors.ts';
-import { getCaller, isPlatformOwner, supabaseAdmin, clearClaims, errorResponse, jsonResponse, invalidArgument, notFound, failedPrecondition, permissionDenied } from '../_shared/auth.ts';
+import { getCaller, isPlatformOwner, supabaseAdmin, clearClaimsForBusiness, errorResponse, jsonResponse, invalidArgument, notFound, failedPrecondition, permissionDenied } from '../_shared/auth.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -37,23 +37,7 @@ Deno.serve(async (req) => {
     // 1. Claims de Auth: todos los usuarios cuyo business_id sea este. Se
     // buscan en Auth y no solo en `admins`, porque ese registro puede estar
     // incompleto y el claim es lo que da acceso de verdad.
-    let usuarios = 0;
-    let page = 1;
-    const perPage = 1000;
-    // deno-lint-ignore no-constant-condition
-    while (true) {
-      const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
-      if (error) throw error;
-      for (const u of data.users) {
-        if (u.app_metadata?.business_id === businessId) {
-          await clearClaims(admin, u.id);
-          await admin.rpc('revoke_user_sessions', { target_id: u.id });
-          usuarios++;
-        }
-      }
-      if (data.users.length < perPage) break;
-      page++;
-    }
+    const usuarios = await clearClaimsForBusiness(admin, businessId);
 
     // 2. El negocio y todo lo que cuelga (cascada de SQL).
     const { error: delErr } = await admin.rpc('delete_business_cascade', { p_business_id: businessId });

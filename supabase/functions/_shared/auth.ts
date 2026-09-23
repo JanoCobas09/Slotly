@@ -203,6 +203,35 @@ export async function clearClaims(admin: SupabaseClient, userId: string) {
   if (error) throw error;
 }
 
+/**
+ * Recorre TODOS los usuarios de Auth (paginado, igual que el listUsers() de
+ * Firebase) y le vacía los claims a quien tenga este business_id, cortándole
+ * además las sesiones abiertas. Usado por delete-business y por run-billing
+ * (borrado automático de self-service que nunca pagaron) — es el mismo
+ * trabajo en los dos casos, borrar un negocio siempre implica esto antes de
+ * tocar la fila en `businesses`.
+ */
+export async function clearClaimsForBusiness(admin: SupabaseClient, businessId: string): Promise<number> {
+  let usuarios = 0;
+  let page = 1;
+  const perPage = 1000;
+  // deno-lint-ignore no-constant-condition
+  while (true) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
+    if (error) throw error;
+    for (const u of data.users) {
+      if (u.app_metadata?.business_id === businessId) {
+        await clearClaims(admin, u.id);
+        await admin.rpc('revoke_user_sessions', { target_id: u.id });
+        usuarios++;
+      }
+    }
+    if (data.users.length < perPage) break;
+    page++;
+  }
+  return usuarios;
+}
+
 export function jsonResponse(body: unknown, corsHeaders: Record<string, string>, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
