@@ -35,13 +35,19 @@ Deno.serve(async (req) => {
 
     // El pendiente puede ser de dos formas: permiso de negocio (business_id
     // + role) o moderador de la plataforma (platform = 'moderator'). Nunca
-    // una mezcla — el check constraint de la tabla ya lo garantiza.
+    // una mezcla — el check constraint de la tabla ya lo garantiza. Los null
+    // del lado que no aplica son explícitos porque la Admin API de Supabase
+    // mergea app_metadata en vez de reemplazarlo: sin esto, una cuenta que
+    // ya tuviera claims de otro tipo (hoy no debería pasar, dado que solo se
+    // deja un pendiente para cuentas sin uid todavía — pero mejor no confiar
+    // en esa invariante para siempre) terminaría con los dos roles juntos.
     const claims = pending.platform === 'moderator'
-      ? { platform: 'moderator' }
+      ? { platform: 'moderator', business_id: null, role: null, professional_id: null }
       : {
           business_id: pending.business_id,
           role: pending.role,
           professional_id: pending.professional_id ?? null,
+          platform: null,
         };
 
     const { error: updateErr } = await admin.auth.admin.updateUserById(caller.id, {

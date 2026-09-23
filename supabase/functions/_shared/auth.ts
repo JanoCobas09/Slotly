@@ -133,10 +133,11 @@ function assertCanManageAdmins(c: Caller, businessId: string): 'platform' | 'own
 
 /**
  * Impide que un llamador que no es la plataforma toque a alguien fuera de su
- * alcance — y sobre todo, a la plataforma misma. Mismo motivo que en
- * Firebase: actualizar app_metadata REEMPLAZA los claims salvo que se haga
- * merge a mano, así que hay que revalidar esto siempre, no confiar en que
- * "ya se filtró antes".
+ * alcance — y sobre todo, a la plataforma misma. En Firebase esto importaba
+ * porque `setCustomUserClaims` REEMPLAZA los claims enteros; acá la razón es
+ * la contraria (ver `clearClaims` más abajo: la Admin API de Supabase
+ * MERGEA `app_metadata`, nunca reemplaza sola), pero el chequeo sigue siendo
+ * necesario igual — nunca confiar en que "ya se filtró antes".
  */
 function assertTargetEnAlcance(
   caller: 'platform' | 'owner',
@@ -170,6 +171,36 @@ export function errorResponse(err: unknown, corsHeaders: Record<string, string>)
     JSON.stringify({ error: { code: 'internal', message: 'Error interno.' } }),
     { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
   );
+}
+
+// Sin caracteres ambiguos (l/I/1, O/0): una contraseña que se lee por
+// teléfono o se tipea desde una foto de WhatsApp no puede depender de
+// distinguir una ele minúscula de una I mayúscula.
+const ALFABETO = 'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+/** Contraseña aleatoria de 12 caracteres, con crypto.getRandomValues (no Math.random). */
+export function generarPassword(largo = 12): string {
+  const bytes = new Uint8Array(largo);
+  crypto.getRandomValues(bytes);
+  let out = '';
+  for (let i = 0; i < largo; i++) out += ALFABETO[bytes[i] % ALFABETO.length];
+  return out;
+}
+
+/**
+ * Vacía TODOS los claims de un usuario (revocar acceso, borrar su negocio,
+ * sacarle el rol de moderador). A diferencia de `admin.auth.setCustomUserClaims`
+ * de Firebase, la Admin API de Supabase (`updateUserById`) MERGEA
+ * `app_metadata` con lo que ya había — pasar `{ app_metadata: {} }` es un
+ * no-op, no un borrado (verificado directo contra el stack local: los claims
+ * viejos quedan intactos). Por eso acá se pisa cada clave conocida con
+ * `null` explícito en vez de confiar en un objeto vacío.
+ */
+export async function clearClaims(admin: SupabaseClient, userId: string) {
+  const { error } = await admin.auth.admin.updateUserById(userId, {
+    app_metadata: { business_id: null, role: null, professional_id: null, platform: null },
+  });
+  if (error) throw error;
 }
 
 export function jsonResponse(body: unknown, corsHeaders: Record<string, string>, status = 200): Response {

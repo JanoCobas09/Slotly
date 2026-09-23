@@ -4,6 +4,7 @@ import { corsHeaders } from '../_shared/cors.ts';
 import {
   getCaller,
   supabaseAdmin,
+  clearClaims,
   guards,
   errorResponse,
   jsonResponse,
@@ -38,10 +39,7 @@ Deno.serve(async (req) => {
 
     if (!targetUser) return jsonResponse({ status: 'not-found' }, corsHeaders);
 
-    const { error: updateErr } = await admin.auth.admin.updateUserById(targetUser.id, {
-      app_metadata: {},
-    });
-    if (updateErr) throw updateErr;
+    await clearClaims(admin, targetUser.id);
 
     // Corta las sesiones abiertas: sin esto, su token actual sigue siendo
     // válido hasta que expire solo.

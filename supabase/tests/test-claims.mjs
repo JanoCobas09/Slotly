@@ -66,7 +66,7 @@ async function main() {
   // con platform: true (paso manual único, igual que en Firebase).
   await admin.from('businesses').insert({ id: bizId, name: 'Negocio de prueba', slug: `negocio-${suffix}` });
   await createConfirmedUser(platformEmail, 'Password123!', { platform: true });
-  await createConfirmedUser(rogueEmail, 'Password123!', {});
+  const rogueUser = await createConfirmedUser(rogueEmail, 'Password123!', {});
 
   const platformToken = await signIn(platformEmail, 'Password123!');
 
@@ -80,8 +80,8 @@ async function main() {
 
   console.log('Esa cuenta entra por primera vez y reclama el pendiente:');
   let ownerToken;
+  const ownerUser = await createConfirmedUser(ownerEmail, 'Password123!', {});
   {
-    const user = await createConfirmedUser(ownerEmail, 'Password123!', {});
     ownerToken = await signIn(ownerEmail, 'Password123!');
     const { status, data } = await callFn('apply-pending-claims', ownerToken);
     ok(status === 200 && data.status === 'applied' && data.business_id === bizId && data.role === 'owner',
@@ -135,8 +135,8 @@ async function main() {
     const { status, data } = await callFn('set-platform-moderator', platformToken, { email: modEmail, name: 'Mod' });
     ok(status === 200 && data.status === 'pending', 'la plataforma sí puede, queda pendiente');
   }
+  await createConfirmedUser(modEmail, 'Password123!', {});
   {
-    await createConfirmedUser(modEmail, 'Password123!', {});
     const modToken = await signIn(modEmail, 'Password123!');
     const { status, data } = await callFn('apply-pending-claims', modToken);
     ok(status === 200 && data.platform === 'moderator', 'el moderador reclama su claim al primer login');
@@ -153,9 +153,55 @@ async function main() {
     const { status, data } = await callFn('revoke-business-admin', ownerToken, {
       email: rogueEmail, businessId: bizId,
     });
-    // rogueEmail nunca reclamó el pendiente de admin, así que sigue "not-found" en auth
-    // pero el pendiente igual se limpia. Lo importante es que no rompe.
     ok(status === 200, `no rompe (status ${status})`);
+    // La Admin API de Supabase MERGEA app_metadata en vez de reemplazarlo
+    // (a diferencia de setCustomUserClaims en Firebase) — pasar `{}` es un
+    // no-op, no un borrado. Sin este chequeo, revoke-business-admin podía
+    // devolver 200 sin haber limpiado nada de verdad (bug real, encontrado
+    // y corregido el 23/09/2026).
+    const { data: usuarioRevocado } = await admin.auth.admin.getUserById(rogueUser.id);
+    const metaRevocado = usuarioRevocado.user.app_metadata || {};
+    ok(
+      !metaRevocado.business_id && !metaRevocado.role,
+      `los claims quedaron realmente vacíos, no solo el status — ${JSON.stringify(metaRevocado)}`,
+    );
+  }
+
+  console.log('Un moderador ascendido a admin de un negocio no se queda con los dos roles:');
+  {
+    // Mismo motivo que arriba: set-business-admin escribe { business_id,
+    // role, professional_id } — si no pisa `platform` a propósito, el merge
+    // de la Admin API deja a alguien siendo moderador Y staff de negocio a
+    // la vez, algo que el propio modelo de permisos no contempla.
+    const { status, data } = await callFn('set-business-admin', platformToken, {
+      email: modEmail, businessId: bizId, role: 'admin',
+    });
+    ok(status === 200 && data.status === 'applied', `se aplica — ${JSON.stringify(data)}`);
+    const { data: modRows } = await admin.rpc('get_user_by_email', { lookup_email: modEmail });
+    const { data: modUser } = await admin.auth.admin.getUserById(modRows[0].id);
+    const metaMod = modUser.user.app_metadata || {};
+    ok(
+      metaMod.business_id === bizId && metaMod.role === 'admin' && !metaMod.platform,
+      `quedó solo como staff de negocio, sin platform residual — ${JSON.stringify(metaMod)}`,
+    );
+  }
+
+  console.log('Un dueño de negocio ascendido a moderador no se queda con los dos roles:');
+  {
+    // El espejo del caso anterior: set-platform-moderator escribe
+    // { platform: 'moderator' } — si no pisa business_id/role/professional_id
+    // a propósito, el merge deja a un dueño de negocio siendo moderador Y
+    // dueño a la vez.
+    const { status, data } = await callFn('set-platform-moderator', platformToken, {
+      email: ownerEmail, name: 'Ex dueño',
+    });
+    ok(status === 200 && data.status === 'applied', `se aplica — ${JSON.stringify(data)}`);
+    const { data: exDuenoUser } = await admin.auth.admin.getUserById(ownerUser.id);
+    const metaExDueno = exDuenoUser.user.app_metadata || {};
+    ok(
+      metaExDueno.platform === 'moderator' && !metaExDueno.business_id && !metaExDueno.role,
+      `quedó solo como moderador, sin el negocio residual — ${JSON.stringify(metaExDueno)}`,
+    );
   }
 
   console.log(`\n${pasaron} pasaron, ${fallaron} fallaron`);

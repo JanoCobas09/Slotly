@@ -40,7 +40,12 @@ Deno.serve(async (req) => {
     }
 
     const normalizedEmail = String(email).trim().toLowerCase();
-    const claims = { business_id: businessId, role, professional_id: professionalId };
+    // `platform: null` explícito, no solo omitido: la Admin API de Supabase
+    // MERGEA app_metadata en vez de reemplazarlo (a diferencia de
+    // setCustomUserClaims en Firebase), así que si el destinatario ya era
+    // moderador de la plataforma, omitir `platform` acá lo dejaría con los
+    // dos roles combinados en vez de reemplazar uno por el otro.
+    const claims = { business_id: businessId, role, professional_id: professionalId, platform: null };
 
     const admin = supabaseAdmin();
 

@@ -5,6 +5,7 @@ import { corsHeaders } from '../_shared/cors.ts';
 import {
   getCaller,
   supabaseAdmin,
+  clearClaims,
   isPlatformOwner,
   errorResponse,
   jsonResponse,
@@ -50,7 +51,7 @@ Deno.serve(async (req) => {
       // Se le vacían los claims enteros: un moderador no tiene otro rol que
       // conservar. Y se le cortan las sesiones, si no sigue entrando hasta
       // que el token expire solo.
-      await admin.auth.admin.updateUserById(targetUser.id, { app_metadata: {} });
+      await clearClaims(admin, targetUser.id);
       await admin.rpc('revoke_user_sessions', { target_id: targetUser.id });
       return jsonResponse({ status: 'revoked' }, corsHeaders);
     }
@@ -72,8 +73,11 @@ Deno.serve(async (req) => {
     }
 
     // Si administraba un negocio, esto lo reemplaza: una cuenta tiene un rol.
+    // Los null son explícitos por la misma razón que en set-business-admin:
+    // la Admin API mergea app_metadata, así que hay que pisar cada clave
+    // vieja a mano o quedaría siendo dueño/staff Y moderador a la vez.
     const { error: updateErr } = await admin.auth.admin.updateUserById(targetUser.id, {
-      app_metadata: { platform: 'moderator' },
+      app_metadata: { platform: 'moderator', business_id: null, role: null, professional_id: null },
     });
     if (updateErr) throw updateErr;
 
