@@ -1,87 +1,80 @@
 // ============================================================================
-// Capa de acceso a las Cloud Functions
+// Capa de acceso a las Edge Functions
 // ============================================================================
-// Mismo criterio que repository.js con Firestore: ningún componente llama a un
-// callable directamente, todo pasa por acá. Así los nombres de las funciones y
-// la forma de sus argumentos viven en un solo lugar.
+// Mismo criterio que repository.js con las tablas: ningún componente invoca
+// una Edge Function directamente, todo pasa por acá. Así los nombres de las
+// funciones y la forma de sus argumentos viven en un solo lugar.
 //
 // Por qué existen estas funciones del lado del servidor: los permisos son
-// custom claims del token, y solo el Admin SDK los puede escribir. Si el
-// permiso saliera de un documento de Firestore, un dueño podría editarse el
-// suyo y escalar. Ver functions/index.js.
+// custom claims del JWT, y solo la service role key los puede escribir. Si
+// el permiso saliera de una fila que el propio usuario puede editar, un
+// dueño podría escalar privilegios. Ver supabase/functions/.
 
-import { httpsCallable } from 'firebase/functions';
-import { functions } from './firebase';
+import { supabase } from './supabase';
 
 /**
- * Las Functions requieren plan Blaze. Mientras no estén desplegadas, llamarlas
- * devuelve `functions/not-found` — un error que no dice nada útil al que lo lee
- * en la consola. Se traduce a algo accionable.
- *
- * `internal` aparece cuando el callable ni siquiera resuelve (proyecto sin
- * Blaze, o emulador apagado con VITE_USE_EMULATORS=true).
+ * `supabase.functions.invoke` no separa "no desplegada" de otros errores de
+ * red como sí lo hacía el SDK de Firebase (`functions/not-found` vs
+ * `functions/internal`) — acá cualquier fallo de conexión al gateway de
+ * Functions cae en un solo `FunctionsFetchError`. Se conserva igual la
+ * forma del error (`.code`) para que quien llama pueda seguir
+ * distinguiendo casos por código de negocio (los que sí vienen del body:
+ * `permission-denied`, `already-exists`, etc.), que es lo que de verdad se
+ * usa en el resto de la app.
  */
-const MENSAJES = {
-  'functions/not-found': 'La función no está desplegada. Falta activar Blaze y correr firebase deploy --only functions.',
-  'functions/internal': 'No se pudo contactar a las Cloud Functions. ¿Están desplegadas, o el emulador está corriendo?',
-  'functions/unauthenticated': 'Tenés que iniciar sesión.',
-  'functions/permission-denied': 'No tenés permiso para esta operación.',
-};
-
 async function llamar(nombre, datos) {
-  if (!functions) {
-    throw new Error('Firebase no está inicializado: revisá las variables de entorno.');
-  }
-  try {
-    const { data } = await httpsCallable(functions, nombre)(datos);
-    return data;
-  } catch (err) {
-    // Se conserva el código original: quien llama a veces necesita distinguir
-    // (por ejemplo, tratar un not-found como "todavía no hay Blaze" y seguir).
-    const traducido = new Error(MENSAJES[err.code] || err.message);
-    traducido.code = err.code;
-    traducido.original = err;
+  const { data, error } = await supabase.functions.invoke(nombre, { body: datos });
+  if (error) {
+    // FunctionsHttpError trae la respuesta real del Edge Function (con
+    // { error: { code, message } }, el mismo formato que arma
+    // _shared/auth.ts en cada función) — se prioriza sobre el mensaje
+    // genérico de supabase-js.
+    const cuerpo = await error.context?.json?.().catch(() => null);
+    const traducido = new Error(cuerpo?.error?.message || error.message);
+    traducido.code = cuerpo?.error?.code || 'internal';
+    traducido.original = error;
     throw traducido;
   }
+  return data;
 }
 
-/** ¿El error viene de que las Functions todavía no están desplegadas? */
+/** ¿El error viene de que las Edge Functions todavía no están desplegadas? */
 export function esFunctionNoDesplegada(err) {
-  return err?.code === 'functions/not-found' || err?.code === 'functions/internal';
+  return err?.code === 'internal' && /fetch|network|not.?found/i.test(err?.original?.message || '');
 }
 
 /**
- * Le da a un Gmail acceso al panel de una barbería.
+ * Le da a un mail acceso al panel de un negocio.
  *
- * Devuelve `{ status: 'applied' }` si la persona ya había entrado alguna vez
- * con Google, o `{ status: 'pending' }` si nunca entró — en ese caso el permiso
- * queda anotado y se aplica solo en su primer login.
+ * Devuelve `{ status: 'applied' }` si la persona ya había entrado alguna vez,
+ * o `{ status: 'pending' }` si nunca entró — en ese caso el permiso queda
+ * anotado y se aplica solo en su primer login.
  *
  * Quién puede llamarla: la plataforma para cualquier negocio y cualquier rol;
- * el dueño de una barbería solo dentro de la suya y solo con rol 'admin'.
+ * el dueño de un negocio solo dentro del suyo y solo con rol 'admin'.
  */
 export function setBusinessAdmin({ email, businessId, role, professionalId = null, name = '' }) {
-  return llamar('setBusinessAdmin', { email, businessId, role, professionalId, name });
+  return llamar('set-business-admin', { email, businessId, role, professionalId, name });
 }
 
 /** Le quita todo acceso administrativo a un mail. */
 export function revokeBusinessAdmin({ email, businessId }) {
-  return llamar('revokeBusinessAdmin', { email, businessId });
+  return llamar('revoke-business-admin', { email, businessId });
 }
 
 /**
  * Reserva un turno con validación del lado del servidor.
  *
- * El precio y la hora de fin NO se mandan: los calcula la función a partir del
- * documento del servicio. Tampoco se manda el estado. Todo lo que el cliente
- * podía falsificar escribiendo directo a Firestore se decide del lado del
- * servidor: negocio suspendido, fecha pasada, profesional que no hace ese
- * servicio, horario fuera de agenda y solapamiento con otro turno.
+ * El precio y la hora de fin NO se mandan: los calcula la función a partir
+ * de la fila del servicio. Tampoco se manda el estado. Todo lo que el
+ * cliente podía falsificar escribiendo directo a la base se decide del lado
+ * del servidor: negocio suspendido, fecha pasada, profesional que no hace
+ * ese servicio, horario fuera de agenda y solapamiento con otro turno.
  *
  * Devuelve { status: 'created', id, price, endTime }.
  */
 export function createAppointment({ businessId, professionalId, serviceId, appointmentDate, startTime, clientName = '', clientPhone = '', clientEmail = '', notes = '' }) {
-  return llamar('createAppointment', {
+  return llamar('create-appointment', {
     businessId, professionalId, serviceId, appointmentDate, startTime,
     clientName, clientPhone, clientEmail, notes,
   });
@@ -95,7 +88,7 @@ export function createAppointment({ businessId, professionalId, serviceId, appoi
  * No pide sesión: la grilla se mira antes de entrar.
  */
 export function getBusySlots({ businessId, professionalId, appointmentDate }) {
-  return llamar('getBusySlots', { businessId, professionalId, appointmentDate });
+  return llamar('get-busy-slots', { businessId, professionalId, appointmentDate });
 }
 
 /**
@@ -106,16 +99,16 @@ export function getBusySlots({ businessId, professionalId, appointmentDate }) {
  * servidor.
  *
  * Devuelve `{ status: 'created', email, password }`. **La contraseña viene una
- * sola vez**: Firebase guarda solo su hash, así que si se pierde hay que
+ * sola vez**: Supabase guarda solo su hash, así que si se pierde hay que
  * generar otra con `resetOwnerPassword`.
  */
 export function createOwnerWithPassword({ email, businessId, name = '', role = 'owner', professionalId = null, password = null }) {
-  return llamar('createOwnerWithPassword', { email, businessId, name, role, professionalId, password });
+  return llamar('create-owner-with-password', { email, businessId, name, role, professionalId, password });
 }
 
 /** Genera una contraseña nueva para quien perdió la suya. Corta sus sesiones abiertas. */
 export function resetOwnerPassword({ email, password = null }) {
-  return llamar('resetOwnerPassword', { email, password });
+  return llamar('reset-owner-password', { email, password });
 }
 
 /**
@@ -126,7 +119,7 @@ export function resetOwnerPassword({ email, password = null }) {
  * aplica en su primer login), 'revoked' o 'not-found' al quitar.
  */
 export function setPlatformModerator({ email, enabled = true, name = '' }) {
-  return llamar('setPlatformModerator', { email, enabled, name });
+  return llamar('set-platform-moderator', { email, enabled, name });
 }
 
 /**
@@ -135,45 +128,41 @@ export function setPlatformModerator({ email, enabled = true, name = '' }) {
  * nada pendiente, que es el caso normal y no es un error.
  */
 export function applyPendingClaims() {
-  return llamar('applyPendingClaims', {});
+  return llamar('apply-pending-claims', {});
 }
 
 /**
  * Manda un push de prueba SOLO a los dispositivos que la cuenta que llama
- * registró para sí misma (nunca a otra persona) — para validar que las
- * notificaciones push funcionan de punta a punta sin esperar a que entre un
- * turno real. Falla con un mensaje claro si este dispositivo todavía no
- * activó el push.
+ * registró para sí misma. Pendiente de Fase 5 (Web Push): hasta entonces
+ * no hay Edge Function `enviar-push-de-prueba` desplegada, así que esto
+ * devuelve el mismo error "no desplegada" que ya sabe mostrar el resto de
+ * la app en vez de romper.
  */
 export function enviarPushDePrueba() {
-  return llamar('enviarPushDePrueba', {});
+  return llamar('enviar-push-de-prueba', {});
 }
 
 /**
  * Alta self-service: la persona que llama se convierte en dueña de un
  * negocio nuevo, con ~48 hs de prueba gratis. A diferencia del alta manual
- * (super-admin/NewBusinessModal, que escribe directo a Firestore porque está
- * protegida por Rules para que solo la plataforma la use), esto SÍ tiene que
- * pasar por una Function: quien crea el negocio se da el rol de dueño a sí
- * mismo, y los custom claims solo los puede escribir el Admin SDK.
+ * (super-admin/NewBusinessModal, que escribe directo a la tabla porque RLS
+ * ya deja que solo la plataforma lo haga), esto SÍ tiene que pasar por una
+ * Edge Function: quien crea el negocio se da el rol de dueño a sí mismo, y
+ * los custom claims solo los puede escribir la service role key.
  *
- * Requiere App Check (ver src/lib/firebase.js) — sin `VITE_RECAPTCHA_SITE_KEY`
- * configurada, el callable rechaza la llamada.
- *
- * No aplica los claims nuevos sola: quien llama tiene que refrescar el token
- * después (`refreshClaims()` de AuthContext) para que el panel vea el negocio
- * recién creado.
+ * No aplica los claims nuevos sola: quien llama tiene que refrescar la
+ * sesión después (`refreshClaims()` de AuthContext) para que el panel vea
+ * el negocio recién creado.
  */
 export function createBusinessSelfService({ name, professionCategory = '', customProfession = '', primaryColor = null, planId }) {
-  return llamar('createBusinessSelfService', { name, professionCategory, customProfession, primaryColor, planId });
+  return llamar('create-business-self-service', { name, professionCategory, customProfession, primaryColor, planId });
 }
 
 /**
- * Borra una barbería entera: negocio, subcolecciones, slug, tickets,
- * pendientes, y les saca el acceso a sus usuarios. Solo el dueño de la
- * plataforma. `confirmName` tiene que ser el nombre exacto del negocio.
- * Devuelve { status: 'deleted', usuarios, tickets, pendientes }.
+ * Borra un negocio entero: fila, todo lo que cuelga (cascada de SQL), y les
+ * saca el acceso a sus usuarios. Solo el dueño de la plataforma. `confirmName`
+ * tiene que ser el nombre exacto del negocio. Devuelve { status: 'deleted', usuarios }.
  */
 export function deleteBusiness({ businessId, confirmName }) {
-  return llamar('deleteBusiness', { businessId, confirmName });
+  return llamar('delete-business', { businessId, confirmName });
 }
