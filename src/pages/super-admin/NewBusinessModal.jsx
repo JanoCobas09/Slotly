@@ -29,7 +29,6 @@ const EMPTY_FORM = {
   phone: '',
   email: '',
   address: '',
-  city: '',
   planId: DEFAULT_PLAN_ID,
   // Se pisan solos con los del preset de la categoría elegida, hasta que el
   // cliente los toca a mano (ver `colorsEdited`).
@@ -187,10 +186,7 @@ export default function NewBusinessModal({ onClose, onCreated }) {
       phone: form.phone.trim(),
       email: form.email.trim(),
       address: form.address.trim(),
-      city: form.city.trim(),
-      country: 'Argentina',
       currency: 'ARS',
-      timezone: 'America/Argentina/Buenos_Aires',
       slotInterval: Number(form.slotInterval) || 30,
       minCancelHours: Number(form.minCancelHours) || 2,
       onlineBookingEnabled: true,
@@ -208,20 +204,19 @@ export default function NewBusinessModal({ onClose, onCreated }) {
       trialEndsAt: trialDays > 0 ? enDiasISO(trialDays) : null,
       businessHours: DEFAULT_BUSINESS_HOURS.map((h) => ({ ...h })),
       // Rubro del negocio: alimenta terminología, tema y servicios sugeridos
-      // (ver resolveBusinessContext.js). Opcional por diseño — un negocio sin
-      // esto resuelve a 'beauty', pero acá siempre lo completamos.
-      context: {
-        professionCategory,
-        customProfession: form.professionOption === OTHER_OPTION
-          ? form.customProfession.trim() || null
-          : null,
-      },
+      // (ver resolveBusinessContext.js). Columnas propias del negocio, no un
+      // objeto anidado — opcional por diseño (un negocio sin categoría
+      // reconocida resuelve a 'beauty'), pero acá siempre lo completamos.
+      professionCategory,
+      customProfession: form.professionOption === OTHER_OPTION
+        ? form.customProfession.trim() || null
+        : null,
     };
 
-    // Privado: la plata va en /businesses/{id}/private/billing, no en el
-    // documento público. El doc público lo puede leer cualquier cliente.
+    // Privado: la plata va en la tabla `billing`, no en `businesses` (que
+    // cualquier cliente puede leer). El plan en sí (planId) vive solo en
+    // `businesses` — acá solo lo que es plata.
     const billing = {
-      planId: plan.id,
       monthlyFee: plan.monthlyFee,
       debt: 0,
       lastPaymentDate: null,
@@ -618,15 +613,6 @@ export default function NewBusinessModal({ onClose, onCreated }) {
                 value={form.address}
                 onChange={(e) => set({ address: e.target.value })}
                 placeholder="Av. Corrientes 1234"
-              />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Ciudad</label>
-              <input
-                className="form-input"
-                value={form.city}
-                onChange={(e) => set({ city: e.target.value })}
-                placeholder="Buenos Aires"
               />
             </div>
             <div className="form-group">
