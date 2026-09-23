@@ -170,36 +170,74 @@ hay hoy es de prueba), así que se va **directo, sin correr los dos en
 paralelo** — apenas esté terminada y probada, esta rama se mergea a `main` y
 Firebase se apaga. Vive en la rama `migration/supabase`, carpeta `supabase/`.
 
-**Hecho y verificado:**
-- Esquema completo (`supabase/migrations/..._schema.sql`): las 14
-  colecciones de Firestore pasan a 17 tablas relacionadas. `/slugs/{slug}`
-  no se migró (era un mapa aparte solo porque Firestore no permite resolver
-  un slug sin exponer `list()` de todo `businesses`; acá es una columna
-  UNIQUE). `/users/{userId}` tampoco (regla muerta en firestore.rules,
-  ningún archivo la usaba).
-- RLS (`supabase/migrations/..._rls.sql`): cada regla de `firestore.rules`
-  traducida con las mismas funciones helper que ya existían
-  (`isBusinessOwner` → `is_business_owner()`, etc.). Los campos protegidos
-  de `businesses` y la restricción de qué puede tocar un cliente al cancelar
-  su turno pasan de `diff().affectedKeys()` (Firestore) a triggers `BEFORE
-  UPDATE` (Postgres no compara columna vieja vs. nueva dentro de una policy
-  de RLS). El truco de `getAfter()` para tickets no hace falta: una
-  transacción SQL ve sus propios INSERT anteriores sin ese problema.
-- Verificado con `supabase/rls_smoke_test.sql` contra Postgres local
-  (10/10 casos): aislamiento entre negocios, auto-beneficio del dueño
-  bloqueado, cliente no puede colarse un cambio de precio al cancelar. No
-  reemplaza una suite de verdad — eso queda para cuando se construya esa
-  fase (pgTAP, mismo espíritu que `auditar-rules-emulador.mjs`).
+**Hecho y verificado — Fases 1 a 5 completas (23/09/2026):**
 
-**Pendiente:** Auth (Google OAuth + cómo se asignan los custom claims vía
-Edge Function con service role), las Edge Functions (una por cada Cloud
-Function de `functions/index.js`), Realtime (reemplaza `onSnapshot`), Web
-Push real con VAPID (Supabase no tiene equivalente a FCM — mismo patrón que
-ya existe en el proyecto `allin`/Jom! del usuario, que sí lo tiene resuelto),
-y al final reescribir `src/lib/repository.js` y `src/lib/functions.js` — los
-únicos dos archivos que el resto de la app usa para hablar con el backend,
-así que ahí se concentra casi todo el trabajo de adaptación del lado del
-cliente.
+- **Fase 1 (esquema + RLS).** Las 14 colecciones de Firestore pasan a 17
+  tablas relacionadas (`supabase/migrations/..._schema.sql`, más
+  `..._fix_recovered_schema.sql`, auditado campo por campo contra lo que
+  `src/` usa de verdad). `/slugs/{slug}` no se migró (era un mapa aparte
+  solo porque Firestore no permite resolver un slug sin exponer `list()`;
+  acá es una columna UNIQUE). RLS (`..._rls.sql`) traduce cada regla de
+  `firestore.rules` con las mismas funciones helper (`isBusinessOwner` →
+  `is_business_owner()`, etc.); los campos protegidos de `businesses` y la
+  restricción de qué puede tocar un cliente al cancelar pasan a triggers
+  `BEFORE UPDATE`. `supabase/rls_smoke_test.sql`, 12/12 casos.
+- **Fase 2 (Auth).** `AuthContext.jsx` y `LoginPage.jsx` reescritos sobre
+  `@supabase/supabase-js`, mismo contrato externo (`user.role`,
+  `businessId`, `isPlatformOwner`...). Google OAuth es redirect completo
+  (`signInWithOAuth`), no popup — el destino post-login se guarda en
+  `sessionStorage` antes de salir. `test-claims.mjs`, 16/16 casos.
+- **Fase 3 (Edge Functions).** Las 15 Cloud Functions invocables de
+  `functions/index.js` traducidas a Edge Functions/funciones de Postgres —
+  la única que falta a propósito es `enviarPushDePrueba`, que se resolvió
+  recién en Fase 5 (no tenía sentido antes de que existiera Web Push).
+  Incluye `process_billing()` (cron diario) y los triggers
+  `handle_nuevo_turno`/`handle_turno_cancelado` (reemplazan
+  `onNuevoTurno`/`onTurnoCancelado`). El scheduling de pg_cron para
+  `run-billing`/`send-reminders` queda documentado y comentado en las
+  migraciones — se activa recién en Fase 8 contra el proyecto real.
+  `test-owner-accounts.mjs` 13/13, `test-billing.mjs` 10/10,
+  `test-reminders.mjs` 8/8, `test-appointments.mjs` 6/6.
+- **Fase 4 (datos + Realtime).** `repository.js`/`functions.js`
+  reescritos sobre Supabase, mismo contrato externo exacto — `fromRow()`/
+  `toRow()` traducen snake_case↔camelCase en un solo lugar.
+  `BusinessSync.jsx` no necesitó ningún cambio (ya era agnóstico de
+  Firestore). Realtime reemplaza `onSnapshot` con un adaptador
+  (`liveTable`/`liveRow`) que reconstruye el estado completo a partir de
+  los eventos incrementales de `postgres_changes` — Supabase no manda "la
+  lista completa" como Firestore. Verificado en el navegador contra el
+  stack local, no solo con scripts.
+- **Fase 5 (Web Push).** Reemplaza FCM por Web Push estándar (VAPID):
+  `public/sw.js` genérico, `lib/push.js` reescrito con el mismo contrato,
+  dos Edge Functions nuevas (`send-push`, invocada por los triggers vía
+  `pg_net`; `enviar-push-de-prueba`, el botón de la campanita).
+  `test-push.mjs`, 9/9 casos (la entrega real a un dispositivo no se puede
+  probar en este entorno: Chrome headless auto-deniega el permiso de
+  notificaciones sin gesto de usuario real).
+
+**Hallazgo importante de RLS (no obvio, costó una sesión entera
+diagnosticarlo):** en Postgres, `UPDATE`/`DELETE` bajo RLS necesitan poder
+"ver" la fila vía ALGUNA policy de `SELECT` antes de tocarla — su propia
+policy de `USING` no alcanza sola, sin importar cuán permisiva sea (un
+`DELETE ... USING (true)` sin ninguna policy de SELECT en la tabla borra 0
+filas, no tira error). Afecta especialmente a cualquier `upsert()` con
+`onConflict`: el `ON CONFLICT` necesita esa misma visibilidad para
+detectar si ya existe una fila, así que hasta un `DO NOTHING` rebota con
+"row-level security policy" si falta la policy de SELECT. Dos tablas lo
+sufrieron (`push_subscriptions`, que no tenía NINGUNA policy de SELECT
+a propósito — "nadie lee desde acá" — y `notification_reads`, que tenía
+SELECT pero no UPDATE). Antes de agregar una policy de escritura
+(`UPDATE`/`DELETE`/`upsert`) a una tabla nueva, verificar que también
+tenga una de SELECT que cubra esas mismas filas — o, si de verdad no debe
+haber lectura posible, usar `ignoreDuplicates: true` (`ON CONFLICT DO
+NOTHING`) en vez de un upsert normal.
+
+**Pendiente:** Fase 6 (barrido final: `src/lib/firebase.js` deja de
+importarse en `main.jsx`/`ConfigErrorPage.jsx`, se sacan las dependencias
+`firebase`/`firebase-admin`), Fase 7 (recorrido manual completo de punta a
+punta), Fase 8 (cutover a `main` + deploy en Vercel + activar el
+scheduling de pg_cron y las claves VAPID/SMTP reales contra el proyecto
+real de Supabase — hoy todo corre contra el stack local).
 
 **Trampa de esta máquina:** Windows tenía reservado (`netsh interface ipv4
 show excludedportrange protocol=tcp`) el rango `54140-54739` completo — justo
