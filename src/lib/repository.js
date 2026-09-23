@@ -532,29 +532,64 @@ export function subscribeNotifications(businessId, { professionalId = null } = {
 }
 
 export async function markNotificationRead(businessId, id, uid) {
+  // `ignoreDuplicates` (ON CONFLICT DO NOTHING), no un upsert normal: no hay
+  // nada que actualizar en una fila que ya existe (leída es leída, no tiene
+  // un campo que cambie), y notification_reads no tiene policy de UPDATE —
+  // marcar como leída una notificación YA leída (doble click, "marcar
+  // todas" sobre una lista que incluye alguna ya leída) rebotaba con
+  // "row-level security policy" al intentar el camino de UPDATE del
+  // upsert. DO NOTHING no lo necesita.
   const { error } = await supabase
     .from('notification_reads')
-    .upsert({ notification_id: id, user_id: uid }, { onConflict: 'notification_id,user_id' });
+    .upsert({ notification_id: id, user_id: uid }, { onConflict: 'notification_id,user_id', ignoreDuplicates: true });
   if (error) throw error;
 }
 
 // ============================================================================
-// PUSH (Web Push, VAPID) — Fase 5
+// PUSH (Web Push, VAPID)
 // ============================================================================
-// La tabla push_subscriptions ya existe (endpoint/p256dh/auth_key: la forma
-// de una suscripción de Web Push, no un token de FCM), pero lib/push.js
-// todavía habla FCM — se reescribe recién en la Fase 5 junto con esto. Hasta
-// entonces estos dos quedan como no-op: no hay ningún caso hoy en que se
-// lleguen a invocar de verdad (enablePushNotifications corta antes, sin
-// VITE_FIREBASE_VAPID_KEY configurada), así que un no-op silencioso no
-// rompe nada — la alternativa (tirar un error) solo dejaría el botón de la
-// campanita trabado en "activando" sin necesidad.
-export async function savePushToken() {
-  console.warn('[push] savePushToken: pendiente de Fase 5 (Web Push todavía no está conectado).');
+// Un registro por dispositivo, con el endpoint como PK: registrar el mismo
+// dispositivo dos veces pisa la fila en vez de duplicarla, y "apagar
+// notificaciones en este dispositivo" es simplemente borrar por endpoint.
+// Nadie lee la suscripción de OTRO desde el browser (RLS: SELECT acotado a
+// `user_id = auth.uid()`) — el envío en sí lo hace la Edge Function
+// send-push con la service role key. El dueño ve todas las reservas
+// nuevas, el staff asignado a un profesional ve las suyas — mismo criterio
+// que ya usan las notificaciones in-app.
+//
+// La policy de SELECT propia (acotada a la fila del propio usuario) hizo
+// falta por algo no obvio: sin NINGUNA policy de SELECT, ni UPDATE ni
+// DELETE encuentran filas para operar, sin importar cuán permisiva sea su
+// propia policy — es comportamiento documentado de Postgres (UPDATE/DELETE
+// necesitan poder "ver" la fila vía alguna policy de SELECT antes de
+// tocarla). Verificado contra el stack local: sin esa policy, hasta un
+// `upsert(onConflict: 'endpoint')` con DO NOTHING rebotaba con
+// "row-level security policy" — Postgres necesita leer para resolver el
+// conflicto. Con la policy de SELECT agregada (ver
+// 20260928030000_push_subscriptions_select_own.sql), el upsert de acá
+// abajo funciona normal.
+
+/** `subscription` es el `.toJSON()` de un PushSubscription: {endpoint, keys:{p256dh, auth}}. */
+export async function savePushToken(businessId, subscription, { uid, role, professionalId = null }) {
+  const { error } = await supabase.from('push_subscriptions').upsert(
+    {
+      endpoint: subscription.endpoint,
+      business_id: businessId,
+      user_id: uid,
+      role,
+      professional_id: professionalId,
+      p256dh: subscription.keys.p256dh,
+      auth_key: subscription.keys.auth,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'endpoint' }
+  );
+  if (error) throw error;
 }
 
-export async function removePushToken() {
-  console.warn('[push] removePushToken: pendiente de Fase 5 (Web Push todavía no está conectado).');
+export async function removePushToken(businessId, endpoint) {
+  const { error } = await supabase.from('push_subscriptions').delete().eq('endpoint', endpoint).eq('business_id', businessId);
+  if (error) throw error;
 }
 
 // ============================================================================

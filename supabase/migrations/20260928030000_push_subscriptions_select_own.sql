@@ -1,0 +1,24 @@
+-- ============================================================================
+-- push_subscriptions: falta una policy de SELECT (acotada a la fila propia)
+-- ============================================================================
+-- Descubierto probando savePushToken contra el stack local: sin NINGUNA
+-- policy de SELECT, ni DELETE ni UPDATE encuentran filas para operar, sin
+-- importar cuán permisiva sea su propia policy de USING — verificado con
+-- un caso mínimo aislado (una tabla de prueba con policy `using (true)`
+-- para DELETE seguía borrando 0 filas sin una policy de SELECT). Es
+-- comportamiento documentado de Postgres: UPDATE/DELETE necesitan poder
+-- "ver" la fila via alguna policy de SELECT antes de poder tocarla; su
+-- propia policy de USING es una restricción ADICIONAL, no sustituye a la
+-- visibilidad de SELECT.
+--
+-- Por eso el `on conflict` de savePushToken (upsert) rebotaba con
+-- "row-level security policy" incluso con DO NOTHING: para resolver el
+-- conflicto, Postgres necesita "ver" si ya hay una fila con ese endpoint.
+--
+-- La policy queda acotada a la fila del propio usuario (mismo criterio que
+-- INSERT/UPDATE/DELETE ya tenían) — sigue sin haber forma de que alguien
+-- lea la suscripción de otro desde el browser, que era el punto real de
+-- "nadie lee desde acá" (evitar exponer endpoints/claves de otros
+-- dispositivos, no ocultarle a cada quien su propio dato).
+create policy push_subscriptions_select on push_subscriptions
+  for select using (user_id = auth.uid());
