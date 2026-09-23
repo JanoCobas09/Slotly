@@ -34,11 +34,6 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [entrando, setEntrando] = useState(false);
   const [bypassEmail, setBypassEmail] = useState('');
-  // Las cuentas que crea la plataforma entran con mail y contraseña; el resto,
-  // con Google. El formulario aparece solo si lo piden, para no complicarle la
-  // pantalla al cliente que viene a reservar un turno.
-  const [verFormulario, setVerFormulario] = useState(false);
-  const [cred, setCred] = useState({ email: '', password: '' });
   const { loginWithGoogle, loginWithPassword, loginBypass, user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -118,17 +113,6 @@ export default function LoginPage() {
     // nada más para hacer acá.
   };
 
-  const handlePassword = async (ev) => {
-    ev.preventDefault();
-    if (!cred.email.trim() || !cred.password) return;
-    setError('');
-    setEntrando(true);
-    const result = await loginWithPassword(cred.email, cred.password);
-    setEntrando(false);
-    if (result.success) redirectAfterLogin(result.user);
-    else setError(result.error);
-  };
-
   const handleDemoLogin = async (email, password) => {
     setError('');
     setEntrando(true);
@@ -188,67 +172,6 @@ export default function LoginPage() {
             {entrando ? 'Abriendo Google…' : 'Continuar con Google'}
           </button>
         </div>
-
-        {!verFormulario ? (
-          <div style={{ textAlign: 'center', marginTop: 'var(--space-md)' }}>
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={() => { setVerFormulario(true); setError(''); }}
-            >
-              Tengo un usuario y contraseña
-            </button>
-          </div>
-        ) : (
-          <form onSubmit={handlePassword} style={{ marginTop: 'var(--space-lg)' }}>
-            <div
-              style={{
-                borderTop: '1px solid var(--border-color)',
-                paddingTop: 'var(--space-md)',
-                marginBottom: 'var(--space-md)',
-                textAlign: 'center',
-              }}
-            >
-              <span className="text-xs text-muted">O CON TU USUARIO</span>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Email</label>
-              <input
-                className="form-input"
-                type="email"
-                autoComplete="username"
-                value={cred.email}
-                onChange={(e) => setCred((c) => ({ ...c, email: e.target.value }))}
-                autoFocus
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Contraseña</label>
-              <input
-                className="form-input"
-                type="password"
-                autoComplete="current-password"
-                value={cred.password}
-                onChange={(e) => setCred((c) => ({ ...c, password: e.target.value }))}
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="btn btn-outline"
-              disabled={entrando}
-              style={{ width: '100%' }}
-            >
-              {entrando ? 'Entrando…' : 'Entrar'}
-            </button>
-
-            <p className="text-xs text-muted" style={{ marginTop: 'var(--space-sm)', textAlign: 'center' }}>
-              ¿Te olvidaste la contraseña? Escribinos y te pasamos una nueva.
-            </p>
-          </form>
-        )}
 
         {/*
           ACCESO RÁPIDO — SOLO DESARROLLO.
