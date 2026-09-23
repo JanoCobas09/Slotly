@@ -1,0 +1,21 @@
+-- ============================================================================
+-- Scheduling: pg_cron -> Edge Function send-reminders (cada 15 minutos)
+-- ============================================================================
+-- Equivalente a `onSchedule({ schedule: '*/15 * * * *', ... },
+-- procesarRecordatorios)` en Firebase. Mismo motivo que el cron de
+-- run-billing (ver 20260925000000_billing_and_notifications.sql) para
+-- dejarlo comentado: necesita la URL pública del proyecto y la service role
+-- key reales — activar en Fase 8, reemplazando <PROJECT_REF> y
+-- <SERVICE_ROLE_KEY>:
+--
+-- select cron.schedule(
+--   'send-reminders-cada-15-min',
+--   '*/15 * * * *',
+--   $$
+--   select net.http_post(
+--     url := 'https://<PROJECT_REF>.supabase.co/functions/v1/send-reminders',
+--     headers := jsonb_build_object('Authorization', 'Bearer <SERVICE_ROLE_KEY>', 'Content-Type', 'application/json'),
+--     body := jsonb_build_object()
+--   );
+--   $$
+-- );
