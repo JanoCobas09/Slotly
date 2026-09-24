@@ -5,19 +5,21 @@
 // dentro del panel de super-admin; ahora el alta de negocio y el cambio de
 // plan leen de acá, así no se desincronizan.
 //
-// En `features`, una entrada puede ser texto suelto o `{ texto, proximamente }`.
-// Lo segundo se pinta con una etiqueta y sirve para no prometer en la landing
-// lo que todavía no anda: los avisos por WhatsApp esperan la aprobación de Meta
-// y la exportación de clientes no está construida. Vender eso como disponible
-// es la clase de cosa que te hace perder un cliente en la primera semana.
+// En `features` va solo lo que anda hoy: nada de funciones "próximamente".
+// Vender algo que no existe es la clase de cosa que te hace perder un cliente
+// en la primera semana.
 //
 // Cada plan lista SOLO lo que lo diferencia. Lo que tienen todos va en
 // FEATURES_COMUNES y se muestra aparte. Antes las estadísticas y el walk-in
 // figuraban como exclusivos del Pro, pero nada en el código los restringe: el
 // Básico los tiene igual. Lo único que el sistema hace cumplir de verdad es
-// `maxProfessionals` (ProfessionalsPage), y cuando lleguen los avisos por
-// WhatsApp, la cuota. Prometer una diferencia que no existe es peor que no
-// prometerla: el primer Pro que pregunte qué compró se entera solo.
+// `maxProfessionals` (ProfessionalsPage). Prometer una diferencia que no
+// existe es peor que no prometerla: el primer Pro que pregunte qué compró se
+// entera solo.
+//
+// `whatsappQuota` ya no se muestra en ningún lado público, pero sigue acá
+// porque el panel global identifica el plan de un negocio por esa cuota
+// (`findPlanByQuota`).
 //
 // `maxBarbers` se renombró a `maxProfessionals` en la generalización a
 // multi-rubro. No hizo falta migrar nada: esta tabla es código estático
@@ -45,7 +47,6 @@ export const PLANS = [
     maxProfessionals: 1,
     features: [
       'Hasta 1 profesional',
-      { texto: '100 avisos por WhatsApp/mes', proximamente: true },
       'Soporte por WhatsApp',
     ],
   },
@@ -58,7 +59,6 @@ export const PLANS = [
     maxProfessionals: 3,
     features: [
       'Hasta 3 profesionales',
-      { texto: '500 avisos por WhatsApp/mes', proximamente: true },
       'Soporte prioritario por WhatsApp',
     ],
   },
@@ -71,8 +71,6 @@ export const PLANS = [
     maxProfessionals: null,
     features: [
       'Profesionales sin límite',
-      { texto: '2000 avisos por WhatsApp/mes', proximamente: true },
-      { texto: 'Exportación de base de clientes', proximamente: true },
       'Configuración inicial asistida',
       'Soporte prioritario por WhatsApp',
     ],

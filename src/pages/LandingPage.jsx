@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { PLANS, FEATURES_COMUNES, OVERAGE_COST_USD } from '../config/plans';
+import { PLANS, FEATURES_COMUNES } from '../config/plans';
 import HeroMotionMockup from '../components/landing/HeroMotionMockup';
 import FloatingActionWidget from '../components/landing/FloatingActionWidget';
 import Icon from '../components/Icon';
@@ -46,12 +46,6 @@ const BENEFICIOS = [
     icono: 'link',
     titulo: 'Tu link, tu agenda',
     texto: 'Cada negocio tiene su propia dirección. La ponés en el perfil de Instagram y tus clientes reservan solos, a cualquier hora, sin instalar nada.',
-  },
-  {
-    icono: 'bell',
-    titulo: 'Recordatorio por WhatsApp',
-    texto: 'El sistema le avisa al cliente el día antes y unas horas antes. Es la función que más ausencias evita.',
-    proximamente: true,
   },
   {
     icono: 'calendar',
@@ -202,10 +196,7 @@ export default function LandingPage() {
               <div className="landing-benefit-icon">
                 <Icon name={b.icono} />
               </div>
-              <h3>
-                {b.titulo}
-                {b.proximamente && <span className="badge badge-warning landing-soon">pronto</span>}
-              </h3>
+              <h3>{b.titulo}</h3>
               <p>{b.texto}</p>
             </div>
           ))}
@@ -272,19 +263,11 @@ export default function LandingPage() {
               </div>
               <p className="landing-price-desc">{plan.description}</p>
               <ul className="landing-price-list">
-                {plan.features.map((feat) => {
-                  // Una feature puede venir como texto o como objeto con
-                  // `proximamente`: lo que todavía no anda se marca en vez de
-                  // venderse como disponible.
-                  const texto = typeof feat === 'string' ? feat : feat.texto;
-                  const pronto = typeof feat === 'object' && feat.proximamente;
-                  return (
-                    <li key={texto} style={pronto ? { opacity: 0.7 } : undefined}>
-                      <Icon name={pronto ? 'clock' : 'check'} /> {texto}
-                      {pronto && <span className="badge badge-warning landing-soon">pronto</span>}
-                    </li>
-                  );
-                })}
+                {plan.features.map((feat) => (
+                  <li key={feat}>
+                    <Icon name="check" /> {feat}
+                  </li>
+                ))}
               </ul>
               <CTAWhatsApp clase={i === 1 ? 'btn-primary btn-full' : 'btn-outline btn-full'}>
                 Lo quiero
@@ -302,9 +285,7 @@ export default function LandingPage() {
         </div>
 
         <p className="landing-fineprint">
-          Precios en pesos argentinos. Los mensajes por encima del plan se cobran
-          USD {OVERAGE_COST_USD.toFixed(2)} cada uno — te avisamos antes de que
-          pase, nunca hay sorpresas en la factura.
+          Precios en pesos argentinos.
         </p>
       </section>
 

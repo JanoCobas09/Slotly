@@ -75,10 +75,6 @@ export default function ConfirmationPage() {
         <Icon name="mail" /> Te enviamos la confirmación por mail. Si no la ves,
         revisá la carpeta de spam.
       </p>
-
-      <div className="future-feature mt-md" style={{ justifyContent: 'center' }}>
-        <Icon name="phone" /> Próximamente: confirmación por WhatsApp
-      </div>
     </div>
   );
 }
