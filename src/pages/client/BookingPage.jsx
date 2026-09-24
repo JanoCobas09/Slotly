@@ -94,30 +94,83 @@ function BusinessHero({ business, compacta }) {
   );
 }
 
+/**
+ * Qué buscar en el embed del mapa. Si el dueño pegó un link LARGO de Google
+ * Maps, se saca de ahí el lugar exacto (coordenadas `@lat,lng` o el `q=`),
+ * que es más preciso que la dirección tipeada a mano. Los links cortos que
+ * comparte la app (maps.app.goo.gl/...) no traen nada adentro y no se pueden
+ * resolver desde el navegador: ahí se busca por la dirección.
+ */
+function consultaDelMapa(business) {
+  const url = business.mapsUrl?.trim();
+  if (url) {
+    const coords = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+    if (coords) return `${coords[1]},${coords[2]}`;
+    try {
+      const q = new URL(url).searchParams.get('q') || new URL(url).searchParams.get('query');
+      if (q) return q;
+    } catch { /* no es una URL válida: se usa la dirección */ }
+  }
+  return business.address?.trim() || null;
+}
+
 // ---- MAPA ----
-// Embed de Google Maps por dirección de texto: no pide API key ni cuenta. Se
-// usa `address` y no `mapsUrl` porque los links que se comparten desde la app
-// (maps.app.goo.gl/...) no se pueden meter en un iframe. Sin dirección
-// cargada no se muestra nada — un mapa del mundo entero no le sirve a nadie.
+// Vista previa del mapa (embed de Google Maps, sin API key) que abre el link
+// del negocio al tocarla, más la dirección como texto plano: se puede
+// seleccionar o copiar con el botón, pero no lleva a ningún lado — para eso
+// está "Cómo llegar". Sin dirección ni link, no se muestra nada.
 function BusinessMap({ business }) {
+  const [copiado, setCopiado] = useState(false);
+  const consulta = consultaDelMapa(business);
+  if (!consulta) return null;
   const dir = business.address?.trim();
-  if (!dir) return null;
-  const comoLlegar = linkComoLlegar(business);
+  const comoLlegar = linkComoLlegar(business) || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(consulta)}`;
+
+  const copiar = async () => {
+    try {
+      await navigator.clipboard.writeText(dir);
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2000);
+    } catch { /* sin permiso de portapapeles: igual se puede seleccionar a mano */ }
+  };
+
   return (
-    <section className="card business-map">
-      <iframe
-        title={`Mapa de ${business.name}`}
-        src={`https://maps.google.com/maps?q=${encodeURIComponent(dir)}&z=15&output=embed`}
-        loading="lazy"
-        referrerPolicy="no-referrer-when-downgrade"
-      />
+    <section className="business-map">
+      <div className="business-map-frame">
+        <iframe
+          title={`Mapa de ${business.name}`}
+          src={`https://maps.google.com/maps?q=${encodeURIComponent(consulta)}&z=16&output=embed`}
+          loading="lazy"
+          referrerPolicy="no-referrer-when-downgrade"
+          tabIndex={-1}
+        />
+        {/* Capa encima del iframe: el toque abre el link del negocio, no el
+            buscador de Google con la dirección tipeada. */}
+        <a
+          href={comoLlegar}
+          target="_blank"
+          rel="noreferrer"
+          className="business-map-overlay"
+          aria-label={`Abrir la ubicación de ${business.name} en Google Maps`}
+        >
+          <span className="business-map-chip"><Icon name="navigation" /> Ver en Google Maps</span>
+        </a>
+      </div>
+
       <div className="business-map-footer">
-        <div className="business-map-address">
-          <Icon name="pin" />
-          <span>{dir}</span>
+        <span className="business-map-pin"><Icon name="pin" /></span>
+        <div className="business-map-text">
+          <span className="business-map-label">Dónde estamos</span>
+          {dir && <span className="business-map-address">{dir}</span>}
         </div>
-        <a href={comoLlegar} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm">
-          Cómo llegar
+        {dir && (
+          <button type="button" className="business-map-copy" onClick={copiar} title="Copiar dirección">
+            <Icon name={copiado ? 'check' : 'copy'} />
+            <span>{copiado ? 'Copiada' : 'Copiar'}</span>
+          </button>
+        )}
+        <a href={comoLlegar} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm business-map-go">
+          <Icon name="navigation" /> Cómo llegar
         </a>
       </div>
     </section>
