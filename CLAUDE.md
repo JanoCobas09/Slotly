@@ -296,6 +296,22 @@ notificaciones push desde la campanita ahora también muestra un toast
 flotante de 3s (`components/Toast.jsx`) — antes la confirmación solo vivía
 dentro del panel desplegable, que se podía cerrar antes de leerla.
 
+**Ícono del PWA — mismo glifo, mejor ajustado (24/09/2026).** El ícono de
+`manifest.webmanifest` (favicon negro con tres barras blancas) tenía un
+problema real: la caja del glifo (34x30 en un lienzo de 64) no dejaba
+margen para el recorte a círculo/squircle que aplica el sistema operativo
+sobre el ícono `maskable` — las puntas de las barras quedaban cortadas al
+instalar en Android. `scripts/generate-app-icons.mjs` regenera
+`public/icons/*.png` con el mismo negro/blanco de siempre pero escalado
+para que la caja del glifo quede ~17% adentro del círculo de la "zona
+segura" (80% de diámetro, spec de maskable icons) — correr
+`npm install --no-save sharp` una vez antes de `node
+scripts/generate-app-icons.mjs`, no es dependencia del proyecto.
+`favicon.svg`/`img/slotly-icon.svg` no lo necesitaban (nunca los recorta
+el SO) y quedaron sin cambios. Se probó una versión con los colores de
+marca (teal + terracota) antes de esto — el usuario prefirió volver al
+blanco y negro original, solo con el tamaño corregido.
+
 **Trampa de esta máquina:** Windows tenía reservado (`netsh interface ipv4
 show excludedportrange protocol=tcp`) el rango `54140-54739` completo — justo
 donde caen TODOS los puertos por defecto del stack local de Supabase
