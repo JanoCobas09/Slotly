@@ -232,12 +232,36 @@ tenga una de SELECT que cubra esas mismas filas — o, si de verdad no debe
 haber lectura posible, usar `ignoreDuplicates: true` (`ON CONFLICT DO
 NOTHING`) en vez de un upsert normal.
 
-**Pendiente:** Fase 6 (barrido final: `src/lib/firebase.js` deja de
-importarse en `main.jsx`/`ConfigErrorPage.jsx`, se sacan las dependencias
-`firebase`/`firebase-admin`), Fase 7 (recorrido manual completo de punta a
-punta), Fase 8 (cutover a `main` + deploy en Vercel + activar el
-scheduling de pg_cron y las claves VAPID/SMTP reales contra el proyecto
-real de Supabase — hoy todo corre contra el stack local).
+**Hallazgo importante de claves (24/09/2026, costó que los cron/triggers
+fallaran en silencio con 401 durante horas — cero mails de recordatorio,
+cero push):** un proyecto de Supabase nuevo (creado con el sistema de API
+keys actual) tiene DOS claves de "service role" distintas. El dashboard y
+el endpoint de siempre (`/v1/projects/<ref>/api-keys`) muestran la
+"legacy" (JWT `eyJhbGci...`, `"id": "service_role"`) — esa sigue
+funcionando para PostgREST (`supabaseAdmin()`, cualquier `.from(tabla)`
+con la service role key), pero `Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')`
+**dentro de una Edge Function** ya no es esa: es la nueva,
+`sb_secret_xxxxxxxxxxxxxxxxxxxxxxxx` (mismo endpoint con `?reveal=true`,
+el objeto con `"type": "secret"`). Cualquier Edge Function que compare el
+Bearer contra esa variable (send-push, run-billing, send-reminders — las
+"solo el propio proyecto") rechaza silenciosamente el JWT legacy con 401,
+aunque sea una key genuina y válida. El síntoma es indistinguible de una
+key mal copiada — verificar siempre llamando a una función real, no solo
+revisando que el string esté bien pegado. `app_settings.service_role_key`
+y los dos `cron.job` tienen que llevar la `sb_secret_...`, no el JWT.
+
+**Estado: migración completa y en producción (24/09/2026).** Fases 1 a 8
+hechas: proyecto real de Supabase (`pwigjpqiwzyakwwzwthz`, región
+`sa-east-1`), deploy en Vercel (`slotly-turnos.vercel.app`, rama `main`),
+Google OAuth con un proyecto de Google Cloud propio (nunca el de
+`barberos-1d60e`, que es de un tercero), cron activo (facturación diaria,
+recordatorios cada 15 min), dueño de plataforma asignado. El login por
+usuario/contraseña se sacó de la pantalla pública a pedido (solo queda
+Google) — el alta manual de super-admin todavía puede crear un dueño con
+contraseña, pero esa cuenta hoy no tiene desde dónde loguearse; sin
+resolver todavía. `src/lib/firebase.js` ya no se importa en ningún lado
+(Fase 6) pero el archivo y la dependencia `firebase` de `package.json`
+siguen ahí a propósito, tal como decía el plan original.
 
 **Trampa de esta máquina:** Windows tenía reservado (`netsh interface ipv4
 show excludedportrange protocol=tcp`) el rango `54140-54739` completo — justo
