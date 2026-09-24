@@ -263,6 +263,18 @@ resolver todavía. `src/lib/firebase.js` ya no se importa en ningún lado
 (Fase 6) pero el archivo y la dependencia `firebase` de `package.json`
 siguen ahí a propósito, tal como decía el plan original.
 
+**Mails post-lanzamiento (24/09/2026).** Además de la confirmación al
+reservar (`create-appointment`) y el recordatorio 3hs antes
+(`send-reminders`), ahora `handle_turno_cancelado` también dispara — vía
+`pg_net`, fire-and-forget, mismo patrón que ya usaba para el push — la Edge
+Function `notify-cancellation`, que le manda un mail al dueño (fila en
+`admins` con `role='owner'`) cuando el CLIENTE cancela un turno (no cuando
+cancela el staff, que ya lo sabe). Cubierto por
+`supabase/tests/test-cancellation-notify.mjs` (5/5). No existe todavía una
+forma de que el cliente EDITE/reprograme un turno (solo cancelar) — si se
+agrega esa feature, extender el mismo trigger. `ConfirmationPage.jsx` ahora
+avisa al cliente que revise spam si no ve el mail de confirmación.
+
 **Trampa de esta máquina:** Windows tenía reservado (`netsh interface ipv4
 show excludedportrange protocol=tcp`) el rango `54140-54739` completo — justo
 donde caen TODOS los puertos por defecto del stack local de Supabase

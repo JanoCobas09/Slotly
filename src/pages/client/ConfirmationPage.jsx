@@ -71,7 +71,12 @@ export default function ConfirmationPage() {
         <Link to={home} className="btn btn-outline">Reservar Otra Cita</Link>
       </div>
 
-      <div className="future-feature mt-lg" style={{ justifyContent: 'center' }}>
+      <p className="text-sm text-muted mt-lg" style={{ textAlign: 'center' }}>
+        <Icon name="mail" /> Te enviamos la confirmación por mail. Si no la ves,
+        revisá la carpeta de spam.
+      </p>
+
+      <div className="future-feature mt-md" style={{ justifyContent: 'center' }}>
         <Icon name="phone" /> Próximamente: confirmación por WhatsApp
       </div>
     </div>
