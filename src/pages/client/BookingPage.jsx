@@ -35,33 +35,92 @@ function Stepper({ step }) {
   );
 }
 
-// ---- CONTACTO DEL NEGOCIO (IG, teléfono, cómo llegar) ----
-// Visible en todos los pasos de la reserva: es lo primero que un cliente
-// busca si tiene una duda antes de confirmar, o si prefiere escribir en vez
-// de reservar solo. Cada dato es opcional — el negocio puede no haber
-// cargado alguno, y no se muestra un link roto por eso.
-function BusinessContactBar({ business }) {
-  const items = [];
+/** Link para "Cómo llegar": el que cargó el negocio, o una búsqueda por su dirección. */
+function linkComoLlegar(business) {
+  if (business.mapsUrl) return business.mapsUrl;
+  const dir = business.address?.trim();
+  return dir ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(dir)}` : null;
+}
+
+// ---- CABECERA DEL NEGOCIO (foto, nombre, colores, contacto) ----
+// Es la cara del negocio en su propio link: para el cliente tiene que sentirse
+// la agenda de ESE negocio, no la de Slotly. Se ve en todos los pasos — en el
+// primero completa (con el mensaje de bienvenida), en los demás compacta para
+// no empujar hacia abajo lo que el cliente está eligiendo.
+function BusinessHero({ business, compacta }) {
+  const { icon: rubroIcon, terminology } = useBusinessContext();
+
+  const contacto = [];
   if (business.phone) {
-    items.push({ key: 'phone', icon: 'phone', label: business.phone, href: `tel:${business.phone.replace(/[^+\d]/g, '')}` });
+    contacto.push({ key: 'phone', icon: 'phone', label: business.phone, href: `tel:${business.phone.replace(/[^+\d]/g, '')}` });
   }
   const handle = business.socialLinks?.instagram?.trim().replace(/^@/, '');
   if (handle) {
-    items.push({ key: 'ig', icon: 'instagram', label: `@${handle}`, href: `https://instagram.com/${handle}` });
+    contacto.push({ key: 'ig', icon: 'instagram', label: `@${handle}`, href: `https://instagram.com/${handle}` });
   }
-  if (business.mapsUrl) {
-    items.push({ key: 'maps', icon: 'pin', label: 'Cómo llegar', href: business.mapsUrl });
+  const comoLlegar = linkComoLlegar(business);
+  if (comoLlegar) {
+    contacto.push({ key: 'maps', icon: 'pin', label: 'Cómo llegar', href: comoLlegar });
   }
-  if (items.length === 0) return null;
 
   return (
-    <div className="booking-contact-bar">
-      {items.map((it) => (
-        <a key={it.key} href={it.href} target="_blank" rel="noreferrer" className="booking-contact-item">
-          <Icon name={it.icon} /> {it.label}
+    <section className={`business-hero ${compacta ? 'compacta' : ''}`}>
+      <div className="business-hero-band" aria-hidden="true" />
+      <div className="business-hero-body">
+        <div className="business-hero-photo">
+          {business.logoUrl
+            ? <img src={business.logoUrl} alt={business.name} />
+            : <Icon name={rubroIcon} size={compacta ? 26 : 40} />}
+        </div>
+        <div className="business-hero-text">
+          <h1>{business.name}</h1>
+          {!compacta && (
+            <p className="business-hero-cta">
+              {business.welcomeMessage?.trim() || terminology.ctaLabel}
+            </p>
+          )}
+        </div>
+        {contacto.length > 0 && (
+          <div className="business-hero-contact">
+            {contacto.map((it) => (
+              <a key={it.key} href={it.href} target="_blank" rel="noreferrer" className="booking-contact-item">
+                <Icon name={it.icon} /> {it.label}
+              </a>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+// ---- MAPA ----
+// Embed de Google Maps por dirección de texto: no pide API key ni cuenta. Se
+// usa `address` y no `mapsUrl` porque los links que se comparten desde la app
+// (maps.app.goo.gl/...) no se pueden meter en un iframe. Sin dirección
+// cargada no se muestra nada — un mapa del mundo entero no le sirve a nadie.
+function BusinessMap({ business }) {
+  const dir = business.address?.trim();
+  if (!dir) return null;
+  const comoLlegar = linkComoLlegar(business);
+  return (
+    <section className="card business-map">
+      <iframe
+        title={`Mapa de ${business.name}`}
+        src={`https://maps.google.com/maps?q=${encodeURIComponent(dir)}&z=15&output=embed`}
+        loading="lazy"
+        referrerPolicy="no-referrer-when-downgrade"
+      />
+      <div className="business-map-footer">
+        <div className="business-map-address">
+          <Icon name="pin" />
+          <span>{dir}</span>
+        </div>
+        <a href={comoLlegar} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm">
+          Cómo llegar
         </a>
-      ))}
-    </div>
+      </div>
+    </section>
   );
 }
 
@@ -754,9 +813,8 @@ export default function BookingPage() {
 
   return (
     <div className={`booking-container ${step === 6 ? 'has-confirm-bar' : ''}`}>
+      <BusinessHero business={business} compacta={step > 1} />
       <Stepper step={step} />
-      <BusinessContactBar business={business} />
-
       {error && (
         <div className="badge badge-danger mb-md" style={{ display: 'block', textAlign: 'center', padding: '12px', borderRadius: '8px', fontSize: '14px' }}>
           {error}
@@ -846,6 +904,10 @@ export default function BookingPage() {
           </button>
         </div>
       )}
+
+      {/* Debajo del "Siguiente" a propósito: está para quien quiere saber
+          dónde queda antes de reservar, sin meterse en el medio del flujo. */}
+      {step === 1 && <BusinessMap business={business} />}
     </div>
   );
 }

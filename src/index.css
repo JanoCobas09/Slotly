@@ -38,6 +38,7 @@
   --primary: #28706f;
   --primary-hover: #1f5957;
   --primary-soft: #5aafa0;         /* variante clara — sidebar oscuro, resaltes */
+  --on-primary: #ffffff;           /* texto sobre --primary; applyTheme lo pasa a oscuro si el primario es claro */
   --primary-light: #dcefea;        /* fondo suave para badges y estados */
   --primary-glow: rgba(40, 112, 111, 0.14);
   --secondary: #c87957;
@@ -241,13 +242,13 @@ h4 {
 
 .btn-primary {
   background: var(--primary);
-  color: #ffffff !important;
+  color: var(--on-primary)fff !important;
   border-color: var(--primary);
 }
 
 .btn-primary:hover:not(:disabled) {
   background: var(--primary-hover);
-  color: #ffffff !important;
+  color: var(--on-primary)fff !important;
   border-color: var(--primary-hover);
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(224, 61, 0, 0.28);
@@ -477,7 +478,7 @@ select.form-input {
   border-radius: 50%;
   font-weight: 600;
   background: var(--primary);
-  color: white;
+  color: var(--on-primary);
   flex-shrink: 0;
   overflow: hidden;
 }
@@ -542,13 +543,15 @@ select.form-input {
 .stepper-circle.active {
   border-color: var(--primary);
   background: var(--primary);
-  color: white;
+  color: var(--on-primary);
 }
 
+/* Completado con el color del negocio (antes verde fijo): en la página de
+   reserva cada detalle con el primario suma a que se sienta SU agenda. */
 .stepper-circle.completed {
-  border-color: var(--success);
-  background: var(--success);
-  color: white;
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--on-primary);
 }
 
 .stepper-line {
@@ -560,7 +563,7 @@ select.form-input {
 }
 
 .stepper-line.completed {
-  background: var(--success);
+  background: var(--primary);
 }
 
 .stepper-label {
@@ -726,7 +729,7 @@ select.form-input {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: var(--on-primary);
   font-family: var(--font-mono);
   font-weight: 700;
   font-size: 0.9375rem;
@@ -791,12 +794,164 @@ select.form-input {
   min-height: calc(100vh - 64px - 73px);
 }
 
-.booking-contact-bar {
+/* ── Cabecera del negocio ──
+   Banda de color sólido (sin degradado) con el primario del negocio y un
+   filete con su secundario; la foto se monta encima de la banda, como una
+   foto de perfil. */
+.business-hero {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  margin-bottom: var(--space-xl);
+  box-shadow: var(--shadow-sm);
+}
+
+.business-hero-band {
+  height: 96px;
+  background: var(--primary);
+  border-bottom: 4px solid var(--secondary);
+}
+
+.business-hero-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 0 var(--space-md) var(--space-lg);
+}
+
+.business-hero-photo {
+  width: 104px;
+  height: 104px;
+  margin-top: -56px;
+  border-radius: 50%;
+  border: 4px solid var(--surface);
+  background: var(--primary);
+  color: var(--on-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-md);
+}
+
+.business-hero-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.business-hero-text h1 {
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin-top: var(--space-sm);
+  overflow-wrap: anywhere;
+}
+
+.business-hero-cta {
+  color: var(--text-secondary);
+  font-size: 0.9375rem;
+  margin-top: var(--space-xs);
+  max-width: 460px;
+  white-space: pre-line;
+}
+
+.business-hero-contact {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: var(--space-sm);
-  margin: var(--space-md) 0 var(--space-lg);
+  margin-top: var(--space-md);
+}
+
+/* Compacta: pasos 2 en adelante. Una fila, sin mensaje de bienvenida. */
+.business-hero.compacta {
+  margin-bottom: var(--space-lg);
+}
+
+.business-hero.compacta .business-hero-band {
+  height: 6px;
+  border-bottom-width: 2px;
+}
+
+.business-hero.compacta .business-hero-body {
+  flex-direction: row;
+  flex-wrap: wrap;
+  text-align: left;
+  gap: var(--space-md);
+  padding: var(--space-md);
+}
+
+.business-hero.compacta .business-hero-photo {
+  width: 52px;
+  height: 52px;
+  margin-top: 0;
+  border-width: 2px;
+  box-shadow: none;
+}
+
+.business-hero.compacta .business-hero-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.business-hero.compacta .business-hero-text h1 {
+  font-size: 1.2rem;
+  margin-top: 0;
+}
+
+.business-hero.compacta .business-hero-contact {
+  margin-top: 0;
+  justify-content: flex-start;
+}
+
+@media (max-width: 560px) {
+  .business-hero-band { height: 80px; }
+  .business-hero-photo { width: 88px; height: 88px; margin-top: -48px; }
+  .business-hero-text h1 { font-size: 1.45rem; }
+  .business-hero.compacta .business-hero-contact { width: 100%; }
+}
+
+/* ── Mapa ── */
+.business-map {
+  margin-top: var(--space-xl);
+  padding: 0;
+  overflow: hidden;
+}
+
+.business-map iframe {
+  display: block;
+  width: 100%;
+  height: 220px;
+  border: 0;
+}
+
+.business-map-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  border-top: 3px solid var(--primary);
+}
+
+.business-map-address {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: 0.875rem;
+  font-weight: 500;
+  min-width: 0;
+}
+
+.business-map-address svg {
+  color: var(--primary);
+  flex-shrink: 0;
 }
 
 .booking-contact-item {
@@ -978,7 +1133,7 @@ select.form-input {
 
 .calendar-day.selected {
   background: var(--primary);
-  color: white;
+  color: var(--on-primary);
   font-weight: 600;
 }
 
@@ -1053,7 +1208,7 @@ select.form-input {
 .timeslot.selected {
   background: var(--primary);
   border-color: var(--primary);
-  color: white;
+  color: var(--on-primary);
   font-weight: 600;
 }
 
@@ -1108,13 +1263,13 @@ select.form-input {
 
 .summary-header {
   background: var(--primary);
-  color: white;
+  color: var(--on-primary);
   padding: var(--space-lg);
   text-align: center;
 }
 
 .summary-header h3 {
-  color: white;
+  color: var(--on-primary);
   font-size: 1.125rem;
 }
 
@@ -1189,18 +1344,6 @@ select.form-input {
 .confirm-bar-inner {
   max-width: 480px;
   margin: 0 auto;
-}
-
-.future-feature {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-sm) var(--space-md);
-  background: var(--warning-light);
-  border-radius: var(--radius-md);
-  font-size: 0.8125rem;
-  color: #92400e;
-  margin-top: var(--space-md);
 }
 
 /* Confirmation Page */
@@ -2080,14 +2223,6 @@ select.form-input {
 .landing-card p { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.6; }
 .landing-card-icon { font-size: 1.9rem; margin-bottom: var(--space-sm); }
 
-.landing-soon {
-  font-size: 9px;
-  margin-left: 6px;
-  vertical-align: middle;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
 /* ── Pasos ── */
 .landing-step { padding: var(--space-md) 0; }
 
@@ -2123,7 +2258,7 @@ select.form-input {
   top: -11px;
   left: var(--space-lg);
   background: var(--primary);
-  color: #fff;
+  color: var(--on-primary);
   font-family: var(--font-mono);
   font-size: 9px;
   text-transform: uppercase;
@@ -2446,7 +2581,7 @@ select.form-input {
 
 .landing-btn-walkin {
   background: var(--primary);
-  color: #fff;
+  color: var(--on-primary);
   border: none;
   font-size: 0.75rem;
   font-weight: 600;
@@ -2473,7 +2608,7 @@ select.form-input {
   font-size: 9px;
   font-weight: 700;
   background: var(--primary);
-  color: #fff;
+  color: var(--on-primary);
   padding: 3px 8px;
   border-radius: 99px;
 }
@@ -2695,7 +2830,7 @@ select.form-input {
 .stepper-dot.active {
   background: var(--primary);
   border-color: var(--primary);
-  color: #fff;
+  color: var(--on-primary);
   transform: scale(1.15);
   box-shadow: 0 0 0 3px var(--primary-light);
 }
@@ -2703,7 +2838,7 @@ select.form-input {
 .stepper-dot.completed {
   background: var(--primary);
   border-color: var(--primary);
-  color: #fff;
+  color: var(--on-primary);
 }
 
 .phone-step-content {
@@ -2760,7 +2895,7 @@ select.form-input {
   height: 28px;
   border-radius: 50%;
   background: var(--primary);
-  color: #fff;
+  color: var(--on-primary);
   font-weight: 700;
   display: flex;
   align-items: center;

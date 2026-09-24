@@ -8,6 +8,8 @@
 // professionPresets.js); el resto es la base del producto.
 // Los mismos valores están en :root de index.css — si cambiás uno, cambiá el otro.
 
+import { necesitaTextoOscuro } from '../utils/colorUtils';
+
 export const defaultTheme = {
   primaryColor: '#28706f',
   primaryHover: '#1f5957',
@@ -39,4 +41,10 @@ export function applyTheme(theme) {
   // diferencia de primaryColor, que en varios rubros es un color oscuro que
   // se vería apagado ahí.
   root.style.setProperty('--primary-soft', theme.accentColor || theme.secondaryColor || defaultTheme.accentColor);
+  // Texto sobre el primario (botones, avatares, stepper, cabecera de reserva).
+  // El dueño elige el color libremente: blanco sobre un amarillo no se lee.
+  root.style.setProperty(
+    '--on-primary',
+    necesitaTextoOscuro(theme.primaryColor || defaultTheme.primaryColor) ? defaultTheme.textColor : '#ffffff'
+  );
 }

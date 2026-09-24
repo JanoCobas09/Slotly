@@ -1,4 +1,5 @@
 import { DEFAULT_PROFESSION_CATEGORY, getProfessionPreset, isKnownProfessionCategory } from '../config/professionPresets';
+import { mixColor } from '../utils/colorUtils';
 
 // ============================================================================
 // resolveBusinessContext
@@ -37,9 +38,19 @@ export function resolveBusinessContext(business) {
 
   const preset = getProfessionPreset(professionCategory);
 
+  // Si el negocio eligió su propio color principal, el hover y el fondo suave
+  // (tarjeta elegida, badges) se derivan de ESE color. Antes seguían siendo
+  // los del preset: un negocio de peluquería con azul propio mostraba las
+  // tarjetas seleccionadas con fondo naranja pálido.
   const theme = {
     ...preset.theme,
-    ...(business?.primaryColor ? { primaryColor: business.primaryColor } : {}),
+    ...(business?.primaryColor
+      ? {
+          primaryColor: business.primaryColor,
+          primaryHover: mixColor(business.primaryColor, '#000000', 0.18),
+          primaryLight: mixColor(business.primaryColor, '#ffffff', 0.88),
+        }
+      : {}),
     ...(business?.secondaryColor ? { secondaryColor: business.secondaryColor } : {}),
     ...(business?.accentColor ? { accentColor: business.accentColor } : {}),
   };
