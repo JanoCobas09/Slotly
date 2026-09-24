@@ -16,8 +16,8 @@
 // usa Auth para los mails de confirmación), en producción a Gmail o el
 // proveedor que se elija.
 import { corsHeaders } from '../_shared/cors.ts';
-import nodemailer from 'npm:nodemailer@6';
 import { supabaseAdmin, errorResponse, jsonResponse, unauthenticated } from '../_shared/auth.ts';
+import { enviarMail, smtpConfigurado } from '../_shared/mail.ts';
 
 const VENTANA_RECORDATORIO_MIN = 3 * 60; // "en lo posible 3 horas antes"
 const HORA_DESDE = 7;  // nunca antes de las 7:00
@@ -82,17 +82,9 @@ Deno.serve(async (req) => {
       return jsonResponse({ enviados: 0, fallidos: 0, motivo: 'fuera-de-horario' }, corsHeaders);
     }
 
-    const smtpHost = Deno.env.get('SMTP_HOST');
-    if (!smtpHost) {
+    if (!smtpConfigurado()) {
       return jsonResponse({ enviados: 0, fallidos: 0, motivo: 'sin-credenciales' }, corsHeaders);
     }
-    const transportador = nodemailer.createTransport({
-      host: smtpHost,
-      port: Number(Deno.env.get('SMTP_PORT') || 587),
-      secure: Deno.env.get('SMTP_SECURE') === 'true',
-      auth: Deno.env.get('SMTP_USER') ? { user: Deno.env.get('SMTP_USER'), pass: Deno.env.get('SMTP_PASS') } : undefined,
-    });
-    const from = Deno.env.get('SMTP_FROM') || 'no-reply@slotly.app';
 
     const admin = supabaseAdmin();
     const nowMin = hour * 60 + minute;
@@ -136,7 +128,8 @@ Deno.serve(async (req) => {
           apt, profesionalNombre: profesionales.get(profKey) ?? null,
         });
 
-        await transportador.sendMail({ from: `"${negocio.name} vía Slotly" <${from}>`, to: apt.client_email, subject: asunto, text: texto });
+        const ok = await enviarMail({ to: apt.client_email, subject: asunto, text: texto, fromName: negocio.name });
+        if (!ok) throw new Error('enviarMail devolvió false');
         await admin.from('appointments').update({ reminder_sent_at: new Date().toISOString() }).eq('id', apt.id);
         enviados++;
       } catch (err) {

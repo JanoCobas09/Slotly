@@ -5,6 +5,7 @@
 import { createClient } from '@supabase/supabase-js';
 
 const API_URL = 'http://127.0.0.1:55321';
+const MAILPIT_URL = 'http://127.0.0.1:55324';
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0';
 const SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU';
 
@@ -39,12 +40,20 @@ async function createConfirmedUser(email, password, appMetadata = {}) {
   return data.user;
 }
 
+/**
+ * Bug real encontrado corriendo esto de madrugada: mezclaba el día de la
+ * semana en huso HORARIO LOCAL de la máquina (`getDay()`) con la fecha en
+ * UTC (`toISOString()`) — cerca de la medianoche UTC, con una máquina en
+ * un huso detrás de UTC (como Argentina, UTC-3), esas dos "hoy" no
+ * coinciden, y el lunes calculado terminaba siendo martes de verdad. Todo
+ * en UTC de punta a punta, mismo criterio que dia_de_la_semana() del lado
+ * de la base.
+ */
 function proximoLunes() {
   const hoy = new Date();
-  const isoDow = hoy.getDay() === 0 ? 7 : hoy.getDay(); // 1=lunes..7=domingo
-  const dias = (8 - isoDow) % 7 || 7; // si hoy es lunes, el PRÓXIMO (no hoy)
-  const d = new Date(hoy);
-  d.setDate(d.getDate() + dias);
+  const isoDowUTC = hoy.getUTCDay() === 0 ? 7 : hoy.getUTCDay(); // 1=lunes..7=domingo
+  const dias = (8 - isoDowUTC) % 7 || 7; // si hoy es lunes, el PRÓXIMO (no hoy)
+  const d = new Date(Date.UTC(hoy.getUTCFullYear(), hoy.getUTCMonth(), hoy.getUTCDate() + dias));
   return d.toISOString().slice(0, 10);
 }
 
@@ -83,6 +92,10 @@ async function main() {
     ok(status === 401, 'rechazado sin sesión (401)');
   }
 
+  // La búsqueda de Mailpit matchea por tokens, no por dirección exacta — se
+  // arranca con el buzón limpio (mismo criterio que test-reminders.mjs).
+  await fetch(`${MAILPIT_URL}/api/v1/messages`, { method: 'DELETE' });
+
   let turnoId;
   console.log('create-appointment, reserva válida:');
   {
@@ -92,6 +105,20 @@ async function main() {
     });
     ok(status === 200 && data.status === 'created' && data.price === 1000 && data.endTime === '10:30', `se crea (200, price=1000, endTime=10:30) — recibido: ${JSON.stringify(data)}`);
     turnoId = data.id;
+  }
+
+  console.log('la reserva manda un mail de confirmación al toque (no espera al recordatorio):');
+  {
+    // mandarConfirmacion corre en segundo plano (EdgeRuntime.waitUntil) para
+    // no demorar la respuesta HTTP — se le da un margen antes de mirar Mailpit.
+    await new Promise((r) => setTimeout(r, 1500));
+    const res = await fetch(`${MAILPIT_URL}/api/v1/search?query=to:${encodeURIComponent(clienteEmail)}`);
+    const search = await res.json();
+    const exactos = (search.messages || []).filter((m) => m.To.some((t) => t.Address === clienteEmail));
+    ok(exactos.length === 1, `Mailpit recibió la confirmación — ${JSON.stringify(exactos.length)}`);
+    if (exactos.length === 1) {
+      ok(exactos[0].Subject.includes('Turno confirmado') && exactos[0].Subject.includes('Negocio Edge Test'), `asunto correcto — "${exactos[0].Subject}"`);
+    }
   }
 
   console.log('get-busy-slots, ahora SÍ muestra el turno recién creado:');
