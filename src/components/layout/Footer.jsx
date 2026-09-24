@@ -6,7 +6,7 @@ export default function Footer() {
       <span className="footer-brand">Slotly</span>
       <span className="footer-sep">·</span>
       <span>
-        por <strong>SACIA</strong>
+        por: <strong>C&C</strong>
       </span>
       <span className="footer-sep">·</span>
       <span>{new Date().getFullYear()}</span>
