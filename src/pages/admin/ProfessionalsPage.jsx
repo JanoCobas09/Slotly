@@ -70,8 +70,14 @@ export default function ProfessionalsPage() {
   // horario cortado, sin un concepto de "descanso" aparte. Ver handleSave y
   // openEdit para cómo esto convive con horarios viejos (un solo bloque con
   // breakStart/breakEnd) que ya estaban guardados así.
+  // Sin al menos un servicio activo, el paso "Servicios que ofrece" del
+  // formulario queda vacío y el profesional termina sin nada asignado — hay
+  // que crear el servicio antes, no dejar que alguien arranque a cargar
+  // nombre/horarios para descubrir esto recién al final.
+  const sinServicios = activeServices.length === 0;
+
   const openAdd = () => {
-    if (llegoAlTope) return;
+    if (llegoAlTope || sinServicios) return;
     setEditing(null);
     setForm({ name: '', specialty: '', phone: '', email: '', bio: '' });
     setEditSchedules(Array.from({ length: 7 }, (_, i) => ({
@@ -146,7 +152,6 @@ export default function ProfessionalsPage() {
         : await addToSubcollection(businessId, 'professionals', {
             ...publico,
             avatarUrl: null,
-            displayOrder: professionals.length + 1,
             isActive: true,
           });
 
@@ -260,7 +265,7 @@ export default function ProfessionalsPage() {
             </p>
           )}
         </div>
-        <button className="btn btn-primary" onClick={openAdd} disabled={llegoAlTope}>
+        <button className="btn btn-primary" onClick={openAdd} disabled={llegoAlTope || sinServicios}>
           + Agregar Profesional
         </button>
       </div>
@@ -274,6 +279,15 @@ export default function ProfessionalsPage() {
             escribinos y ampliamos tu cuenta
           </a>
           . Si alguien dejó de trabajar con vos, desactivalo y se libera el lugar.
+        </div>
+      )}
+
+      {!llegoAlTope && sinServicios && (
+        <div className="notice notice-info" style={{ marginBottom: 'var(--space-md)' }}>
+          <strong>Primero cargá al menos un servicio.</strong> El paso
+          "Servicios que ofrece" del alta de profesional necesita algo para
+          ofrecer — andá a <strong>Servicios</strong> y creá el primero antes
+          de seguir.
         </div>
       )}
 
@@ -336,10 +350,11 @@ export default function ProfessionalsPage() {
           <div className="empty-state">
             <div className="empty-state-icon"><Icon name="users" /></div>
             <p style={{ marginBottom: 'var(--space-md)' }}>
-              Todavía no hay profesionales. Sin al menos uno cargado, el link
-              público no puede mostrar horarios disponibles.
+              {sinServicios
+                ? 'Antes de cargar un profesional, creá al menos un servicio en la sección Servicios — sin eso no hay nada para asignarle.'
+                : 'Todavía no hay profesionales. Sin al menos uno cargado, el link público no puede mostrar horarios disponibles.'}
             </p>
-            <button className="btn btn-primary" onClick={openAdd} disabled={llegoAlTope}>
+            <button className="btn btn-primary" onClick={openAdd} disabled={llegoAlTope || sinServicios}>
               + Agregar el primero
             </button>
           </div>

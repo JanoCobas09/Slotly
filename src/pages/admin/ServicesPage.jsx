@@ -48,8 +48,6 @@ export default function ServicesPage() {
         ? editing.id
         : await addToSubcollection(businessId, 'services', {
             ...form,
-            imageUrl: null,
-            displayOrder: services.length + 1,
             isActive: true,
           });
 
@@ -91,15 +89,13 @@ export default function ServicesPage() {
       // Cada alta es independiente (no depende del resultado de la anterior),
       // así que van en paralelo en vez de una tras otra.
       await Promise.all(
-        suggestedServices.map((sug, i) =>
+        suggestedServices.map((sug) =>
           addToSubcollection(businessId, 'services', {
             name: sug.name,
             description: sug.description || '',
             durationMinutes: sug.durationMinutes,
             price: 0,
             category: '',
-            imageUrl: null,
-            displayOrder: services.length + i + 1,
             isActive: true,
           })
         )
