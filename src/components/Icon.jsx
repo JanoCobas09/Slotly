@@ -39,6 +39,7 @@ const PATHS = {
   warning: <><path d="M12 3.5 21 19.5H3z" /><path d="M12 9.5v4.2" /><circle cx="12" cy="16.6" r="0.15" fill="currentColor" /></>,
   'user-x': <><circle cx="10" cy="8" r="3.2" /><path d="M4 20c.6-3.4 2.9-5.2 6-5.2 1 0 1.9.2 2.7.6" /><path d="M16.5 9.5l4 4M20.5 9.5l-4 4" /></>,
   save: <><path d="M5 3.5h11l3.5 3.5V19a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 19V5A1.5 1.5 0 0 1 5 3.5z" /><path d="M7.5 3.5V9h7V3.5M7.5 20.2v-6h9v6" /></>,
+  download: <><path d="M12 3.5v11.5M7.5 11l4.5 4.5L16.5 11" /><path d="M4.5 17v2.3A1.7 1.7 0 0 0 6.2 21h11.6a1.7 1.7 0 0 0 1.7-1.7V17" /></>,
 
   // Objetos / datos
   clipboard: <><rect x="5.5" y="4.5" width="13" height="16" rx="1.8" /><rect x="9" y="3" width="6" height="3" rx="1" /><path d="M8.5 11h7M8.5 14.5h7M8.5 17.5h4" /></>,

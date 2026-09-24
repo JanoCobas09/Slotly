@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import CampanaNotificaciones from '../admin/CampanaNotificaciones';
+import InstalarAppBanner from '../admin/InstalarAppBanner';
 import { NavLink, Outlet, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCurrentBusiness } from '../../hooks/useCurrentBusiness';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
+import { useInstallPrompt } from '../../hooks/useInstallPrompt';
 import { capitalize } from '../../utils/text';
 import Icon from '../Icon';
 
@@ -56,10 +58,14 @@ function diasDePruebaRestantes(trialEndsAt) {
 
 export default function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [mostrarPasosIOS, setMostrarPasosIOS] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { business, isPlatformOwner: platformOwner } = useCurrentBusiness();
   const { terminology, icon: rubroIcon } = useBusinessContext();
+  // Solo el dueño instala el panel — el cliente reserva desde el navegador,
+  // el barbero/staff usa el celular del negocio o el suyo sin necesitarlo.
+  const { instalable, conPromptNativo, esIOS, instalar } = useInstallPrompt();
 
   const isOwner = user?.role === 'owner';
   const navItems = isOwner ? ownerNavItems : adminNavItems;
@@ -75,6 +81,14 @@ export default function AdminLayout() {
   const handleLogout = () => {
     logout();
     navigate('/login');
+  };
+
+  const handleInstalarSidebar = async () => {
+    if (conPromptNativo) {
+      await instalar();
+      return;
+    }
+    if (esIOS) setMostrarPasosIOS(true);
   };
 
   return (
@@ -122,6 +136,16 @@ export default function AdminLayout() {
         </nav>
 
         <div className="admin-sidebar-footer">
+          {/* Solo el dueño: mismo criterio que el resto de esta sección — el
+              barbero no necesita instalar el panel en su propio celular. Se
+              esconde solo si ya está instalada o el dispositivo no soporta
+              instalación (Firefox/Safari desktop). */}
+          {isOwner && instalable && (
+            <button className="admin-nav-item" onClick={handleInstalarSidebar}>
+              <span className="nav-icon"><Icon name="download" /></span>
+              Instalar app
+            </button>
+          )}
           <button className="admin-nav-item" onClick={handleLogout}>
             <span className="nav-icon"><Icon name="logout" /></span>
             Cerrar Sesión
@@ -129,8 +153,31 @@ export default function AdminLayout() {
         </div>
       </aside>
 
+      {isOwner && mostrarPasosIOS && (
+        <div className="modal-overlay" onClick={() => setMostrarPasosIOS(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
+            <div className="modal-header">
+              <h3>Instalar Slotly en iPhone/iPad</h3>
+              <button className="modal-close" onClick={() => setMostrarPasosIOS(false)}><Icon name="x" /></button>
+            </div>
+            <div className="modal-body">
+              <ol style={{ paddingLeft: '1.2em', display: 'grid', gap: 10 }}>
+                <li>Tocá el botón <strong>Compartir</strong> de Safari (el cuadrado con la flecha hacia arriba).</li>
+                <li>Elegí <strong>"Agregar a inicio"</strong> en la lista de opciones.</li>
+                <li>Confirmá tocando <strong>"Agregar"</strong> arriba a la derecha.</li>
+              </ol>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-primary" onClick={() => setMostrarPasosIOS(false)}>Entendido</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Content */}
       <main className="admin-main">
+        {isOwner && <InstalarAppBanner />}
+
         {/* Prueba gratis: los días que quedan, y qué hacer cuando se termina. */}
         {(() => {
           // Solo al dueño: el barbero no decide si se paga ni a quién escribir.

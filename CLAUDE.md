@@ -275,6 +275,27 @@ forma de que el cliente EDITE/reprograme un turno (solo cancelar) — si se
 agrega esa feature, extender el mismo trigger. `ConfirmationPage.jsx` ahora
 avisa al cliente que revise spam si no ve el mail de confirmación.
 
+**Instalación del panel + feedback de push (24/09/2026, solo para el
+dueño/staff — el cliente nunca instala nada).** `beforeinstallprompt` se
+escucha a nivel de módulo en `lib/installPrompt.js`, importado desde
+`main.jsx` para registrarse ANTES de que exista ningún componente — si
+solo se escuchara dentro de `AdminLayout` (que recién monta después del
+login), un disparo mientras el dueño todavía está en `/login` se perdería
+para siempre en esa carga de página (el evento sale una sola vez por
+carga). `useInstallPrompt()` expone ese estado compartido. `AdminLayout`
+muestra dos cosas, ambas solo si `!instalada` y solo para `isOwner`: un
+banner descartable (`InstalarAppBanner.jsx`, "ahora no" persiste en
+localStorage) y una entrada fija en el sidebar ("Instalar app") que sigue
+ahí después de cerrar el banner — es el lugar fácil de encontrar. En iOS
+(nunca dispara `beforeinstallprompt`) se muestran instrucciones manuales
+("Compartir → Agregar a inicio"). Verificado en vivo con agent-browser
+usando el bypass de login de dev: el evento nativo se capturó, el banner y
+la entrada del sidebar aparecieron, y "cerrar sugerencia" persistió entre
+recargas dejando la entrada del sidebar como único rastro. Además, activar
+notificaciones push desde la campanita ahora también muestra un toast
+flotante de 3s (`components/Toast.jsx`) — antes la confirmación solo vivía
+dentro del panel desplegable, que se podía cerrar antes de leerla.
+
 **Trampa de esta máquina:** Windows tenía reservado (`netsh interface ipv4
 show excludedportrange protocol=tcp`) el rango `54140-54739` completo — justo
 donde caen TODOS los puertos por defecto del stack local de Supabase

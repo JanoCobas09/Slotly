@@ -7,6 +7,7 @@ import { markNotificationRead } from '../../lib/repository';
 import { enablePushNotifications } from '../../lib/push';
 import { enviarPushDePrueba } from '../../lib/functions';
 import Icon from '../Icon';
+import Toast from '../Toast';
 
 /**
  * La campanita del panel. Muestra las notificaciones del negocio (o las del
@@ -49,7 +50,16 @@ export default function CampanaNotificaciones() {
   const [pushError, setPushError] = useState('');
   const [pruebaEstado, setPruebaEstado] = useState('inactiva'); // inactiva | enviando | enviada | error
   const [pruebaError, setPruebaError] = useState('');
+  const [toast, setToast] = useState(null); // { tipo: 'success'|'danger', mensaje } | null
   const panelRef = useRef(null);
+
+  // Confirmación flotante de 3s — se ve aunque el panel se haya cerrado
+  // (ej. en el celular, después del diálogo nativo de permiso).
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 3000);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   const uid = user?.id;
   const noLeidas = notificaciones.filter((n) => !n.leidaPor?.[uid]);
@@ -90,6 +100,10 @@ export default function CampanaNotificaciones() {
     if (typeof Notification === 'undefined') return;
     const r = await Notification.requestPermission();
     setPermiso(r);
+    if (r === 'denied') {
+      setToast({ tipo: 'danger', mensaje: 'No diste el permiso — no vas a recibir avisos de turnos nuevos en este dispositivo.' });
+      return;
+    }
     if (r !== 'granted' || !businessId || !uid) return;
 
     setPushEstado('activando');
@@ -101,9 +115,11 @@ export default function CampanaNotificaciones() {
     });
     if (res.ok) {
       setPushEstado('activo');
+      setToast({ tipo: 'success', mensaje: 'Listo — activaste las notificaciones push en este dispositivo.' });
     } else {
       setPushEstado('error');
       setPushError(res.error);
+      setToast({ tipo: 'danger', mensaje: `No se pudo activar: ${res.error}` });
     }
   };
 
@@ -183,6 +199,12 @@ export default function CampanaNotificaciones() {
               No se pudo activar el push: {pushError}
             </div>
           )}
+          {permiso === 'denied' && pushEstado !== 'error' && (
+            <div className="campana-vacia" style={{ color: 'var(--danger)' }}>
+              Bloqueaste las notificaciones en este navegador. Para activarlas,
+              cambiá el permiso desde la configuración del sitio.
+            </div>
+          )}
 
           {notificaciones.length === 0 ? (
             <div className="campana-vacia">
@@ -208,6 +230,8 @@ export default function CampanaNotificaciones() {
           )}
         </div>
       )}
+
+      {toast && <Toast tipo={toast.tipo}>{toast.mensaje}</Toast>}
     </div>
   );
 }

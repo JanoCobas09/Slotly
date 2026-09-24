@@ -8,6 +8,10 @@ import { BusinessProvider } from './contexts/BusinessContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { BookingProvider } from './contexts/BookingContext';
 import { registerServiceWorker } from './lib/push';
+// Efecto secundario a propósito: registra el listener de beforeinstallprompt
+// (ver el comentario en el archivo) apenas carga el bundle, no recién cuando
+// se monte algún componente del panel de admin.
+import './lib/installPrompt';
 
 // El login pasa por Supabase Auth (signInWithOAuth/signInWithPassword), que
 // crea la sesión que necesita RLS para saber quién sos. La config se
