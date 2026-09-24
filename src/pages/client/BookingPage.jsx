@@ -12,7 +12,7 @@ import Icon from '../../components/Icon';
 
 // ---- STEPPER ----
 function Stepper({ step }) {
-  const labels = ['Profesional', 'Servicio', 'Fecha', 'Horario', 'Datos', 'Confirmar'];
+  const labels = ['Profesional', 'Servicio', 'Datos', 'Fecha', 'Horario', 'Confirmar'];
   return (
     <div className="stepper">
       {labels.map((label, idx) => {
@@ -149,12 +149,19 @@ function DatePicker({ selectedDate, onSelect, professionalId, schedules: allSche
   const lastDay = new Date(year, month + 1, 0);
   const startOffset = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
   const today = toDateString(new Date());
+  const now = new Date();
+  // No se puede retroceder de este mes: es el mes en el que se abrió el
+  // picker (o el de la fecha ya elegida), nunca uno anterior al actual.
+  const enMesMasTemprano = year === now.getFullYear() && month === now.getMonth();
 
   const days = [];
   for (let i = 0; i < startOffset; i++) days.push(null);
   for (let d = 1; d <= lastDay.getDate(); d++) days.push(d);
 
-  const prevMonth = () => setViewDate(new Date(year, month - 1, 1));
+  const prevMonth = () => {
+    if (enMesMasTemprano) return;
+    setViewDate(new Date(year, month - 1, 1));
+  };
   const nextMonth = () => setViewDate(new Date(year, month + 1, 1));
 
   return (
@@ -163,9 +170,9 @@ function DatePicker({ selectedDate, onSelect, professionalId, schedules: allSche
       <p className="booking-step-subtitle">Seleccioná el día de tu cita</p>
       <div className="calendar">
         <div className="calendar-header">
-          <button className="calendar-nav" onClick={prevMonth}>◀</button>
+          <button className="calendar-nav" onClick={prevMonth} disabled={enMesMasTemprano} aria-label="Mes anterior">◀</button>
           <h3>{getMonthName(month)} {year}</h3>
-          <button className="calendar-nav" onClick={nextMonth}>▶</button>
+          <button className="calendar-nav" onClick={nextMonth} aria-label="Mes siguiente">▶</button>
         </div>
         <div className="calendar-grid">
           {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map(d => (
@@ -272,7 +279,7 @@ function TimeSlotGrid({ slots, selectedSlot, onSelect, date, cargando, serviceId
   );
 }
 
-// ---- PERSONAL INFO (solo teléfono — nombre y email vienen de Google) ----
+// ---- PERSONAL INFO ----
 
 /**
  * ¿Parece un teléfono? Se cuentan solo los dígitos: "+54 9 11 1234-5678" y
@@ -280,20 +287,24 @@ function TimeSlotGrid({ slots, selectedSlot, onSelect, date, cargando, serviceId
  * con o sin código de país. La function lo vuelve a validar del lado del
  * servidor; esto es para que el error se vea antes de mandar.
  */
-const VOLVER_DEL_LOGIN = 'slotly:volverAlPaso5';
-
 function telefonoValido(tel) {
   const digitos = String(tel || '').replace(/\D/g, '');
   return digitos.length >= 10 && digitos.length <= 13;
 }
 
-function PersonalInfoStep({ user, phone, onPhoneChange, customFields, customFieldValues, onCustomFieldChange }) {
+function nombreValido(nombre) {
+  return String(nombre || '').trim().length >= 2;
+}
+
+function PersonalInfoStep({ user, name, phone, onNameChange, onPhoneChange, customFields, customFieldValues, onCustomFieldChange }) {
+  const nombreTocado = name.length > 0;
+  const nombreOk = nombreValido(name);
   const tocado = phone.length > 0;
   const valido = telefonoValido(phone);
   return (
     <div>
-      <h2 className="booking-step-title">Tu número de teléfono</h2>
-      <p className="booking-step-subtitle">Solo necesitamos tu móvil para confirmar la reserva</p>
+      <h2 className="booking-step-title">Tus datos</h2>
+      <p className="booking-step-subtitle">Necesitamos tu nombre y tu móvil para confirmar la reserva</p>
 
       <div className="card" style={{ marginBottom: 'var(--space-lg)', display: 'flex', alignItems: 'center', gap: 'var(--space-md)', padding: 'var(--space-md)' }}>
         {user.avatarUrl
@@ -309,6 +320,24 @@ function PersonalInfoStep({ user, phone, onPhoneChange, customFields, customFiel
 
       <div className="personal-form">
         <div className="form-group">
+          <label className="form-label">Nombre <span className="required">*</span></label>
+          <input
+            className="form-input"
+            type="text"
+            value={name}
+            onChange={e => onNameChange(e.target.value)}
+            placeholder="Nombre y apellido"
+            autoFocus
+            style={nombreTocado && !nombreOk ? { borderColor: 'var(--danger)' } : undefined}
+          />
+          {nombreTocado && !nombreOk && (
+            <p className="text-xs" style={{ color: 'var(--danger)', marginTop: 4 }}>
+              Ingresá el nombre de quien va a atenderse.
+            </p>
+          )}
+        </div>
+
+        <div className="form-group">
           <label className="form-label">Teléfono móvil <span className="required">*</span></label>
           <input
             className="form-input"
@@ -317,7 +346,6 @@ function PersonalInfoStep({ user, phone, onPhoneChange, customFields, customFiel
             value={phone}
             onChange={e => onPhoneChange(e.target.value)}
             placeholder="+54 11 1234-5678"
-            autoFocus
             style={tocado && !valido ? { borderColor: 'var(--danger)' } : undefined}
           />
           {tocado && !valido && (
@@ -352,7 +380,7 @@ function PersonalInfoStep({ user, phone, onPhoneChange, customFields, customFiel
 }
 
 // ---- SUMMARY ----
-function BookingSummary({ professional, service, date, timeSlot, price, originalPrice, currency, clientName, clientPhone, notes, promo }) {
+function BookingSummary({ professional, service, date, timeSlot, price, originalPrice, currency, promo, onConfirm, confirming, onBack }) {
   const { terminology } = useBusinessContext();
   return (
     <div>
@@ -381,10 +409,6 @@ function BookingSummary({ professional, service, date, timeSlot, price, original
               <span className="summary-value">{timeSlot.startTime} — {timeSlot.endTime}</span>
             </div>
             <div className="summary-row">
-              <span className="summary-label"><Icon name="clock" /> Duración</span>
-              <span className="summary-value">{service.finalDuration || service.durationMinutes} min</span>
-            </div>
-            <div className="summary-row">
               <span className="summary-label"><Icon name="money" /> Total</span>
               <span className="summary-value">
                 {promo ? (
@@ -402,26 +426,25 @@ function BookingSummary({ professional, service, date, timeSlot, price, original
                 )}
               </span>
             </div>
-            <div className="summary-row" style={{ borderTop: '1px solid var(--border-color)', marginTop: 'var(--space-sm)', paddingTop: 'var(--space-sm)' }}>
-              <span className="summary-label"><Icon name="user" /> Cliente</span>
-              <span className="summary-value">{clientName}</span>
-            </div>
-            <div className="summary-row">
-              <span className="summary-label"><Icon name="phone" /> Teléfono</span>
-              <span className="summary-value">{clientPhone}</span>
-            </div>
-            {notes && (
-              <div className="summary-row">
-                <span className="summary-label"><Icon name="note" /> Datos</span>
-                <span className="summary-value">{notes}</span>
-              </div>
-            )}
           </div>
-          <div className="summary-footer">
-            <div className="future-feature">
-              <Icon name="lock" /> Próximamente: pago con Mercado Pago
-            </div>
-          </div>
+        </div>
+      </div>
+
+      {/* Fija al fondo de la pantalla a propósito: si el botón quedara
+          adentro de la tarjeta, en una pantalla baja (celular chico, o una
+          notebook con poca altura) el cliente podía no llegar a verlo, no
+          scrollear, y creer que la reserva ya había quedado hecha sin haber
+          apretado nada. "Atrás" viaja acá adentro también: un botón en el
+          flujo normal de la página, aparte de esta barra, puede terminar
+          tapado por ella si el contenido de arriba entra sin scroll (pasa
+          en pantallas anchas y bajas) — adentro de la misma barra fija no
+          hay forma de que eso pase. */}
+      <div className="confirm-bar">
+        <div className="confirm-bar-inner confirm-bar-actions">
+          <button className="btn btn-outline btn-lg" onClick={onBack}>← Atrás</button>
+          <button className="btn btn-primary btn-lg" onClick={onConfirm} disabled={confirming}>
+            {confirming ? 'Confirmando…' : <><Icon name="check-circle" /> Confirmar Reserva</>}
+          </button>
         </div>
       </div>
     </div>
@@ -467,6 +490,15 @@ function BookingUnavailable({ reason, business }) {
 // BOOKING PAGE (Main Component)
 // ============================================
 
+// El login con Google es un redirect de página completa (Supabase Auth), no
+// un popup como era con Firebase: la pantalla entera se destruye y se
+// recarga de cero al volver de accounts.google.com, así que BookingContext
+// pierde todo lo que tenía en memoria (arranca de nuevo en el paso 1, sin
+// profesional ni servicio elegidos). Por eso, justo antes de mandarlo a
+// loguearse, se guarda acá lo elegido — y se restaura apenas la sesión
+// aparece, sin importar en qué paso arrancó este montaje.
+const BOOKING_DRAFT_KEY = 'slotly:bookingDraft';
+
 export default function BookingPage() {
   const { booking, dispatch } = useBooking();
   const { user } = useAuth();
@@ -488,8 +520,7 @@ export default function BookingPage() {
 
   // Los campos extra (datos del vehículo, de la mascota, motivo de
   // consulta...) no tienen columnas propias en `appointments`: se juntan en
-  // el mismo `notes` que ya acepta `createAppointment` y que hoy nadie
-  // completaba desde la reserva pública.
+  // el mismo `notes` que ya acepta createAppointment.
   const customFieldsNotes = useMemo(
     () =>
       customerFields
@@ -515,8 +546,8 @@ export default function BookingPage() {
   // Check if user already has an appointment on this day
   const hasAppointmentToday = useMemo(() => {
     if (!user || !date) return false;
-    return appointments.some(app => 
-      app.userId === user.id && 
+    return appointments.some(app =>
+      app.userId === user.id &&
       app.appointmentDate === date &&
       // El estado es 'cancelada'. Con 'cancelado' (que no existe) la comparación
       // nunca era falsa, así que un turno ya cancelado seguía bloqueando la
@@ -541,14 +572,33 @@ export default function BookingPage() {
     : null;
   const precioConDescuento = precioConPromo(finalPrice, promoAplicada);
 
-  // Volvió del login con el horario ya elegido: seguir al paso 5 solo, sin
-  // pedirle que aprete "Siguiente" otra vez.
+  // Volvió del login: restaura profesional y servicio (lo único que hacía
+  // falta guardar — el nombre lo precarga el efecto de abajo con el de la
+  // cuenta, y el teléfono todavía no se había cargado en el paso 2) y salta
+  // directo al paso de "Tus datos". No depende de en qué paso arrancó este
+  // montaje: después del redirect siempre arranca en 1, sin nada elegido.
   useEffect(() => {
-    if (!user || step !== 4 || !timeSlot) return;
-    let volvio = false;
-    try { volvio = sessionStorage.getItem(VOLVER_DEL_LOGIN) === '1'; sessionStorage.removeItem(VOLVER_DEL_LOGIN); } catch { /* nada */ }
-    if (volvio) dispatch({ type: 'NEXT_STEP' });
-  }, [user, step, timeSlot, dispatch]);
+    if (!user) return;
+    let draft = null;
+    try {
+      const raw = sessionStorage.getItem(BOOKING_DRAFT_KEY);
+      if (raw) draft = JSON.parse(raw);
+      sessionStorage.removeItem(BOOKING_DRAFT_KEY);
+    } catch { /* sin sessionStorage, no hay nada que restaurar */ }
+    if (!draft?.professionalId || !draft?.serviceId) return;
+    dispatch({ type: 'SET_PROFESSIONAL', payload: draft.professionalId });
+    dispatch({ type: 'SET_SERVICE', payload: draft.serviceId });
+    dispatch({ type: 'SET_STEP', payload: 3 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  // Precarga el nombre con el de la cuenta de Google, editable: el cliente
+  // puede estar reservando para otra persona o preferir otra grafía.
+  useEffect(() => {
+    if (user && !personalInfo.name) {
+      dispatch({ type: 'SET_PERSONAL_INFO', payload: { name: user.name } });
+    }
+  }, [user, personalInfo.name, dispatch]);
 
   // Qué está ocupado ese día para ese profesional. No sale de `appointments`
   // del contexto: para un cliente esa lista trae SOLO sus propios turnos (las
@@ -605,24 +655,25 @@ export default function BookingPage() {
     switch (step) {
       case 1: return !!professionalId;
       case 2: return !!serviceId;
-      case 3: return !!date && !hasAppointmentToday;
-      case 4: return !!timeSlot;
-      case 5: return telefonoValido(personalInfo.phone) && !faltanCamposExtra;
+      case 3: return telefonoValido(personalInfo.phone) && nombreValido(personalInfo.name) && !faltanCamposExtra;
+      case 4: return !!date && !hasAppointmentToday;
+      case 5: return !!timeSlot;
       default: return false;
     }
   };
 
   const handleNext = () => {
-    if (step === 3 && hasAppointmentToday) {
+    if (step === 4 && hasAppointmentToday) {
       setError('Ya tenés un turno reservado para este día.');
       return;
     }
     // Hasta acá se puede mirar sin cuenta. Para poner sus datos y confirmar,
-    // tiene que entrar. Lo elegido queda en BookingContext (vive en la raíz),
-    // así que al volver del login sigue en el paso 5 con todo cargado.
-    if (step === 4 && !user) {
+    // tiene que entrar. profesional y servicio se guardan porque el login
+    // recarga la página entera (ver BOOKING_DRAFT_KEY más arriba) — sin
+    // esto, volver de Google largaba de nuevo en "elegí tu profesional".
+    if (step === 2 && !user) {
       setError('');
-      try { sessionStorage.setItem(VOLVER_DEL_LOGIN, '1'); } catch { /* sin storage, vuelve al paso 4 */ }
+      try { sessionStorage.setItem(BOOKING_DRAFT_KEY, JSON.stringify({ professionalId, serviceId })); } catch { /* sin storage, hay que re-elegir al volver */ }
       navigate('/login', { state: { from: `/${slug}` } });
       return;
     }
@@ -644,7 +695,7 @@ export default function BookingPage() {
 
     const datos = {
       userId: user.id,
-      clientName: user.name,
+      clientName: personalInfo.name,
       clientEmail: user.email,
       clientPhone: personalInfo.phone,
       professionalId,
@@ -658,20 +709,17 @@ export default function BookingPage() {
     };
 
     try {
-      // El turno se escribe en Firestore: desde este momento lo ve el
-      // profesional en su panel, en su propio dispositivo.
-      //
-      // Va por la Cloud Function, que revalida todo del lado del servidor: el
-      // motor de disponibilidad de acá arriba pinta la grilla, pero cualquiera
-      // con la consola abierta lo saltea. El precio sale del servicio, no de
-      // este formulario.
+      // El turno lo revalida enteró el servidor (Edge Function
+      // create-appointment): el motor de disponibilidad de acá arriba pinta
+      // la grilla, pero cualquiera con la consola abierta lo saltea. El
+      // precio sale del servicio, no de este formulario.
       const res = await createAppointment({
         businessId,
         professionalId,
         serviceId,
         appointmentDate: date,
         startTime: timeSlot.startTime,
-        clientName: user.name,
+        clientName: personalInfo.name,
         clientPhone: personalInfo.phone,
         clientEmail: user.email,
         notes,
@@ -686,14 +734,14 @@ export default function BookingPage() {
       });
     } catch (err) {
       console.error('[BookingPage] No se pudo reservar:', err);
-      // La Cloud Function devuelve mensajes ya escritos para el cliente
+      // La Edge Function devuelve mensajes ya escritos para el cliente
       // ("Ese horario ya fue tomado. Elegí otro."), así que se muestran tal
       // cual en vez de envolverlos en otra frase.
       const esDeNegocio = [
-        'functions/already-exists',
-        'functions/failed-precondition',
-        'functions/invalid-argument',
-        'functions/not-found',
+        'already-exists',
+        'failed-precondition',
+        'invalid-argument',
+        'not-found',
       ].includes(err.code);
       setError(
         esDeNegocio
@@ -705,7 +753,7 @@ export default function BookingPage() {
   };
 
   return (
-    <div className="booking-container">
+    <div className={`booking-container ${step === 6 ? 'has-confirm-bar' : ''}`}>
       <Stepper step={step} />
       <BusinessContactBar business={business} />
 
@@ -736,6 +784,19 @@ export default function BookingPage() {
       )}
 
       {step === 3 && (
+        <PersonalInfoStep
+          user={user}
+          name={personalInfo.name}
+          onNameChange={name => dispatch({ type: 'SET_PERSONAL_INFO', payload: { name } })}
+          phone={personalInfo.phone}
+          onPhoneChange={phone => dispatch({ type: 'SET_PERSONAL_INFO', payload: { phone } })}
+          customFields={customerFields}
+          customFieldValues={customFieldValues}
+          onCustomFieldChange={(key, value) => dispatch({ type: 'SET_CUSTOM_FIELD', payload: { key, value } })}
+        />
+      )}
+
+      {step === 4 && (
         <DatePicker
           selectedDate={date}
           onSelect={d => dispatch({ type: 'SET_DATE', payload: d })}
@@ -745,7 +806,7 @@ export default function BookingPage() {
         />
       )}
 
-      {step === 4 && (
+      {step === 5 && (
         <TimeSlotGrid
           slots={availableSlots}
           selectedSlot={timeSlot}
@@ -758,17 +819,6 @@ export default function BookingPage() {
         />
       )}
 
-      {step === 5 && (
-        <PersonalInfoStep
-          user={user}
-          phone={personalInfo.phone}
-          onPhoneChange={phone => dispatch({ type: 'SET_PERSONAL_INFO', payload: { phone } })}
-          customFields={customerFields}
-          customFieldValues={customFieldValues}
-          onCustomFieldChange={(key, value) => dispatch({ type: 'SET_CUSTOM_FIELD', payload: { key, value } })}
-        />
-      )}
-
       {step === 6 && selectedProfessional && selectedService && (
         <BookingSummary
           professional={selectedProfessional}
@@ -778,28 +828,24 @@ export default function BookingPage() {
           price={precioConDescuento}
           originalPrice={finalPrice}
           currency={business.currency}
-          notes={customFieldsNotes}
-          clientName={user.name}
-          clientPhone={personalInfo.phone}
           promo={promoAplicada}
+          onConfirm={handleConfirm}
+          confirming={reservando}
+          onBack={handleBack}
         />
       )}
 
-      <div className="booking-nav">
-        {step > 1 ? (
-          <button className="btn btn-outline" onClick={handleBack}>← Atrás</button>
-        ) : <div />}
+      {step < 6 && (
+        <div className="booking-nav">
+          {step > 1 ? (
+            <button className="btn btn-outline" onClick={handleBack}>← Atrás</button>
+          ) : <div />}
 
-        {step < 6 ? (
           <button className="btn btn-primary" disabled={!canGoNext()} onClick={handleNext}>
             Siguiente →
           </button>
-        ) : step === 6 ? (
-          <button className="btn btn-primary btn-lg" onClick={handleConfirm} disabled={reservando}>
-            {reservando ? 'Confirmando…' : <><Icon name="check-circle" /> Confirmar Reserva</>}
-          </button>
-        ) : null}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

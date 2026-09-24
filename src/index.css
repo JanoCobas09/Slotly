@@ -1156,6 +1156,41 @@ select.form-input {
   border-top: 1px solid var(--border);
 }
 
+.booking-container.has-confirm-bar {
+  padding-bottom: 110px;
+}
+
+.confirm-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 150;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding: var(--space-md) var(--space-lg);
+  padding-bottom: calc(var(--space-md) + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+}
+
+/* "Atrás" y "Confirmar Reserva" viven en la misma barra fija a propósito
+   (ver el comentario en BookingSummary, BookingPage.jsx): un botón que
+   quedara afuera, en el flujo normal de la página, podía terminar tapado
+   por ella si el contenido de arriba entra sin scroll. */
+.confirm-bar-actions {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.confirm-bar-actions .btn-primary {
+  flex: 1;
+}
+
+.confirm-bar-inner {
+  max-width: 480px;
+  margin: 0 auto;
+}
+
 .future-feature {
   display: flex;
   align-items: center;
