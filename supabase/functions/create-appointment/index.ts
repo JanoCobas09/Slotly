@@ -17,6 +17,7 @@ import {
   errorDeFuncionSql,
 } from '../_shared/auth.ts';
 import { enviarMail } from '../_shared/mail.ts';
+import { plantillaHtml } from '../_shared/emailTemplate.ts';
 
 function fechaLinda(fechaISO: string): string {
   const d = new Date(`${fechaISO}T12:00:00Z`);
@@ -43,6 +44,7 @@ async function mandarConfirmacion(admin: ReturnType<typeof supabaseAdmin>, turno
 
     const conProfesional = profesional?.name ? ` con ${profesional.name}` : '';
     const asunto = `Turno confirmado en ${negocio.name} · ${fechaLinda(turno.appointment_date)} ${turno.start_time}`;
+    const nota = 'Si no podés asistir, avisale al negocio con anticipación.';
     const texto =
       `Hola ${turno.client_name || ''},\n\n` +
       `Tu turno${conProfesional} en ${negocio.name} quedó confirmado.\n\n` +
@@ -52,9 +54,26 @@ async function mandarConfirmacion(admin: ReturnType<typeof supabaseAdmin>, turno
       (turno.price != null ? `Precio: $${turno.price}\n` : '') +
       (negocio.address ? `Dirección: ${negocio.address}\n` : '') +
       (negocio.phone ? `Teléfono: ${negocio.phone}\n` : '') +
-      `\nSi no podés asistir, avisale al negocio con anticipación.`;
+      `\n${nota}`;
 
-    await enviarMail({ to: turno.client_email, subject: asunto, text: texto, fromName: negocio.name });
+    const filas = [
+      { label: 'Fecha', value: fechaLinda(turno.appointment_date) },
+      { label: 'Horario', value: turno.end_time ? `${turno.start_time} a ${turno.end_time}` : turno.start_time },
+      ...(turno.service_name ? [{ label: 'Servicio', value: turno.service_name }] : []),
+      ...(profesional?.name ? [{ label: 'Con', value: profesional.name }] : []),
+      ...(turno.price != null ? [{ label: 'Precio', value: `$${turno.price}` }] : []),
+      ...(negocio.address ? [{ label: 'Dirección', value: negocio.address }] : []),
+      ...(negocio.phone ? [{ label: 'Teléfono', value: negocio.phone }] : []),
+    ];
+    const html = plantillaHtml({
+      eyebrow: negocio.name,
+      titulo: 'Turno confirmado',
+      intro: `Hola ${turno.client_name || ''}, tu turno${conProfesional} quedó confirmado.`,
+      filas,
+      nota,
+    });
+
+    await enviarMail({ to: turno.client_email, subject: asunto, text: texto, html, fromName: negocio.name });
   } catch (err) {
     console.error('[create-appointment] No se pudo mandar la confirmación por mail:', err);
   }

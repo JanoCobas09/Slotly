@@ -18,6 +18,7 @@
 import { corsHeaders } from '../_shared/cors.ts';
 import { supabaseAdmin, errorResponse, jsonResponse, unauthenticated } from '../_shared/auth.ts';
 import { enviarMail, smtpConfigurado } from '../_shared/mail.ts';
+import { plantillaHtml } from '../_shared/emailTemplate.ts';
 
 const VENTANA_RECORDATORIO_MIN = 3 * 60; // "en lo posible 3 horas antes"
 const HORA_DESDE = 7;  // nunca antes de las 7:00
@@ -50,6 +51,7 @@ function textoRecordatorio({ negocioNombre, negocioDireccion, negocioTelefono, a
   profesionalNombre: string | null;
 }) {
   const conProfesional = profesionalNombre ? ` con ${profesionalNombre}` : '';
+  const nota = 'Si no podés asistir, avisale al negocio con anticipación.';
   const asunto = `Recordatorio: tu turno hoy a las ${apt.start_time} en ${negocioNombre}`;
   const texto =
     `Hola ${apt.client_name || ''},\n\n` +
@@ -57,8 +59,25 @@ function textoRecordatorio({ negocioNombre, negocioDireccion, negocioTelefono, a
     (apt.service_name ? `Servicio: ${apt.service_name}\n` : '') +
     (negocioDireccion ? `Dirección: ${negocioDireccion}\n` : '') +
     (negocioTelefono ? `Teléfono: ${negocioTelefono}\n` : '') +
-    `\nSi no podés asistir, avisale al negocio con anticipación.`;
-  return { asunto, texto };
+    `\n${nota}`;
+
+  const filas = [
+    { label: 'Hoy', value: fechaLinda(apt.appointment_date) },
+    { label: 'Horario', value: apt.start_time },
+    ...(apt.service_name ? [{ label: 'Servicio', value: apt.service_name }] : []),
+    ...(profesionalNombre ? [{ label: 'Con', value: profesionalNombre }] : []),
+    ...(negocioDireccion ? [{ label: 'Dirección', value: negocioDireccion }] : []),
+    ...(negocioTelefono ? [{ label: 'Teléfono', value: negocioTelefono }] : []),
+  ];
+  const html = plantillaHtml({
+    eyebrow: negocioNombre,
+    titulo: 'Recordatorio de tu turno',
+    intro: `Hola ${apt.client_name || ''}, te recordamos tu turno${conProfesional} hoy a las ${apt.start_time}.`,
+    filas,
+    nota,
+  });
+
+  return { asunto, texto, html };
 }
 
 Deno.serve(async (req) => {
@@ -123,12 +142,12 @@ Deno.serve(async (req) => {
           profesionales.set(profKey, prof?.name ?? null);
         }
 
-        const { asunto, texto } = textoRecordatorio({
+        const { asunto, texto, html } = textoRecordatorio({
           negocioNombre: negocio.name, negocioDireccion: negocio.address, negocioTelefono: negocio.phone,
           apt, profesionalNombre: profesionales.get(profKey) ?? null,
         });
 
-        const ok = await enviarMail({ to: apt.client_email, subject: asunto, text: texto, fromName: negocio.name });
+        const ok = await enviarMail({ to: apt.client_email, subject: asunto, text: texto, html, fromName: negocio.name });
         if (!ok) throw new Error('enviarMail devolvió false');
         await admin.from('appointments').update({ reminder_sent_at: new Date().toISOString() }).eq('id', apt.id);
         enviados++;

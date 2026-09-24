@@ -11,6 +11,10 @@ export interface OpcionesMail {
   to: string;
   subject: string;
   text: string;
+  /** Versión HTML, opcional. Se manda como multipart (texto + HTML juntos) —
+   * el cliente de mail elige cuál mostrar; texto plano solo es el respaldo
+   * para el que no rendericen HTML. */
+  html?: string;
   /** Nombre para mostrar en el "De:" — normalmente el nombre del negocio. */
   fromName?: string;
 }
@@ -20,7 +24,7 @@ export function smtpConfigurado(): boolean {
 }
 
 /** true si se mandó de verdad, false si no había credenciales o falló el envío. */
-export async function enviarMail({ to, subject, text, fromName }: OpcionesMail): Promise<boolean> {
+export async function enviarMail({ to, subject, text, html, fromName }: OpcionesMail): Promise<boolean> {
   if (!smtpConfigurado()) {
     console.warn('[mail] Faltan las credenciales SMTP: no se manda nada.');
     return false;
@@ -38,6 +42,7 @@ export async function enviarMail({ to, subject, text, fromName }: OpcionesMail):
       to,
       subject,
       text,
+      ...(html ? { html } : {}),
     });
     return true;
   } catch (err) {
