@@ -1,4 +1,5 @@
-import { Link } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { PLANS, FEATURES_COMUNES, OVERAGE_COST_USD } from '../config/plans';
 import HeroMotionMockup from '../components/landing/HeroMotionMockup';
 import FloatingActionWidget from '../components/landing/FloatingActionWidget';
@@ -124,6 +125,20 @@ function CTAWhatsApp({ children = 'Hablemos por WhatsApp', clase = 'btn-primary 
 }
 
 export default function LandingPage() {
+  const { hash } = useLocation();
+
+  // Los links de Header (acá y en /login) navegan a `/#seccion` — React
+  // Router cambia el hash pero no hace scroll solo (esto no es un data
+  // router con <ScrollRestoration>, y aunque lo fuera, saltar de otra
+  // página a un id que recién existe después de que este chunk lazy
+  // termine de montar necesita esperar al render igual). Sin este efecto,
+  // el hash cambiaba en la URL y la página se quedaba arriba de todo.
+  useEffect(() => {
+    if (!hash) return;
+    const el = document.querySelector(hash);
+    el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [hash]);
+
   return (
     <div className="landing">
       {/* ── HERO ─────────────────────────────────────────────────────────── */}

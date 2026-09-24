@@ -35,12 +35,17 @@ export default function Header() {
 
       {!slug && (
         <nav className="header-nav">
-          <a href="#inicio">Inicio</a>
-          <a href="#problema">El día a día</a>
-          <a href="#funciones">Funciones</a>
-          <a href="#como-arranca">Cómo arranca</a>
-          <a href="#precios">Precios</a>
-          <a href="#dudas">Dudas</a>
+          {/* `to="/#id"` en vez de `href="#id"` a propósito: un anchor
+              plano solo funciona parado en la landing — en cualquier otra
+              página (ej. /login) no hay ningún elemento con ese id y el
+              click no hace nada. El Link navega a "/" y LandingPage se
+              encarga de hacer scroll una vez montada (ver su useEffect). */}
+          <Link to="/#inicio">Inicio</Link>
+          <Link to="/#problema">El día a día</Link>
+          <Link to="/#funciones">Funciones</Link>
+          <Link to="/#como-arranca">Cómo arranca</Link>
+          <Link to="/#precios">Precios</Link>
+          <Link to="/#dudas">Dudas</Link>
         </nav>
       )}
 
