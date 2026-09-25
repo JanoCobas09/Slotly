@@ -175,3 +175,27 @@ export function createBusinessSelfService({ name, professionCategory = '', custo
 export function deleteBusiness({ businessId, confirmName }) {
   return llamar('delete-business', { businessId, confirmName });
 }
+
+/**
+ * Seña con Mercado Pago — conexión de la cuenta del negocio (solo el dueño).
+ *
+ * `conectarMercadoPago` devuelve `{ url }`: la página de Mercado Pago donde
+ * el dueño autoriza a Slotly. Al terminar, MP lo devuelve a
+ * /admin/configuracion?mp=conectado (o ?mp=error / ?mp=cancelado).
+ * `desconectarMercadoPago` borra la conexión y apaga la seña.
+ */
+export function conectarMercadoPago({ businessId }) {
+  return llamar('mp-conexion', { action: 'conectar', businessId });
+}
+
+export function desconectarMercadoPago({ businessId }) {
+  return llamar('mp-conexion', { action: 'desconectar', businessId });
+}
+
+/**
+ * Devuelve entera la seña pagada de un turno, desde la cuenta de MP del
+ * negocio. Solo el dueño. Devuelve `{ status: 'devuelta' | 'ya-devuelta' }`.
+ */
+export function devolverSena({ appointmentId }) {
+  return llamar('mp-refund', { appointmentId });
+}

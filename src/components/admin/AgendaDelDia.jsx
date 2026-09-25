@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { formatDate, toDateString, timeToMinutes } from '../../utils/dateUtils';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
 import Icon from '../Icon';
+import SenaTurno from './SenaTurno';
 import { diaEnteroBloqueado, rangosDelDia } from '../../utils/bloqueos';
 
 /**
@@ -289,6 +290,8 @@ export default function AgendaDelDia({
                         </div>
                         <div className="agenda-turno-lateral">
                           <span className={`badge ${est.clase}`}>{est.label}</span>
+                          {/* Solo el estado: "Devolver seña" vive en Citas. */}
+                          <SenaTurno apt={a} />
                           {renderAcciones && <div className="agenda-turno-acciones" onClick={(e) => e.stopPropagation()}>{renderAcciones(a)}</div>}
                         </div>
                       </div>

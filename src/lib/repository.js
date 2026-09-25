@@ -257,6 +257,19 @@ export async function updateBusiness(businessId, cambios, { esPlataforma = false
   if (error) throw error;
 }
 
+/**
+ * ¿El negocio tiene Mercado Pago conectado para cobrar señas? Solo el dueño
+ * (o la plataforma) lo puede preguntar. Nunca trae el token: solo si existe
+ * y con qué cuenta. Devuelve `null` si no está conectado, o
+ * `{ nickname, liveMode, connectedAt }`.
+ */
+export async function getMpConnectionStatus(businessId) {
+  const { data, error } = await supabase.rpc('mp_connection_status', { p_business_id: businessId });
+  if (error) throw error;
+  const fila = Array.isArray(data) ? data[0] : data;
+  return fila ? fromRow('mp_connections', fila) : null;
+}
+
 export async function setBusinessFrozen(businessId, isFrozen) {
   const { error } = await supabase.from('businesses').update({ is_frozen: isFrozen }).eq('id', businessId);
   if (error) throw error;

@@ -552,7 +552,7 @@ function PersonalInfoStep({ user, name, phone, onNameChange, onPhoneChange, cust
 }
 
 // ---- SUMMARY ----
-function BookingSummary({ professional, service, date, timeSlot, price, originalPrice, currency, promo, onConfirm, confirming, onBack }) {
+function BookingSummary({ professional, service, date, timeSlot, price, originalPrice, currency, promo, sena, onConfirm, confirming, onBack }) {
   const { terminology } = useBusinessContext();
   return (
     <div>
@@ -600,8 +600,20 @@ function BookingSummary({ professional, service, date, timeSlot, price, original
                 )}
               </span>
             </div>
+            {sena > 0 && (
+              <div className="summary-row">
+                <span className="summary-label"><Icon name="lock" /> Seña a pagar ahora</span>
+                <span className="summary-value">{formatPrice(sena, currency)}</span>
+              </div>
+            )}
           </div>
         </div>
+        {sena > 0 && (
+          <p className="text-sm text-secondary" style={{ marginTop: 'var(--space-md)', lineHeight: 1.5 }}>
+            Para reservar, este negocio pide una seña. La pagás con <strong>Mercado Pago</strong> y
+            tenés <strong>15 minutos</strong>: si no se paga, el horario se libera. El resto se paga en el lugar.
+          </p>
+        )}
       </div>
 
       {/* Fija al fondo de la pantalla a propósito: si el botón quedara
@@ -617,7 +629,11 @@ function BookingSummary({ professional, service, date, timeSlot, price, original
         <div className="confirm-bar-inner confirm-bar-actions">
           <button className="btn btn-outline btn-lg" onClick={onBack}>← Atrás</button>
           <button className="btn btn-primary btn-lg" onClick={onConfirm} disabled={confirming}>
-            {confirming ? 'Confirmando…' : <><Icon name="check-circle" /> Confirmar Reserva</>}
+            {confirming
+              ? (sena > 0 ? 'Yendo a Mercado Pago…' : 'Confirmando…')
+              : sena > 0
+                ? <><Icon name="lock" /> Pagar seña</>
+                : <><Icon name="check-circle" /> Confirmar Reserva</>}
           </button>
         </div>
       </div>
@@ -726,7 +742,11 @@ export default function BookingPage() {
       // El estado es 'cancelada'. Con 'cancelado' (que no existe) la comparación
       // nunca era falsa, así que un turno ya cancelado seguía bloqueando la
       // reserva de otro el mismo día.
-      app.status !== 'cancelada'
+      app.status !== 'cancelada' &&
+      // Uno esperando seña no cuenta: es el intento anterior de este mismo
+      // cliente (volvió de Mercado Pago sin pagar). El servidor lo descarta
+      // al reservar de nuevo.
+      app.depositStatus !== 'pendiente'
     );
   }, [user, date, appointments]);
 
@@ -745,6 +765,16 @@ export default function BookingPage() {
     ? promoParaSlot(promotions, { serviceId, dayOfWeek, startTime: timeSlot.startTime })
     : null;
   const precioConDescuento = precioConPromo(finalPrice, promoAplicada);
+
+  // Seña que va a pedir el servidor (trigger aplicar_sena_obligatoria), solo
+  // para mostrarla antes de confirmar — el monto de verdad lo calcula la base
+  // con el precio real. Mismo cálculo: % del precio, o fijo con tope en el precio.
+  const senaEstimada = (() => {
+    const valor = Number(business?.depositValue) || 0;
+    if (!business?.depositEnabled || valor <= 0 || (business.currency || 'ARS') !== 'ARS') return 0;
+    if (business.depositType === 'fixed') return precioConDescuento > 0 ? Math.min(valor, precioConDescuento) : valor;
+    return Math.round(precioConDescuento * Math.min(valor, 100)) / 100;
+  })();
 
   // Volvió del login: restaura profesional y servicio (lo único que hacía
   // falta guardar — el nombre lo precarga el efecto de abajo con el de la
@@ -900,6 +930,14 @@ export default function BookingPage() {
         clientEmail: user.email,
         notes,
       });
+      // El negocio pide seña: el turno queda retenido y se paga en Mercado
+      // Pago. Al volver, MP lo trae a /:slug/pago (PagoSenaPage).
+      if (res.status === 'pending_payment' && res.checkoutUrl) {
+        dispatch({ type: 'RESET' });
+        window.location.assign(res.checkoutUrl);
+        return;
+      }
+
       const id = res.id;
       datos.price = res.price;
       datos.endTime = res.endTime;
@@ -1006,6 +1044,7 @@ export default function BookingPage() {
           originalPrice={finalPrice}
           currency={business.currency}
           promo={promoAplicada}
+          sena={senaEstimada}
           onConfirm={handleConfirm}
           confirming={reservando}
           onBack={handleBack}

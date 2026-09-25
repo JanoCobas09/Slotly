@@ -6,6 +6,7 @@ import { useBusinessContext } from '../../hooks/useBusinessContext';
 import { getDayName } from '../../utils/dateUtils';
 import { applyTheme } from '../../config/theme';
 import Icon from '../../components/Icon';
+import SenaMercadoPagoCard from '../../components/admin/SenaMercadoPagoCard';
 
 const defaultHours = [
   { dayOfWeek: 0, startTime: '09:00', endTime: '20:00', isActive: true },
@@ -47,6 +48,17 @@ export default function SettingsPage() {
 
   const handleSave = async () => {
     if (!businessId) return;
+    if (form.depositEnabled) {
+      const valor = Number(form.depositValue);
+      if (!valor || valor <= 0) {
+        setError('Poné de cuánto es la seña, o desactivala.');
+        return;
+      }
+      if (form.depositType !== 'fixed' && valor > 100) {
+        setError('La seña no puede ser más del 100% del precio.');
+        return;
+      }
+    }
     setGuardando(true);
     setError('');
     try {
@@ -356,6 +368,8 @@ export default function SettingsPage() {
               </div>
             </div>
           </div>
+
+          <SenaMercadoPagoCard form={form} editar={editar} businessId={businessId} terminology={terminology} />
 
           <div className="card mt-md">
             <h3 className="mb-lg">Horarios de atención</h3>

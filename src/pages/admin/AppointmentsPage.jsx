@@ -5,6 +5,7 @@ import { updateAppointment, cancelAppointment } from '../../lib/repository';
 import NuevoTurnoModal from '../../components/admin/NuevoTurnoModal';
 import { formatDate, formatPrice } from '../../utils/dateUtils';
 import Icon from '../../components/Icon';
+import SenaTurno from '../../components/admin/SenaTurno';
 import { esTurnoEditable, confirmacionCancelar } from '../../utils/turnos';
 
 const STATUS_OPTIONS = [
@@ -211,6 +212,7 @@ export default function AppointmentsPage() {
               {apt.notes && (
                 <div className="text-xs text-muted" style={{ marginTop: 4 }}><Icon name="note" /> {apt.notes}</div>
               )}
+              {apt.depositStatus && <div style={{ marginTop: 6 }}><SenaTurno apt={apt} isOwner={isOwner} /></div>}
               {accionesDe(apt)}
             </div>
           );
@@ -267,6 +269,7 @@ export default function AppointmentsPage() {
                     <span className={`badge ${STATUS_BADGES[apt.status]}`}>
                       {STATUS_LABELS[apt.status] || apt.status}
                     </span>
+                    {apt.depositStatus && <div style={{ marginTop: 4 }}><SenaTurno apt={apt} isOwner={isOwner} /></div>}
                   </td>
                   <td>{accionesDe(apt)}</td>
                 </tr>

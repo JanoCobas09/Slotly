@@ -55,14 +55,22 @@ export default function MyAppointments() {
     });
 
   const activa = (a) => a.status === 'pendiente' || a.status === 'confirmada';
+  // Reservado pero con la seña sin pagar, y todavía dentro del plazo (pasado
+  // el plazo el servidor lo borra solo en un momento).
+  const esperandoSena = (a) => a.depositStatus === 'pendiente' && activa(a)
+    && a.depositExpiresAt && new Date(a.depositExpiresAt) > ahora;
   const upcoming = myAppointments.filter(a => activa(a) && !yaPaso(a));
   const past = myAppointments.filter(a => !activa(a) || yaPaso(a));
 
   const displayed = tab === 'upcoming' ? upcoming : past;
 
-  const handleCancel = (id) => {
-    if (window.confirm('¿Estás seguro de que querés cancelar esta cita?')) {
-      cancelAppointment(businessId, id, '', 'client').catch((err) => {
+  const handleCancel = (apt) => {
+    // La seña no se devuelve sola al cancelar: lo decide el negocio.
+    const aviso = apt.depositStatus === 'pagada'
+      ? '¿Estás seguro de que querés cancelar esta cita?\n\nLa seña no se devuelve automáticamente: si corresponde, la devuelve el negocio. Consultalo con ellos.'
+      : '¿Estás seguro de que querés cancelar esta cita?';
+    if (window.confirm(aviso)) {
+      cancelAppointment(businessId, apt.id, '', 'client').catch((err) => {
         console.error('[MyAppointments] No se pudo cancelar:', err);
         alert('No se pudo cancelar el turno: ' + err.message);
       });
@@ -102,13 +110,24 @@ export default function MyAppointments() {
                 </div>
                 <div className="details mt-sm">
                   <span>{formatPrice(apt.price, business?.currency)}</span>
+                  {apt.depositStatus === 'pagada' && <span><Icon name="lock" /> Seña pagada: {formatPrice(apt.depositAmount, business?.currency)}</span>}
+                  {apt.depositStatus === 'devuelta' && <span><Icon name="lock" /> Seña devuelta</span>}
                 </div>
               </div>
               <div className="appointment-actions">
-                <span className={`badge ${statusInfo.className}`}>{statusInfo.label}</span>
+                {esperandoSena(apt) ? (
+                  <>
+                    <span className="badge badge-warning">Falta pagar la seña</span>
+                    {apt.depositCheckoutUrl && (
+                      <a className="btn btn-primary btn-sm" href={apt.depositCheckoutUrl}><Icon name="lock" /> Pagar seña</a>
+                    )}
+                  </>
+                ) : (
+                  <span className={`badge ${statusInfo.className}`}>{statusInfo.label}</span>
+                )}
                 {activa(apt) && !yaPaso(apt) && (
                   puedeCancelar(apt) ? (
-                    <button className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }} onClick={() => handleCancel(apt.id)}>
+                    <button className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }} onClick={() => handleCancel(apt)}>
                       Cancelar
                     </button>
                   ) : (

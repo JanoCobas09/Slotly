@@ -8,6 +8,11 @@
 // atómicamente con un advisory lock, equivalente a la transacción de
 // Firestore original. Esta Edge Function solo valida la sesión y traduce
 // el resultado.
+//
+// Seña: si el negocio la pide, el trigger aplicar_sena_obligatoria deja el
+// turno con deposit_status = 'pendiente' (ver 20261004000000_sena_mercado_pago.sql).
+// En ese caso acá se arma el checkout de Mercado Pago y se devuelve su link
+// en vez de confirmar — la confirmación sale recién desde mp-webhook.
 import { corsHeaders } from '../_shared/cors.ts';
 import {
   getCaller,
@@ -15,69 +20,10 @@ import {
   errorResponse,
   jsonResponse,
   errorDeFuncionSql,
+  failedPrecondition,
 } from '../_shared/auth.ts';
-import { enviarMail } from '../_shared/mail.ts';
-import { plantillaHtml } from '../_shared/emailTemplate.ts';
-
-function fechaLinda(fechaISO: string): string {
-  const d = new Date(`${fechaISO}T12:00:00Z`);
-  const dias = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
-  return `${dias[d.getUTCDay()]} ${d.getUTCDate()}/${d.getUTCMonth() + 1}`;
-}
-
-/**
- * Mail de confirmación, apenas se crea el turno — a diferencia del
- * recordatorio de send-reminders (que sale recién ~3hs antes), esto sale al
- * toque: quien acaba de reservar tiene el teléfono en la mano en ese
- * momento, no necesariamente 3 horas antes del turno. Nunca puede tirar
- * abajo la reserva ya hecha: cualquier error acá se loguea y se sigue.
- */
-async function mandarConfirmacion(admin: ReturnType<typeof supabaseAdmin>, turno: {
-  business_id: string; professional_id: string; client_email: string | null; client_name: string | null;
-  service_name: string | null; appointment_date: string; start_time: string; end_time: string | null; price: number | null;
-}) {
-  if (!turno.client_email) return;
-  try {
-    const { data: negocio } = await admin.from('businesses').select('name, address, phone').eq('id', turno.business_id).maybeSingle();
-    const { data: profesional } = await admin.from('professionals').select('name').eq('id', turno.professional_id).maybeSingle();
-    if (!negocio) return; // no debería pasar (el turno ya se creó contra este negocio), pero sin nombre no hay mail que armar
-
-    const conProfesional = profesional?.name ? ` con ${profesional.name}` : '';
-    const asunto = `Turno confirmado en ${negocio.name} · ${fechaLinda(turno.appointment_date)} ${turno.start_time}`;
-    const nota = 'Si no podés asistir, avisale al negocio con anticipación.';
-    const texto =
-      `Hola ${turno.client_name || ''},\n\n` +
-      `Tu turno${conProfesional} en ${negocio.name} quedó confirmado.\n\n` +
-      `Fecha: ${fechaLinda(turno.appointment_date)}\n` +
-      `Horario: ${turno.start_time}${turno.end_time ? ` a ${turno.end_time}` : ''}\n` +
-      (turno.service_name ? `Servicio: ${turno.service_name}\n` : '') +
-      (turno.price != null ? `Precio: $${turno.price}\n` : '') +
-      (negocio.address ? `Dirección: ${negocio.address}\n` : '') +
-      (negocio.phone ? `Teléfono: ${negocio.phone}\n` : '') +
-      `\n${nota}`;
-
-    const filas = [
-      { label: 'Fecha', value: fechaLinda(turno.appointment_date) },
-      { label: 'Horario', value: turno.end_time ? `${turno.start_time} a ${turno.end_time}` : turno.start_time },
-      ...(turno.service_name ? [{ label: 'Servicio', value: turno.service_name }] : []),
-      ...(profesional?.name ? [{ label: 'Con', value: profesional.name }] : []),
-      ...(turno.price != null ? [{ label: 'Precio', value: `$${turno.price}` }] : []),
-      ...(negocio.address ? [{ label: 'Dirección', value: negocio.address }] : []),
-      ...(negocio.phone ? [{ label: 'Teléfono', value: negocio.phone }] : []),
-    ];
-    const html = plantillaHtml({
-      eyebrow: negocio.name,
-      titulo: 'Turno confirmado',
-      intro: `Hola ${turno.client_name || ''}, tu turno${conProfesional} quedó confirmado.`,
-      filas,
-      nota,
-    });
-
-    await enviarMail({ to: turno.client_email, subject: asunto, text: texto, html, fromName: negocio.name });
-  } catch (err) {
-    console.error('[create-appointment] No se pudo mandar la confirmación por mail:', err);
-  }
-}
+import { mandarConfirmacion } from '../_shared/confirmacionTurno.ts';
+import { tokenDeNegocio, crearPreferencia, origenPermitido } from '../_shared/mercadopago.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -90,6 +36,21 @@ Deno.serve(async (req) => {
     } = await req.json();
 
     const admin = supabaseAdmin();
+
+    // Señas vencidas: el cron las borra cada minuto, pero se barren también
+    // acá para que un horario recién liberado no rebote por segundos. Y si
+    // el mismo cliente ya tenía un turno de ese día esperando seña (volvió
+    // atrás desde Mercado Pago y eligió otro horario), ese se descarta:
+    // sin esto chocaría con "Ya tenés un turno ese día".
+    await admin.rpc('liberar_senas_vencidas');
+    if (businessId && appointmentDate) {
+      await admin.from('appointments').delete()
+        .eq('business_id', businessId)
+        .eq('user_id', caller.id)
+        .eq('appointment_date', appointmentDate)
+        .eq('deposit_status', 'pendiente');
+    }
+
     // clientEmail sale del token, nunca del cuerpo de la llamada — mismo
     // motivo que en Firebase: que no se registre un turno con el mail de otro.
     const { data, error } = await admin.rpc('create_appointment', {
@@ -106,6 +67,43 @@ Deno.serve(async (req) => {
     });
 
     if (error) throw errorDeFuncionSql(error);
+
+    if (data.deposit_status === 'pendiente') {
+      let checkoutUrl: string;
+      try {
+        const { data: negocio } = await admin.from('businesses').select('name, slug').eq('id', businessId).single();
+        const token = await tokenDeNegocio(admin, businessId);
+        const pref = await crearPreferencia(token, {
+          appointmentId: data.id,
+          businessId,
+          titulo: `Seña · ${data.service_name || 'Turno'} · ${negocio.name}`.slice(0, 250),
+          monto: Number(data.deposit_amount),
+          emailCliente: data.client_email || null,
+          vence: data.deposit_expires_at,
+          volverA: `${origenPermitido(req)}/${negocio.slug}/pago?turno=${data.id}`,
+        });
+        checkoutUrl = pref.init_point;
+        await admin.from('appointments')
+          .update({ mp_preference_id: pref.id, deposit_checkout_url: checkoutUrl })
+          .eq('id', data.id);
+      } catch (err) {
+        // Sin checkout no hay forma de pagar: se suelta el horario ya mismo
+        // en vez de dejarlo retenido 15 minutos por nada.
+        console.error('[create-appointment] No se pudo armar el cobro de la seña:', err);
+        await admin.from('appointments').delete().eq('id', data.id);
+        throw failedPrecondition('No se pudo iniciar el pago de la seña con Mercado Pago. Probá de nuevo en un rato.');
+      }
+
+      return jsonResponse({
+        status: 'pending_payment',
+        id: data.id,
+        price: data.price,
+        endTime: data.end_time,
+        depositAmount: data.deposit_amount,
+        expiresAt: data.deposit_expires_at,
+        checkoutUrl,
+      }, corsHeaders);
+    }
 
     // No se espera a que termine (el mail puede tardar) para no demorar la
     // respuesta al cliente — el turno ya está confirmado, esto es un aviso

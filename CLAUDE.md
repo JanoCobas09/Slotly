@@ -916,15 +916,28 @@ dominio de más autorizado no es un agujero de seguridad, solo ruido).
    cuota de avisos "pronto", soporte) y lo común va en un bloque aparte
    (`FEATURES_COMUNES`). Cuando lleguen los avisos por WhatsApp, la cuota es la
    segunda diferencia real. No restar funciones al Básico para diferenciar.
-5. **Seña por Mercado Pago.** No empezado. El modelo correcto es OAuth de
-   Mercado Pago ("Conectar con Mercado Pago" en Configuración): el dueño
-   autoriza con su cuenta, MP le da a la plataforma un token de SU cuenta y la
-   plata va directo a él, sin que nadie tipee credenciales. Hace falta antes:
-   una aplicación creada en el panel de desarrolladores de MP (client_id +
-   client_secret como secrets de Functions, redirect URL), y decidir monto de
-   seña (fijo o %), qué pasa si no paga en N minutos (se libera el turno) y
-   si se devuelve al cancelar. Se construye recién con las credenciales, para
-   probarlo de verdad.
+5. **Seña por Mercado Pago — construida (25/09/2026).** Opcional por
+   negocio, apagada por defecto. OAuth de MP: el dueño conecta SU cuenta
+   ("Conectar Mercado Pago" en Configuración) y la plata va directo a él;
+   Slotly no es intermediario. Decisiones: seña fija o % (la fija con tope en
+   el precio), 15 minutos para pagar (+2 de margen antes de borrar), no se
+   devuelve sola al cancelar — el dueño tiene "Devolver seña" en Citas. Se
+   avisa en Configuración que MP cobra aprox. 8% (varía según plazo de
+   acreditación). Piezas: migración `20261004000000_sena_mercado_pago.sql`
+   (trigger `aplicar_sena_obligatoria` BEFORE INSERT, `proteger_campos_sena`
+   para que ni cliente ni staff toquen los campos de la seña, aviso al
+   negocio recién al pagar vía `handle_sena_pagada`, `liberar_senas_vencidas`
+   por pg_cron cada minuto, tabla `mp_connections` sin acceso desde el
+   browser); Edge Functions `mp-conexion`, `mp-oauth-callback`, `mp-webhook`
+   (sin JWT, ver config.toml), `mp-refund`, y `create-appointment` devuelve
+   `checkoutUrl` cuando hay seña; front: `SenaMercadoPagoCard`, `SenaTurno`,
+   `PagoSenaPage` (`/:slug/pago`, a donde vuelve MP). Secrets:
+   `MP_CLIENT_ID`, `MP_CLIENT_SECRET` (y opcional `APP_URL`). En la app de MP
+   la URL de redirección es `https://<ref>.supabase.co/functions/v1/mp-oauth-callback`.
+   `supabase/tests/test-sena.mjs` 41/41 — con token falso: el cobro real y la
+   confirmación por webhook de un pago aprobado solo se prueban con usuarios
+   de prueba de MP contra el deploy (localmente SUPABASE_URL es `kong:8000`
+   y MP no puede llegar).
 6. **Abuso de reservas.** Hecho: un turno por día y tope de 3 a futuro por
    cuenta. Falta, por orden: bloquear cliente desde el panel (para la cuenta que
    se porta mal), y App Check con reCAPTCHA v3 sobre los callables para frenar

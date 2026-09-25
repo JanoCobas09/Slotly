@@ -25,6 +25,7 @@ import CuentaSinNegocio from './pages/client/CuentaSinNegocio';
 const LandingPage      = lazy(() => import('./pages/LandingPage'));
 const BookingPage      = lazy(() => import('./pages/client/BookingPage'));
 const ConfirmationPage = lazy(() => import('./pages/client/ConfirmationPage'));
+const PagoSenaPage = lazy(() => import('./pages/client/PagoSenaPage'));
 const MyAppointments   = lazy(() => import('./pages/client/MyAppointments'));
 const OnboardingPage   = lazy(() => import('./pages/client/OnboardingPage'));
 
@@ -242,6 +243,12 @@ export default function App() {
         <Route path="/:businessSlug/confirmacion" element={
           <ProtectedRoute>
             <ClientLayout><TenantRoute><ConfirmationPage /></TenantRoute></ClientLayout>
+          </ProtectedRoute>
+        } />
+        {/* Vuelta desde Mercado Pago después de pagar (o no) la seña. */}
+        <Route path="/:businessSlug/pago" element={
+          <ProtectedRoute>
+            <ClientLayout><TenantRoute><PagoSenaPage /></TenantRoute></ClientLayout>
           </ProtectedRoute>
         } />
         <Route path="/:businessSlug/mis-citas" element={

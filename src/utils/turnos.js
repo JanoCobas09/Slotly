@@ -26,7 +26,13 @@ export function esTurnoEditable(apt, isOwner) {
 export function confirmacionCancelar(apt) {
   if (!esReservaDelCliente(apt)) return '¿Cancelar este turno?';
   const quien = apt.clientName ? ` (${apt.clientName})` : '';
+  // La seña no se devuelve sola al cancelar: si corresponde, el dueño la
+  // devuelve desde Citas ("Devolver seña").
+  const sena = apt.depositStatus === 'pagada'
+    ? 'Tiene una seña pagada: cancelar no la devuelve. Si corresponde, devolvela desde Citas con "Devolver seña".\n\n'
+    : '';
   return `Este turno lo reservó el cliente${quien}.\n\n`
     + 'Te recomendamos hablar con él antes de cancelarlo, así no se entera recién al llegar.\n\n'
+    + sena
     + '¿Cancelarlo igual?';
 }
