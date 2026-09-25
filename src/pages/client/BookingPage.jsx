@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useBooking } from '../../contexts/BookingContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../hooks/useTenantData';
-import { createAppointment, getBusySlots } from '../../lib/functions';
+import { createAppointment, getBusySlots, resolveMapsLink } from '../../lib/functions';
 import { calculateAvailableSlots, professionalWorksOnDate } from '../../utils/availabilityEngine';
 import { promoParaSlot, precioConPromo } from '../../utils/promoEngine';
 import { formatDate, formatPrice, toDateString, getMonthName, getLocalDayOfWeek } from '../../utils/dateUtils';
@@ -94,35 +94,62 @@ function BusinessHero({ business, compacta }) {
   );
 }
 
+/** Coordenadas escritas directo en un link largo de Maps (`!3d..!4d..` o `@lat,lng`). */
+function coordsDelLink(url) {
+  const texto = (() => { try { return decodeURIComponent(url || ''); } catch { return url || ''; } })();
+  const m = texto.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/) || texto.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+  return m ? `${m[1]},${m[2]}` : null;
+}
+
 /**
- * Qué buscar en el embed del mapa. Si el dueño pegó un link LARGO de Google
- * Maps, se saca de ahí el lugar exacto (coordenadas `@lat,lng` o el `q=`),
- * que es más preciso que la dirección tipeada a mano. Los links cortos que
- * comparte la app (maps.app.goo.gl/...) no traen nada adentro y no se pueden
- * resolver desde el navegador: ahí se busca por la dirección.
+ * Dónde centrar el mapa: el lugar REAL del link que cargó el dueño. Si el
+ * link es largo, las coordenadas salen de él mismo; si es corto
+ * (maps.app.goo.gl/...), las resuelve el servidor (resolve-maps-link),
+ * porque el navegador no puede seguir esa redirección. Mientras resuelve, no
+ * se pinta nada (sin mapa "de mentira" que después salta). Solo si no hay
+ * link, o no se pudo resolver, se busca por el texto de la dirección.
  */
-function consultaDelMapa(business) {
-  const url = business.mapsUrl?.trim();
-  if (url) {
-    const coords = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
-    if (coords) return `${coords[1]},${coords[2]}`;
-    try {
-      const q = new URL(url).searchParams.get('q') || new URL(url).searchParams.get('query');
-      if (q) return q;
-    } catch { /* no es una URL válida: se usa la dirección */ }
-  }
-  return business.address?.trim() || null;
+function useUbicacionDelMapa(business) {
+  const link = business.mapsUrl?.trim() || '';
+  const directas = coordsDelLink(link);
+  const hayQueResolver = Boolean(link) && !directas;
+  const [resuelta, setResuelta] = useState({ link: '', coords: null });
+
+  useEffect(() => {
+    if (!hayQueResolver) return;
+    let vigente = true;
+    resolveMapsLink({ businessId: business.id })
+      .then(({ ubicacion: u }) => {
+        if (!vigente) return;
+        // Coordenadas, o (links viejos de "compartir") el lugar por nombre
+        // tal como lo puso Google + su id `ftid`.
+        const coords = u?.lat != null ? `${u.lat},${u.lng}` : u?.query || null;
+        setResuelta({ link, coords, ftid: u?.ftid || null });
+      })
+      .catch((err) => {
+        console.error('[BookingPage] No se pudo resolver el link de Maps:', err);
+        if (vigente) setResuelta({ link, coords: null });
+      });
+    return () => { vigente = false; };
+  }, [hayQueResolver, link, business.id]);
+
+  const direccion = business.address?.trim() || null;
+  if (directas) return { consulta: directas, cargando: false };
+  if (hayQueResolver && resuelta.link !== link) return { consulta: null, cargando: true };
+  if (resuelta.coords) return { consulta: resuelta.coords, ftid: resuelta.ftid, cargando: false };
+  return { consulta: direccion, cargando: false };
 }
 
 // ---- MAPA ----
-// Vista previa del mapa (embed de Google Maps, sin API key) que abre el link
-// del negocio al tocarla, más la dirección como texto plano: se puede
-// seleccionar o copiar con el botón, pero no lleva a ningún lado — para eso
-// está "Cómo llegar". Sin dirección ni link, no se muestra nada.
+// Vista previa del mapa (embed de Google Maps, sin API key) centrada en la
+// ubicación real del negocio, que abre su link al tocarla, más la dirección
+// como texto plano: se puede seleccionar o copiar con el botón, pero no lleva
+// a ningún lado — para eso está "Cómo llegar". Sin dirección ni link, no se
+// muestra nada.
 function BusinessMap({ business }) {
   const [copiado, setCopiado] = useState(false);
-  const consulta = consultaDelMapa(business);
-  if (!consulta) return null;
+  const { consulta, ftid, cargando } = useUbicacionDelMapa(business);
+  if (!consulta && !cargando) return null;
   const dir = business.address?.trim();
   const comoLlegar = linkComoLlegar(business) || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(consulta)}`;
 
@@ -137,13 +164,15 @@ function BusinessMap({ business }) {
   return (
     <section className="business-map">
       <div className="business-map-frame">
-        <iframe
-          title={`Mapa de ${business.name}`}
-          src={`https://maps.google.com/maps?q=${encodeURIComponent(consulta)}&z=16&output=embed`}
-          loading="lazy"
-          referrerPolicy="no-referrer-when-downgrade"
-          tabIndex={-1}
-        />
+        {consulta && (
+          <iframe
+            title={`Mapa de ${business.name}`}
+            src={`https://maps.google.com/maps?q=${encodeURIComponent(consulta)}${ftid ? `&ftid=${encodeURIComponent(ftid)}` : ''}&z=16&output=embed`}
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+            tabIndex={-1}
+          />
+        )}
         {/* Capa encima del iframe: el toque abre el link del negocio, no el
             buscador de Google con la dirección tipeada. */}
         <a

@@ -92,6 +92,15 @@ export function getBusySlots({ businessId, professionalId, appointmentDate }) {
 }
 
 /**
+ * Ubicación real del link de Google Maps del negocio (sigue los links cortos
+ * maps.app.goo.gl del lado del servidor). Devuelve `{ ubicacion: { lat, lng } }`
+ * o `{ ubicacion: null }` si no hay link o no se pudo resolver. Sin sesión.
+ */
+export function resolveMapsLink({ businessId }) {
+  return llamar('resolve-maps-link', { businessId });
+}
+
+/**
  * Crea la cuenta de un dueño con email y contraseña, y le asigna los permisos.
  * Para el barbero que no usa Gmail o no quiere mezclarlo con lo personal.
  *
