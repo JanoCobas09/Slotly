@@ -371,6 +371,36 @@ export default function SettingsPage() {
 
           <SenaMercadoPagoCard form={form} editar={editar} businessId={businessId} terminology={terminology} />
 
+        </div>
+
+        {/* Right: Preview */}
+        <div>
+          <div className="card">
+            <h3 className="mb-lg">Vista Previa</h3>
+            <div style={{ background: 'var(--bg)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-lg)', border: '1px solid var(--border)' }}>
+              <div className="flex items-center gap-sm mb-lg" style={{ padding: 'var(--space-sm)' }}>
+                {form.logoUrl ? (
+                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: `center/cover url(${form.logoUrl})`, flexShrink: 0 }} />
+                ) : (
+                  <div style={{ width: 32, height: 32, borderRadius: 'var(--radius-sm)', background: `linear-gradient(135deg, ${form.primaryColor}, ${form.secondaryColor})`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '0.75rem', fontWeight: 700, flexShrink: 0 }}>
+                    {form.name?.charAt(0).toUpperCase() || 'S'}
+                  </div>
+                )}
+                <strong>{form.name}</strong>
+              </div>
+              <p className="text-secondary text-sm mb-md">{form.welcomeMessage}</p>
+              <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
+                <button className="btn btn-sm" style={{ background: form.primaryColor, color: 'white', borderColor: form.primaryColor }}>Reservar</button>
+                <button className="btn btn-outline btn-sm">Ver Más</button>
+              </div>
+              <div className="mt-md">
+                <div className="badge" style={{ background: form.primaryColor + '20', color: form.primaryColor }}>Activo</div>
+              </div>
+            </div>
+          </div>
+          {/* Abajo de la vista previa y no al final de la columna de la
+              izquierda: es de lo más importante de la página y ahí quedaba
+              después de todo lo demás. */}
           <div className="card mt-md">
             <h3 className="mb-lg">Horarios de atención</h3>
             <p className="text-secondary text-sm mb-md">Configurá los días y horarios en los que tu negocio se encuentra abierto al público.</p>
@@ -398,46 +428,18 @@ export default function SettingsPage() {
               ))}
             </div>
           </div>
-
-          {error && (
-            <div className="notice notice-danger mt-md">{error}</div>
-          )}
-
-          {/* Se quitó "Restaurar datos demo": ya no hay datos demo, y la base
-              vive en Firestore — no se restaura desde el navegador. */}
-          <div className="flex gap-sm mt-lg">
-            <button className="btn btn-primary btn-lg" onClick={handleSave} disabled={guardando}>
-              {guardando ? 'Guardando…' : <><Icon name="save" /> Guardar Cambios</>}
-            </button>
-          </div>
         </div>
+      </div>
 
-        {/* Right: Preview */}
-        <div>
-          <div className="card" style={{ position: 'sticky', top: 80 }}>
-            <h3 className="mb-lg">Vista Previa</h3>
-            <div style={{ background: 'var(--bg)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-lg)', border: '1px solid var(--border)' }}>
-              <div className="flex items-center gap-sm mb-lg" style={{ padding: 'var(--space-sm)' }}>
-                {form.logoUrl ? (
-                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: `center/cover url(${form.logoUrl})`, flexShrink: 0 }} />
-                ) : (
-                  <div style={{ width: 32, height: 32, borderRadius: 'var(--radius-sm)', background: `linear-gradient(135deg, ${form.primaryColor}, ${form.secondaryColor})`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '0.75rem', fontWeight: 700, flexShrink: 0 }}>
-                    {form.name?.charAt(0).toUpperCase() || 'S'}
-                  </div>
-                )}
-                <strong>{form.name}</strong>
-              </div>
-              <p className="text-secondary text-sm mb-md">{form.welcomeMessage}</p>
-              <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
-                <button className="btn btn-sm" style={{ background: form.primaryColor, color: 'white', borderColor: form.primaryColor }}>Reservar</button>
-                <button className="btn btn-outline btn-sm">Ver Más</button>
-              </div>
-              <div className="mt-md">
-                <div className="badge" style={{ background: form.primaryColor + '20', color: form.primaryColor }}>Activo</div>
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* Fuera de las dos columnas: con los horarios a la derecha, en el
+          celular (una sola columna) el botón quedaba ARRIBA de ellos. */}
+      {error && (
+        <div className="notice notice-danger mt-md">{error}</div>
+      )}
+      <div className="flex gap-sm mt-lg">
+        <button className="btn btn-primary btn-lg" onClick={handleSave} disabled={guardando}>
+          {guardando ? 'Guardando…' : <><Icon name="save" /> Guardar Cambios</>}
+        </button>
       </div>
     </div>
   );
