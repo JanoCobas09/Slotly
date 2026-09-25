@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { subscribePlatformTeam } from '../../lib/repository';
 import { setPlatformModerator } from '../../lib/functions';
+import { validarEmailObligatorio, LIMITES } from '../../utils/validaciones';
 
 /**
  * Equipo de la plataforma: moderadores.
@@ -30,7 +31,8 @@ export default function TeamPanel() {
   const agregar = async (ev) => {
     ev.preventDefault();
     const email = form.email.trim().toLowerCase();
-    if (!email.includes('@')) return setError('Ingresá un email válido.');
+    const errorEmail = validarEmailObligatorio(email);
+    if (errorEmail) return setError(errorEmail);
     if (email === user?.email?.toLowerCase()) return setError('Ese sos vos.');
 
     setGuardando(true);
@@ -93,6 +95,7 @@ export default function TeamPanel() {
               className="form-input"
               type="email"
               value={form.email}
+              maxLength={LIMITES.email}
               onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
               placeholder="soporte@gmail.com"
             />
@@ -102,6 +105,7 @@ export default function TeamPanel() {
             <input
               className="form-input"
               value={form.name}
+              maxLength={LIMITES.nombre}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
               placeholder="Juan"
             />

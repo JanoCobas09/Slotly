@@ -946,6 +946,16 @@ dominio de más autorizado no es un agujero de seguridad, solo ruido).
    ofrece. BookingPage filtra la grilla después de availabilityEngine (que
    no se toca) y el trigger `enforce_min_advance_hours` frena al que se lo
    saltee. Solo turnos de cliente, igual que `max_advance_days`.
+5c. **Validación de datos (25/09/2026).** Todo lo que carga cualquier rol
+   tiene reglas en la base: CHECKs con nombre en
+   `20261007000000_validacion_de_datos.sql` (largos, formatos de hora/
+   teléfono/mail/color, links solo http(s), precios y duraciones en rango,
+   horarios con fin después del inicio). `NOT VALID`: no revisan filas
+   viejas, rigen al crear/editar. Las pantallas validan antes con
+   `src/utils/validaciones.js` (mismas reglas) y `repository.js`
+   (`traducirError`) + `_shared/auth.ts` (`errorDeFuncionSql`) traducen el
+   nombre de la restricción a un mensaje legible — si renombrás una
+   restricción, actualizá los tres. `supabase/tests/test-validaciones.mjs` 41/41.
 6. **Abuso de reservas.** Hecho: un turno por día y tope de 3 a futuro por
    cuenta. Falta, por orden: bloquear cliente desde el panel (para la cuenta que
    se porta mal), y App Check con reCAPTCHA v3 sobre los callables para frenar

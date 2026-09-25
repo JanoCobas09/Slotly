@@ -1,5 +1,6 @@
 import { listProfessionCategories } from '../config/professionPresets';
 import Icon from './Icon';
+import { LIMITES } from '../utils/validaciones';
 
 const PROFESSION_CATEGORIES = listProfessionCategories();
 export const OTHER_OPTION = 'other';
@@ -112,6 +113,7 @@ export default function ProfessionCategoryPicker({
           <input
             className={`form-input ${customError ? 'error' : ''}`}
             value={customProfession}
+            maxLength={LIMITES.textoCorto}
             onChange={(e) => onCustomProfessionChange(e.target.value)}
             placeholder="Ej: Restaurador de instrumentos musicales"
           />

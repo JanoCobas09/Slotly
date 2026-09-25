@@ -6,6 +6,7 @@ import { calculateAvailableSlots } from '../../utils/availabilityEngine';
 import { formatPrice, toDateString } from '../../utils/dateUtils';
 import Icon from '../Icon';
 import { esReservaDelCliente } from '../../utils/turnos';
+import { esTelefono } from '../../utils/validaciones';
 import { turnoBloqueado, diaEnteroBloqueado } from '../../utils/bloqueos';
 
 /**
@@ -124,7 +125,7 @@ export default function NuevoTurnoModal({ onClose, turno = null }) {
     ? turnoBloqueado(blockedDays, form.date, slot.startTime, slot.endTime)
     : diaEnteroBloqueado(blockedDays, form.date);
   const digitos = form.clientPhone.replace(/\D/g, '');
-  const telefonoOk = digitos.length === 0 || (digitos.length >= 10 && digitos.length <= 13);
+  const telefonoOk = digitos.length === 0 || (digitos.length >= 10 && digitos.length <= 13 && esTelefono(form.clientPhone));
   const listo = Boolean(slot) && form.clientName.trim().length > 0 && telefonoOk && !guardando;
 
   const guardar = async () => {

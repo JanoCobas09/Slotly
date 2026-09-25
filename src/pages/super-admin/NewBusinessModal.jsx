@@ -12,6 +12,7 @@ import {
 } from '../../config/professionPresets';
 import Icon from '../../components/Icon';
 import ProfessionCategoryPicker, { OTHER_OPTION } from '../../components/ProfessionCategoryPicker';
+import { validarNegocio, normalizarInstagram, LIMITES } from '../../utils/validaciones';
 
 // Onboarding manual: el cliente se contacta, se cierra la venta, y la cuenta se
 // prepara desde acá. No hay registro self-service a propósito.
@@ -126,6 +127,17 @@ export default function NewBusinessModal({ onClose, onCreated }) {
     const email = form.ownerEmail.trim().toLowerCase();
 
     if (!form.name.trim()) e.name = 'Poné el nombre del negocio.';
+    else if (form.name.trim().length < 2 || form.name.trim().length > LIMITES.nombre) e.name = `El nombre tiene que tener entre 2 y ${LIMITES.nombre} caracteres.`;
+
+    // Datos del local, marca y horario: mismas reglas que Configuración
+    // (y que la base, que igual los rechazaría).
+    const errorLocal = validarNegocio({
+      name: form.name, phone: form.phone, email: form.email, address: form.address,
+      welcomeMessage: form.welcomeMessage, customProfession: form.customProfession,
+      socialLinks: { instagram: normalizarInstagram(form.instagram), whatsapp: form.whatsapp },
+      primaryColor: form.primaryColor, secondaryColor: form.secondaryColor, accentColor: form.accentColor,
+    });
+    if (errorLocal && !e.name) e.general = errorLocal;
 
     if (!form.professionOption) {
       e.professionOption = 'Elegí qué tipo de negocio es.';
@@ -192,7 +204,7 @@ export default function NewBusinessModal({ onClose, onCreated }) {
       onlineBookingEnabled: true,
       welcomeMessage: form.welcomeMessage.trim(),
       socialLinks: {
-        instagram: form.instagram.trim(),
+        instagram: normalizarInstagram(form.instagram),
         whatsapp: form.whatsapp.trim(),
       },
       // Público: la UI del negocio muestra el plan y su cuota de mensajes.
@@ -411,6 +423,7 @@ export default function NewBusinessModal({ onClose, onCreated }) {
             <input
               className={`form-input ${errors.name ? 'error' : ''}`}
               value={form.name}
+              maxLength={LIMITES.nombre}
               onChange={(e) => handleNameChange(e.target.value)}
               placeholder="Nombre de tu negocio"
               autoFocus
@@ -592,7 +605,9 @@ export default function NewBusinessModal({ onClose, onCreated }) {
               <label className="form-label">Teléfono</label>
               <input
                 className="form-input"
+                type="tel"
                 value={form.phone}
+                maxLength={LIMITES.telefono}
                 onChange={(e) => set({ phone: e.target.value })}
                 placeholder="+54 11 1234-5678"
               />
@@ -601,7 +616,9 @@ export default function NewBusinessModal({ onClose, onCreated }) {
               <label className="form-label">Email de contacto</label>
               <input
                 className="form-input"
+                type="email"
                 value={form.email}
+                maxLength={LIMITES.email}
                 onChange={(e) => set({ email: e.target.value })}
                 placeholder="hola@minegocio.com"
               />
@@ -611,6 +628,7 @@ export default function NewBusinessModal({ onClose, onCreated }) {
               <input
                 className="form-input"
                 value={form.address}
+                maxLength={LIMITES.direccion}
                 onChange={(e) => set({ address: e.target.value })}
                 placeholder="Av. Corrientes 1234"
               />
@@ -620,6 +638,7 @@ export default function NewBusinessModal({ onClose, onCreated }) {
               <input
                 className="form-input"
                 value={form.instagram}
+                maxLength={100}
                 onChange={(e) => set({ instagram: e.target.value })}
                 placeholder="@mi_negocio"
               />
@@ -628,7 +647,9 @@ export default function NewBusinessModal({ onClose, onCreated }) {
               <label className="form-label">WhatsApp</label>
               <input
                 className="form-input"
+                type="tel"
                 value={form.whatsapp}
+                maxLength={LIMITES.telefono}
                 onChange={(e) => set({ whatsapp: e.target.value })}
                 placeholder="+5411..."
               />
@@ -670,6 +691,7 @@ export default function NewBusinessModal({ onClose, onCreated }) {
             <input
               className="form-input"
               value={form.welcomeMessage}
+              maxLength={LIMITES.textoLargo}
               onChange={(e) => set({ welcomeMessage: e.target.value, welcomeMessageEdited: true })}
             />
           </div>

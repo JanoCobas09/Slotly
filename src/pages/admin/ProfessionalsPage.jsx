@@ -16,6 +16,7 @@ import { getPlan } from '../../config/plans';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
 import { capitalize } from '../../utils/text';
 import Icon from '../../components/Icon';
+import { validarProfesional, validarFranjas, LIMITES } from '../../utils/validaciones';
 
 // Mismo número que la landing y el resto del panel.
 const LINK_AMPLIAR = 'https://wa.me/5492257660073?text=' +
@@ -165,6 +166,15 @@ export default function ProfessionalsPage() {
   // ── Guardar ────────────────────────────────────────────────────────────────
   const handleSave = async () => {
     if (!form.name.trim() || !businessId) return;
+    // Se valida TODO antes de escribir nada: el guardado son varios pasos
+    // (ficha, contacto, horarios, servicios) y un rechazo de la base a mitad
+    // de camino dejaba al profesional guardado a medias.
+    const errorDatos = validarProfesional(form)
+      || editSchedules.filter((d) => d.isActive).map((d) => validarFranjas(d.franjas, getDayName(d.dayOfWeek))).find(Boolean);
+    if (errorDatos) {
+      alert(errorDatos);
+      return;
+    }
 
     setGuardando(true);
     try {
@@ -449,6 +459,7 @@ export default function ProfessionalsPage() {
                   <input
                     className="form-input"
                     value={form.name}
+                    maxLength={LIMITES.nombre}
                     onChange={e => setForm({ ...form, name: e.target.value })}
                     placeholder="Nombre completo"
                   />
@@ -458,6 +469,7 @@ export default function ProfessionalsPage() {
                   <input
                     className="form-input"
                     value={form.specialty}
+                    maxLength={LIMITES.especialidad}
                     onChange={e => setForm({ ...form, specialty: e.target.value })}
                     placeholder={`Ej: ${capitalize(terminology.professionalNoun)} Senior`}
                   />
@@ -465,11 +477,11 @@ export default function ProfessionalsPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
                   <div className="form-group">
                     <label className="form-label">Teléfono</label>
-                    <input className="form-input" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
+                    <input className="form-input" type="tel" value={form.phone} maxLength={LIMITES.telefono} onChange={e => setForm({ ...form, phone: e.target.value })} />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Email</label>
-                    <input className="form-input" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
+                    <input className="form-input" type="email" value={form.email} maxLength={LIMITES.email} onChange={e => setForm({ ...form, email: e.target.value })} />
                   </div>
                 </div>
 

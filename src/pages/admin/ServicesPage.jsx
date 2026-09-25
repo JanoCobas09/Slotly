@@ -6,6 +6,7 @@ import {
   removeFromSubcollection,
   replaceMatching,
 } from '../../lib/repository';
+import { validarServicio, LIMITES } from '../../utils/validaciones';
 import { formatPrice } from '../../utils/dateUtils';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
 import Icon from '../../components/Icon';
@@ -40,7 +41,14 @@ export default function ServicesPage() {
   };
 
   const handleSave = async () => {
-    if (!form.name || !form.price || !businessId) return;
+    if (!businessId) return;
+    // Antes: `!form.price` cortaba en silencio un servicio de precio 0 (una
+    // consulta gratis es válida) y no validaba nada más.
+    const errorDatos = validarServicio(form);
+    if (errorDatos) {
+      alert(errorDatos);
+      return;
+    }
 
     setGuardando(true);
     try {
@@ -205,25 +213,25 @@ export default function ServicesPage() {
               <div className="flex flex-col gap-md">
                 <div className="form-group">
                   <label className="form-label">Nombre <span className="required">*</span></label>
-                  <input className="form-input" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Nombre del servicio" />
+                  <input className="form-input" value={form.name} maxLength={LIMITES.nombre} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Nombre del servicio" />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Descripción</label>
-                  <textarea className="form-input" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Descripción del servicio" />
+                  <textarea className="form-input" value={form.description} maxLength={LIMITES.textoLargo} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Descripción del servicio" />
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
                   <div className="form-group">
                     <label className="form-label">Duración (min) <span className="required">*</span></label>
-                    <input className="form-input" type="number" value={form.durationMinutes} onChange={e => setForm({ ...form, durationMinutes: parseInt(e.target.value) || 0 })} />
+                    <input className="form-input" type="number" min={5} max={720} step={5} value={form.durationMinutes} onChange={e => setForm({ ...form, durationMinutes: parseInt(e.target.value) || 0 })} />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Precio <span className="required">*</span></label>
-                    <input className="form-input" type="number" value={form.price} onChange={e => setForm({ ...form, price: parseFloat(e.target.value) || 0 })} />
+                    <input className="form-input" type="number" min={0} value={form.price} onChange={e => setForm({ ...form, price: parseFloat(e.target.value) || 0 })} />
                   </div>
                 </div>
                 <div className="form-group">
                   <label className="form-label">Categoría</label>
-                  <input className="form-input" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} placeholder="Ej: Consultas, Mantenimiento, Tratamientos" />
+                  <input className="form-input" value={form.category} maxLength={LIMITES.textoCorto} onChange={e => setForm({ ...form, category: e.target.value })} placeholder="Ej: Consultas, Mantenimiento, Tratamientos" />
                 </div>
 
                 <h3 style={{ marginTop: 'var(--space-sm)' }}>Asignar a Profesionales</h3>

@@ -190,7 +190,12 @@ export default function SuperAdminDashboard() {
   };
 
   const handleRecordPayment = async () => {
-    if (!paymentAmount || isNaN(paymentAmount)) return;
+    // Un pago negativo o absurdo "descontaba" deuda al revés.
+    const monto = Number(paymentAmount);
+    if (!Number.isFinite(monto) || monto <= 0 || monto > 100000000) {
+      alert('El pago tiene que ser un monto mayor a 0.');
+      return;
+    }
     const todayStr = new Date().toISOString().split('T')[0];
     try {
       await recordPayment(selectedBusiness.id, Number(paymentAmount), todayStr);
@@ -218,7 +223,11 @@ export default function SuperAdminDashboard() {
   };
 
   const handleEditDebt = async () => {
-    if (debtAmount === '' || isNaN(debtAmount)) return;
+    const saldo = Number(debtAmount);
+    if (debtAmount === '' || !Number.isFinite(saldo) || Math.abs(saldo) > 100000000) {
+      alert('Poné un saldo válido.');
+      return;
+    }
     try {
       await updateBilling(selectedBusiness.id, { debt: Number(debtAmount) });
     } catch (err) {

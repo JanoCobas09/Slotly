@@ -11,6 +11,7 @@ import { getDayName, generateId } from '../../utils/dateUtils';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
 import { capitalize } from '../../utils/text';
 import Icon from '../../components/Icon';
+import { validarProfesional, validarDiaConDescanso, LIMITES } from '../../utils/validaciones';
 
 export default function ProfileSettingsPage() {
   const { user } = useAuth();
@@ -94,6 +95,14 @@ export default function ProfileSettingsPage() {
 
   const handleSave = async () => {
     if (!businessId || !profId) return;
+    // Todo antes de escribir: se guarda en tres pasos (ficha, contacto,
+    // horarios) y un rechazo a mitad de camino dejaba cambios a medias.
+    const errorDatos = validarProfesional(form)
+      || editSchedules.map((d) => validarDiaConDescanso(d, getDayName(d.dayOfWeek))).find(Boolean);
+    if (errorDatos) {
+      alert(errorDatos);
+      return;
+    }
     setGuardando(true);
     try {
       // El contacto va aparte: el documento del profesional es público.
@@ -147,6 +156,7 @@ export default function ProfileSettingsPage() {
                 <input
                   className="form-input"
                   value={form.name}
+                  maxLength={LIMITES.nombre}
                   onChange={e => editar({ name: e.target.value })}
                   placeholder="Tu nombre"
                 />
@@ -157,6 +167,7 @@ export default function ProfileSettingsPage() {
                 <input
                   className="form-input"
                   value={form.specialty}
+                  maxLength={LIMITES.especialidad}
                   onChange={e => editar({ specialty: e.target.value })}
                   placeholder={`Ej: ${capitalize(terminology.professionalNoun)} Senior`}
                 />
@@ -167,7 +178,9 @@ export default function ProfileSettingsPage() {
                   <label className="form-label">Teléfono</label>
                   <input
                     className="form-input"
+                    type="tel"
                     value={form.phone}
+                    maxLength={LIMITES.telefono}
                     onChange={e => editar({ phone: e.target.value })}
                     placeholder="+54 11 ..."
                   />
@@ -176,7 +189,9 @@ export default function ProfileSettingsPage() {
                   <label className="form-label">Email de Contacto</label>
                   <input
                     className="form-input"
+                    type="email"
                     value={form.email}
+                    maxLength={LIMITES.email}
                     onChange={e => editar({ email: e.target.value })}
                     placeholder="email@correo.com"
                   />
@@ -189,6 +204,7 @@ export default function ProfileSettingsPage() {
                   className="form-input"
                   style={{ minHeight: 100, resize: 'vertical' }}
                   value={form.bio}
+                  maxLength={LIMITES.textoLargo}
                   onChange={e => editar({ bio: e.target.value })}
                   placeholder="Contales a tus clientes sobre tu experiencia…"
                 />

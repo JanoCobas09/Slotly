@@ -53,8 +53,25 @@ const CODIGOS_SQL: Record<string, (msg: string) => HttpError> = {
   'resource-exhausted': resourceExhausted,
 };
 
+// Violaciones de los CHECK de validación (20261007000000_validacion_de_datos.sql)
+// que pueden saltar desde una Edge Function: se devuelve un mensaje para una
+// persona en vez de un 500 genérico.
+const MENSAJES_VALIDACION: Record<string, string> = {
+  appointments_cliente_valido: 'Revisá tu nombre y teléfono: el teléfono solo puede tener números (con código de área).',
+  appointments_notas_validas: 'Los datos que cargaste son demasiado largos.',
+  businesses_nombre_valido: 'El nombre del negocio tiene que tener entre 2 y 80 caracteres.',
+  businesses_rubro_valido: 'El rubro puede tener hasta 60 caracteres.',
+  businesses_colores_validos: 'El color elegido no es válido.',
+  admins_email_valido: 'El email no es válido.',
+  admins_nombre_valido: 'El nombre puede tener hasta 80 caracteres.',
+};
+
 export function errorDeFuncionSql(pgError: { message?: string } | null | undefined): HttpError {
   const texto = pgError?.message || '';
+  const restriccion = /violates check constraint "([^"]+)"/.exec(texto)?.[1];
+  if (restriccion) {
+    return invalidArgument(MENSAJES_VALIDACION[restriccion] || 'Hay un dato con formato inválido. Revisalo e intentá de nuevo.');
+  }
   const separador = texto.indexOf(': ');
   if (separador > 0) {
     const codigo = texto.slice(0, separador);

@@ -70,6 +70,71 @@ function fromRow(table, row) {
 
 const rows = (table, arr) => (arr || []).map((r) => fromRow(table, r));
 
+// ============================================================================
+// Errores de validación de la base → mensajes para una persona
+// ============================================================================
+// La base rechaza datos fuera de regla con CHECKs con nombre (ver
+// supabase/migrations/20261007000000_validacion_de_datos.sql). Sin esto, la
+// pantalla mostraba 'new row for relation "services" violates check
+// constraint "services_precio_valido"'. Las pantallas validan antes con las
+// mismas reglas (utils/validaciones.js), así que esto es la red de abajo.
+const MENSAJES_VALIDACION = {
+  businesses_nombre_valido: 'El nombre del negocio tiene que tener entre 2 y 80 caracteres.',
+  businesses_mensaje_valido: 'El mensaje de bienvenida puede tener hasta 500 caracteres.',
+  businesses_telefono_valido: 'El teléfono no es válido: usá solo números (con código de área).',
+  businesses_email_valido: 'El email del negocio no es válido.',
+  businesses_direccion_valida: 'La dirección puede tener hasta 200 caracteres.',
+  businesses_maps_valido: 'El link de Google Maps tiene que empezar con https://',
+  businesses_logo_valido: 'La foto del negocio no es válida.',
+  businesses_colores_validos: 'Los colores tienen que tener el formato #RRGGBB.',
+  businesses_moneda_valida: 'Elegí una moneda de la lista.',
+  businesses_intervalo_valido: 'El intervalo de la grilla tiene que ser de entre 5 y 240 minutos.',
+  businesses_cancelacion_valida: 'Las horas para cancelar tienen que estar entre 0 y 168.',
+  businesses_rubro_valido: 'El rubro puede tener hasta 60 caracteres.',
+  businesses_redes_validas: 'El usuario de Instagram solo puede tener letras, números, puntos y guiones bajos (hasta 30), y el WhatsApp solo números.',
+  businesses_horario_valido: 'Revisá los horarios de atención: cada día abierto necesita apertura y cierre, y el cierre después de la apertura.',
+  businesses_sena_valida: 'La seña no puede ser más del 100% del precio.',
+  services_nombre_valido: 'El nombre del servicio tiene que tener entre 2 y 80 caracteres.',
+  services_descripcion_valida: 'La descripción puede tener hasta 500 caracteres.',
+  services_categoria_valida: 'La categoría puede tener hasta 60 caracteres.',
+  services_duracion_valida: 'La duración tiene que ser de entre 5 y 720 minutos.',
+  services_precio_valido: 'El precio no puede ser negativo.',
+  professional_services_precio_valido: 'El precio no puede ser negativo.',
+  professional_services_duracion_valida: 'La duración tiene que ser de entre 5 y 720 minutos.',
+  professionals_nombre_valido: 'El nombre tiene que tener entre 2 y 80 caracteres.',
+  professionals_especialidad_valida: 'La especialidad puede tener hasta 80 caracteres.',
+  professionals_bio_valida: 'La descripción puede tener hasta 500 caracteres.',
+  professionals_foto_valida: 'La foto no es válida.',
+  staff_contacts_telefono_valido: 'El teléfono no es válido: usá solo números (con código de área).',
+  staff_contacts_email_valido: 'El email no es válido.',
+  schedules_horas_validas: 'Hay un horario con formato inválido.',
+  schedules_rango_valido: 'En cada franja horaria, el fin tiene que ser después del inicio.',
+  schedules_descanso_valido: 'El descanso tiene que quedar adentro del horario, y terminar después de empezar.',
+  promotions_horas_validas: 'El horario "hasta" de la promo tiene que ser después del "desde".',
+  promotions_descuento_valido: 'El descuento tiene que ser mayor a 0 y menor a 100%.',
+  appointments_horas_validas: 'El horario del turno no es válido.',
+  appointments_tipo_valido: 'Tipo de turno inválido.',
+  appointments_cliente_valido: 'Revisá los datos del cliente: nombre hasta 120 caracteres y teléfono solo con números.',
+  appointments_notas_validas: 'Las notas pueden tener hasta 500 caracteres (y el motivo de cancelación hasta 300).',
+  appointments_precio_valido: 'El precio no puede ser negativo.',
+  admins_email_valido: 'El email no es válido.',
+  admins_nombre_valido: 'El nombre puede tener hasta 80 caracteres.',
+  tickets_asunto_valido: 'El asunto tiene que tener entre 1 y 120 caracteres.',
+  tickets_categoria_valida: 'Categoría inválida.',
+  ticket_messages_texto_valido: 'El mensaje no puede estar vacío ni pasar los 4000 caracteres.',
+  billing_abono_valido: 'El abono no puede ser negativo.',
+};
+
+function traducirError(error) {
+  const restriccion = /constraint "([^"]+)"/.exec(error?.message || '')?.[1];
+  const mensaje = restriccion && MENSAJES_VALIDACION[restriccion];
+  if (!mensaje) return error;
+  const traducido = new Error(mensaje);
+  traducido.code = 'invalid-argument';
+  traducido.original = error;
+  return traducido;
+}
+
 /** Objeto JS (camelCase) → payload de insert/update (snake_case). */
 function toRow(table, obj) {
   const renombres = RENOMBRES[table] || {};
@@ -196,13 +261,13 @@ export async function createBusiness({ business, billing, ownerAdmin }) {
     .insert(toRow('businesses', business))
     .select('id')
     .single();
-  if (error) throw error;
+  if (error) throw traducirError(error);
   const businessId = negocio.id;
 
   const { error: billingErr } = await supabase
     .from('billing')
     .insert({ business_id: businessId, debt: billing?.debt ?? 0, ...toRow('billing', billing || {}) });
-  if (billingErr) throw billingErr;
+  if (billingErr) throw traducirError(billingErr);
 
   if (ownerAdmin?.email) {
     const { error: adminErr } = await supabase.from('admins').insert({
@@ -210,7 +275,7 @@ export async function createBusiness({ business, billing, ownerAdmin }) {
       email: ownerAdmin.email.toLowerCase(),
       business_id: businessId,
     });
-    if (adminErr) throw adminErr;
+    if (adminErr) throw traducirError(adminErr);
   }
 
   return businessId;
@@ -254,7 +319,7 @@ export async function updateBusiness(businessId, cambios, { esPlataforma = false
   }
   delete payload.createdAt;
   const { error } = await supabase.from('businesses').update(toRow('businesses', payload)).eq('id', businessId);
-  if (error) throw error;
+  if (error) throw traducirError(error);
 }
 
 /**
@@ -265,14 +330,14 @@ export async function updateBusiness(businessId, cambios, { esPlataforma = false
  */
 export async function getMpConnectionStatus(businessId) {
   const { data, error } = await supabase.rpc('mp_connection_status', { p_business_id: businessId });
-  if (error) throw error;
+  if (error) throw traducirError(error);
   const fila = Array.isArray(data) ? data[0] : data;
   return fila ? fromRow('mp_connections', fila) : null;
 }
 
 export async function setBusinessFrozen(businessId, isFrozen) {
   const { error } = await supabase.from('businesses').update({ is_frozen: isFrozen }).eq('id', businessId);
-  if (error) throw error;
+  if (error) throw traducirError(error);
 }
 
 // Borrar un negocio es `deleteBusiness` en lib/functions.js: en cascada, con
@@ -301,7 +366,7 @@ export async function uploadBusinessLogo(businessId, file) {
     contentType: file.type,
     upsert: true,
   });
-  if (error) throw error;
+  if (error) throw traducirError(error);
   const { data } = supabase.storage.from('business-logos').getPublicUrl(path);
   return data.publicUrl;
 }
@@ -311,7 +376,7 @@ export async function removeBusinessLogo(businessId) {
   const { error } = await supabase.storage.from('business-logos').remove([LOGO_PATH(businessId)]);
   // Ya no estaba (por ejemplo, se borró desde otra pestaña): no es un error
   // real, el resultado que quería quien llama ya se cumplió.
-  if (error && !/not.?found/i.test(error.message || '')) throw error;
+  if (error && !/not.?found/i.test(error.message || '')) throw traducirError(error);
 }
 
 // ============================================================================
@@ -335,7 +400,7 @@ export async function uploadProfessionalPhoto(businessId, profId, file) {
     contentType: file.type,
     upsert: true,
   });
-  if (error) throw error;
+  if (error) throw traducirError(error);
   const { data } = supabase.storage.from('business-logos').getPublicUrl(path);
   return `${data.publicUrl}?v=${Date.now()}`;
 }
@@ -343,7 +408,7 @@ export async function uploadProfessionalPhoto(businessId, profId, file) {
 /** Borra la foto del bucket. Quien llama todavía tiene que limpiar `avatarUrl`. */
 export async function removeProfessionalPhoto(businessId, profId) {
   const { error } = await supabase.storage.from('business-logos').remove([FOTO_PROF_PATH(businessId, profId)]);
-  if (error && !/not.?found/i.test(error.message || '')) throw error;
+  if (error && !/not.?found/i.test(error.message || '')) throw traducirError(error);
 }
 
 // ============================================================================
@@ -356,7 +421,7 @@ export function subscribeBilling(businessId, cb, onError) {
 
 export async function getBilling(businessId) {
   const { data, error } = await supabase.from('billing').select('*').eq('business_id', businessId).maybeSingle();
-  if (error) throw error;
+  if (error) throw traducirError(error);
   return fromRow('billing', data);
 }
 
@@ -364,7 +429,7 @@ export async function updateBilling(businessId, cambios) {
   const { error } = await supabase
     .from('billing')
     .upsert({ business_id: businessId, ...toRow('billing', cambios) }, { onConflict: 'business_id' });
-  if (error) throw error;
+  if (error) throw traducirError(error);
 }
 
 /** Registra un cobro y descuenta de la deuda. Descongela si queda en cero. */
@@ -388,11 +453,11 @@ export async function upgradePlan(businessId, { planId, whatsappQuota, monthlyFe
   // reintentar) — mismo riesgo que ya aceptaba el batch de Firestore, que
   // tampoco era atómico entre colecciones con reglas distintas.
   const { error: err1 } = await supabase.from('businesses').update({ plan_id: planId, whatsapp_quota: whatsappQuota }).eq('id', businessId);
-  if (err1) throw err1;
+  if (err1) throw traducirError(err1);
   const { error: err2 } = await supabase
     .from('billing')
     .upsert({ business_id: businessId, monthly_fee: monthlyFee, plan_id: planId }, { onConflict: 'business_id' });
-  if (err2) throw err2;
+  if (err2) throw traducirError(err2);
 }
 
 // ============================================================================
@@ -411,7 +476,7 @@ export async function addToSubcollection(businessId, name, data) {
   const payload = { ...toRow(nombreTabla(name), data), business_id: businessId };
   delete payload.id; // lo genera la base — a diferencia de Firestore, acá nunca lo elige quien llama
   const { data: fila, error } = await supabase.from(nombreTabla(name)).insert(payload).select('id').single();
-  if (error) throw error;
+  if (error) throw traducirError(error);
   return fila.id;
 }
 
@@ -421,12 +486,12 @@ export async function updateInSubcollection(businessId, name, id, cambios) {
     .update(toRow(nombreTabla(name), cambios))
     .eq('id', id)
     .eq('business_id', businessId);
-  if (error) throw error;
+  if (error) throw traducirError(error);
 }
 
 export async function removeFromSubcollection(businessId, name, id) {
   const { error } = await supabase.from(nombreTabla(name)).delete().eq('id', id).eq('business_id', businessId);
-  if (error) throw error;
+  if (error) throw traducirError(error);
 }
 
 // ============================================================================
@@ -448,14 +513,14 @@ export async function blockDays(businessId, fechas, rango = null) {
     end_time: rango?.endTime || null,
   }));
   const { error } = await supabase.from('blocked_days').insert(filas);
-  if (error) throw error;
+  if (error) throw traducirError(error);
 }
 
 /** Saca bloqueos puntuales (un día entero o un rango), por id. */
 export async function removeBlocks(businessId, ids) {
   if (!ids.length) return;
   const { error } = await supabase.from('blocked_days').delete().eq('business_id', businessId).in('id', ids);
-  if (error) throw error;
+  if (error) throw traducirError(error);
 }
 
 /**
@@ -468,7 +533,7 @@ export async function replaceMatching(businessId, name, campo, valor, nuevos) {
   const columnaFiltro = toSnake(campo);
 
   const { error: delErr } = await supabase.from(tabla).delete().eq('business_id', businessId).eq(columnaFiltro, valor);
-  if (delErr) throw delErr;
+  if (delErr) throw traducirError(delErr);
 
   if (nuevos.length === 0) return;
   const payload = nuevos.map((item) => {
@@ -477,7 +542,7 @@ export async function replaceMatching(businessId, name, campo, valor, nuevos) {
     return fila;
   });
   const { error: insErr } = await supabase.from(tabla).insert(payload);
-  if (insErr) throw insErr;
+  if (insErr) throw traducirError(insErr);
 }
 
 // ============================================================================
@@ -512,7 +577,7 @@ export async function createAppointment(businessId, data) {
   const payload = { ...toRow('appointments', data), business_id: businessId, status: 'pendiente' };
   delete payload.id;
   const { data: fila, error } = await supabase.from('appointments').insert(payload).select('id').single();
-  if (error) throw error;
+  if (error) throw traducirError(error);
   return fila.id;
 }
 
@@ -522,7 +587,7 @@ export async function updateAppointment(businessId, id, cambios) {
     .update(toRow('appointments', cambios))
     .eq('id', id)
     .eq('business_id', businessId);
-  if (error) throw error;
+  if (error) throw traducirError(error);
 }
 
 /** Cancelar. Los turnos no se borran nunca: así queda historial. */
@@ -539,7 +604,7 @@ export async function cancelAppointment(businessId, id, motivo = '', quien = 'st
     })
     .eq('id', id)
     .eq('business_id', businessId);
-  if (error) throw error;
+  if (error) throw traducirError(error);
 }
 
 // ============================================================================
@@ -630,7 +695,7 @@ export async function markNotificationRead(businessId, id, uid) {
   const { error } = await supabase
     .from('notification_reads')
     .upsert({ notification_id: id, user_id: uid }, { onConflict: 'notification_id,user_id', ignoreDuplicates: true });
-  if (error) throw error;
+  if (error) throw traducirError(error);
 }
 
 // ============================================================================
@@ -672,12 +737,12 @@ export async function savePushToken(businessId, subscription, { uid, role, profe
     },
     { onConflict: 'endpoint' }
   );
-  if (error) throw error;
+  if (error) throw traducirError(error);
 }
 
 export async function removePushToken(businessId, endpoint) {
   const { error } = await supabase.from('push_subscriptions').delete().eq('endpoint', endpoint).eq('business_id', businessId);
-  if (error) throw error;
+  if (error) throw traducirError(error);
 }
 
 // ============================================================================
@@ -695,7 +760,7 @@ export async function removePushToken(businessId, endpoint) {
 /** { [professionalId]: { phone, email } }. Vacío si nunca se cargó nada. */
 export async function getStaffContacts(businessId) {
   const { data, error } = await supabase.from('staff_contacts').select('*').eq('business_id', businessId);
-  if (error) throw error;
+  if (error) throw traducirError(error);
   return Object.fromEntries((data || []).map((r) => [r.professional_id, { phone: r.phone || '', email: r.email || '' }]));
 }
 
@@ -703,13 +768,13 @@ export async function saveStaffContact(businessId, professionalId, { phone = '',
   const { error } = await supabase
     .from('staff_contacts')
     .upsert({ professional_id: professionalId, business_id: businessId, phone, email }, { onConflict: 'professional_id' });
-  if (error) throw error;
+  if (error) throw traducirError(error);
 }
 
 /** ON DELETE CASCADE ya lo hace solo al borrar el profesional; esto queda para borrarlo aparte si hiciera falta. */
 export async function removeStaffContact(businessId, professionalId) {
   const { error } = await supabase.from('staff_contacts').delete().eq('professional_id', professionalId).eq('business_id', businessId);
-  if (error) throw error;
+  if (error) throw traducirError(error);
 }
 
 // ============================================================================
@@ -729,12 +794,12 @@ export async function saveAdminRecord(businessId, admin) {
   const { error } = await supabase
     .from('admins')
     .upsert({ ...toRow('admins', admin), email, business_id: businessId }, { onConflict: 'business_id,email' });
-  if (error) throw error;
+  if (error) throw traducirError(error);
 }
 
 export async function removeAdminRecord(businessId, email) {
   const { error } = await supabase.from('admins').delete().eq('business_id', businessId).eq('email', email.toLowerCase());
-  if (error) throw error;
+  if (error) throw traducirError(error);
 }
 
 // ============================================================================
@@ -790,7 +855,7 @@ export async function createTicket({ businessId, businessName, subject, category
     })
     .select('id')
     .single();
-  if (error) throw error;
+  if (error) throw traducirError(error);
 
   const { error: msgErr } = await supabase.from('ticket_messages').insert({
     ticket_id: ticket.id,
@@ -800,7 +865,7 @@ export async function createTicket({ businessId, businessName, subject, category
     sender_role: 'business',
     body: message,
   });
-  if (msgErr) throw msgErr;
+  if (msgErr) throw traducirError(msgErr);
 
   return ticket.id;
 }
@@ -811,7 +876,7 @@ export async function addTicketMessage(ticketId, { text, author, role }) {
   // igual que en el resto de las tablas hijas): una sola lectura, no hace
   // falta que quien llama la pase.
   const { data: ticket, error: getErr } = await supabase.from('tickets').select('business_id').eq('id', ticketId).single();
-  if (getErr) throw getErr;
+  if (getErr) throw traducirError(getErr);
 
   const ahora = new Date().toISOString();
 
@@ -823,7 +888,7 @@ export async function addTicketMessage(ticketId, { text, author, role }) {
     sender_role: role,
     body: text,
   });
-  if (msgErr) throw msgErr;
+  if (msgErr) throw traducirError(msgErr);
 
   const { error: updErr } = await supabase
     .from('tickets')
@@ -835,19 +900,19 @@ export async function addTicketMessage(ticketId, { text, author, role }) {
       unread_for_business: role === 'platform',
     })
     .eq('id', ticketId);
-  if (updErr) throw updErr;
+  if (updErr) throw traducirError(updErr);
 }
 
 export async function setTicketStatus(ticketId, status) {
   const { error } = await supabase.from('tickets').update({ status }).eq('id', ticketId);
-  if (error) throw error;
+  if (error) throw traducirError(error);
 }
 
 /** Marca como leído para quien lo está mirando. */
 export async function markTicketRead(ticketId, role) {
   const campo = role === 'platform' ? 'unread_for_platform' : 'unread_for_business';
   const { error } = await supabase.from('tickets').update({ [campo]: false }).eq('id', ticketId);
-  if (error) throw error;
+  if (error) throw traducirError(error);
 }
 
 // ============================================================================
@@ -868,5 +933,5 @@ export async function savePlatformConfig(name, data) {
   const { data: actual } = await supabase.from('platform_config').select('data').eq('id', true).maybeSingle();
   const nuevo = { ...(actual?.data || {}), [name]: { ...(actual?.data?.[name] || {}), ...data } };
   const { error } = await supabase.from('platform_config').upsert({ id: true, data: nuevo });
-  if (error) throw error;
+  if (error) throw traducirError(error);
 }

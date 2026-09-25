@@ -10,6 +10,7 @@ import { formatDate, formatPrice, toDateString, getMonthName, getLocalDayOfWeek 
 import { useBusinessContext } from '../../hooks/useBusinessContext';
 import Icon from '../../components/Icon';
 import { esDiaEntero, rangosComoOcupados } from '../../utils/bloqueos';
+import { esTelefono, LIMITES } from '../../utils/validaciones';
 
 // ---- STEPPER ----
 function Stepper({ step }) {
@@ -466,7 +467,9 @@ function TimeSlotGrid({ slots, selectedSlot, onSelect, date, cargando, serviceId
  */
 function telefonoValido(tel) {
   const digitos = String(tel || '').replace(/\D/g, '');
-  return digitos.length >= 10 && digitos.length <= 13;
+  // esTelefono: solo números y + ( ) - . espacios — sin esto "11 abc 1234-5678"
+  // pasaba acá (se contaban solo los dígitos) y la base lo rechazaba después.
+  return digitos.length >= 10 && digitos.length <= 13 && esTelefono(tel);
 }
 
 function nombreValido(nombre) {
@@ -502,6 +505,7 @@ function PersonalInfoStep({ user, name, phone, onNameChange, onPhoneChange, cust
             className="form-input"
             type="text"
             value={name}
+            maxLength={LIMITES.nombre}
             onChange={e => onNameChange(e.target.value)}
             placeholder="Nombre y apellido"
             autoFocus
@@ -521,6 +525,7 @@ function PersonalInfoStep({ user, name, phone, onNameChange, onPhoneChange, cust
             type="tel"
             inputMode="tel"
             value={phone}
+            maxLength={LIMITES.telefono}
             onChange={e => onPhoneChange(e.target.value)}
             placeholder="+54 11 1234-5678"
             style={tocado && !valido ? { borderColor: 'var(--danger)' } : undefined}
@@ -547,6 +552,7 @@ function PersonalInfoStep({ user, name, phone, onNameChange, onPhoneChange, cust
               className="form-input"
               type="text"
               value={customFieldValues[field.key] || ''}
+              maxLength={150}
               onChange={(e) => onCustomFieldChange(field.key, e.target.value)}
             />
           </div>

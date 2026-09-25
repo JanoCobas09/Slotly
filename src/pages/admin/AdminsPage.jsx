@@ -6,6 +6,7 @@ import { setBusinessAdmin, revokeBusinessAdmin } from '../../lib/functions';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
 import { capitalize as cap } from '../../utils/text';
 import Icon from '../../components/Icon';
+import { validarEmailObligatorio, LIMITES } from '../../utils/validaciones';
 
 const ROLE_OWNER = { value: 'owner', label: 'Dueño/a — acceso total' };
 
@@ -54,8 +55,9 @@ export default function AdminsPage() {
   };
 
   const handleSave = async () => {
-    if (!form.email.trim()) return setError('El email es obligatorio.');
-    if (!form.email.includes('@')) return setError('Ingresá un email válido.');
+    const errorEmail = validarEmailObligatorio(form.email);
+    if (errorEmail) return setError(errorEmail);
+    if (form.name.trim().length > LIMITES.nombre) return setError(`El nombre puede tener hasta ${LIMITES.nombre} caracteres.`);
     if (form.role === 'admin' && !form.professionalId) return setError(`Los ${terminology.professionalNoun}s deben tener un profesional asignado.`);
 
     // Verificar duplicado de email (solo en creación nueva)
@@ -219,6 +221,7 @@ export default function AdminsPage() {
                   type="email"
                   placeholder="nombre@gmail.com"
                   value={form.email}
+                  maxLength={LIMITES.email}
                   onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
                   autoFocus
                 />
@@ -234,6 +237,7 @@ export default function AdminsPage() {
                   type="text"
                   placeholder="Carlos Gómez"
                   value={form.name}
+                  maxLength={LIMITES.nombre}
                   onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                 />
               </div>

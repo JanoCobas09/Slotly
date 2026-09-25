@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { subscribeTicketMessages, addTicketMessage, markTicketRead } from '../lib/repository';
+import { LIMITES } from '../utils/validaciones';
 
 /**
  * Conversación de un ticket. La usan los dos lados: el panel de la barbería
@@ -129,6 +130,7 @@ export default function TicketChat({ ticket, role, user, alto = 340 }) {
           className="form-input"
           rows={2}
           value={texto}
+          maxLength={LIMITES.mensaje}
           onChange={(e) => setTexto(e.target.value)}
           placeholder="Escribí tu mensaje…"
           style={{ margin: 0, resize: 'vertical', fontSize: 13.5 }}

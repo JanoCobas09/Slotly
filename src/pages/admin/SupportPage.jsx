@@ -4,6 +4,7 @@ import { useCurrentBusiness } from '../../hooks/useCurrentBusiness';
 import { subscribeBusinessTickets, createTicket, TICKET_ESTADOS } from '../../lib/repository';
 import TicketChat from '../../components/TicketChat';
 import Icon from '../../components/Icon';
+import { LIMITES } from '../../utils/validaciones';
 
 const CATEGORIAS = [
   { value: 'consulta', label: 'Consulta — cómo hacer algo' },
@@ -110,6 +111,7 @@ export default function SupportPage() {
               <input
                 className="form-input"
                 value={form.subject}
+                maxLength={LIMITES.asunto}
                 onChange={(e) => setForm({ ...form, subject: e.target.value })}
                 placeholder="Ej: No me aparecen los turnos del sábado"
                 autoFocus
@@ -135,6 +137,7 @@ export default function SupportPage() {
               className="form-input"
               rows={5}
               value={form.message}
+              maxLength={LIMITES.mensaje}
               onChange={(e) => setForm({ ...form, message: e.target.value })}
               placeholder="Cuanto más detalle, más rápido lo resolvemos. Si es un problema, contanos qué hiciste antes de que pasara."
               style={{ resize: 'vertical' }}

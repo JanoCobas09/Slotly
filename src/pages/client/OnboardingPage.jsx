@@ -6,6 +6,7 @@ import { PLANS, DEFAULT_PLAN_ID } from '../../config/plans';
 import { getProfessionPreset, matchProfessionCategory, DEFAULT_PROFESSION_CATEGORY } from '../../config/professionPresets';
 import { createBusinessSelfService } from '../../lib/functions';
 import ProfessionCategoryPicker, { OTHER_OPTION } from '../../components/ProfessionCategoryPicker';
+import { LIMITES } from '../../utils/validaciones';
 
 // Mismo número que la landing, el panel y CuentaSinNegocio. Si cambia, cambia en los cuatro.
 const WHATSAPP = '5492257660073';
@@ -64,9 +65,12 @@ export default function OnboardingPage() {
   const validate = () => {
     const e = {};
     if (!name.trim()) e.name = 'Ponele un nombre a tu negocio.';
+    else if (name.trim().length < 2 || name.trim().length > LIMITES.nombre) e.name = `El nombre tiene que tener entre 2 y ${LIMITES.nombre} caracteres.`;
     if (!professionOption) e.professionOption = 'Elegí una opción.';
     if (professionOption === OTHER_OPTION && !customProfession.trim()) {
       e.customProfession = 'Contanos cuál es.';
+    } else if (customProfession.trim().length > LIMITES.textoCorto) {
+      e.customProfession = `Hasta ${LIMITES.textoCorto} caracteres.`;
     }
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -118,6 +122,7 @@ export default function OnboardingPage() {
           <input
             className={`form-input ${errors.name ? 'error' : ''}`}
             value={name}
+            maxLength={LIMITES.nombre}
             onChange={(e) => setName(e.target.value)}
             placeholder="Nombre de tu negocio"
             autoFocus

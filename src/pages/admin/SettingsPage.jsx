@@ -7,6 +7,7 @@ import { getDayName } from '../../utils/dateUtils';
 import { applyTheme } from '../../config/theme';
 import Icon from '../../components/Icon';
 import SenaMercadoPagoCard from '../../components/admin/SenaMercadoPagoCard';
+import { validarNegocio, normalizarInstagram, LIMITES } from '../../utils/validaciones';
 
 const defaultHours = [
   { dayOfWeek: 0, startTime: '09:00', endTime: '20:00', isActive: true },
@@ -48,6 +49,14 @@ export default function SettingsPage() {
 
   const handleSave = async () => {
     if (!businessId) return;
+    if (form.socialLinks?.instagram) {
+      form.socialLinks = { ...form.socialLinks, instagram: normalizarInstagram(form.socialLinks.instagram) };
+    }
+    const errorDatos = validarNegocio(form);
+    if (errorDatos) {
+      setError(errorDatos);
+      return;
+    }
     if (form.depositEnabled) {
       const valor = Number(form.depositValue);
       if (!valor || valor <= 0) {
@@ -223,7 +232,7 @@ export default function SettingsPage() {
               </div>
               <div className="form-group">
                 <label className="form-label">Nombre del negocio</label>
-                <input className="form-input" value={form.name} onChange={e => editar({ name: e.target.value })} />
+                <input className="form-input" value={form.name} maxLength={LIMITES.nombre} onChange={e => editar({ name: e.target.value })} />
               </div>
               {/*
                 El slug NO es editable desde acá. `updateBusiness` lo filtra para
@@ -247,7 +256,7 @@ export default function SettingsPage() {
               </div>
               <div className="form-group">
                 <label className="form-label">Mensaje de bienvenida</label>
-                <textarea className="form-input" value={form.welcomeMessage || ''} onChange={e => editar({ welcomeMessage: e.target.value })} />
+                <textarea className="form-input" value={form.welcomeMessage || ''} maxLength={LIMITES.textoLargo} onChange={e => editar({ welcomeMessage: e.target.value })} />
               </div>
             </div>
           </div>
@@ -362,11 +371,11 @@ export default function SettingsPage() {
               </div>
               <div className="form-group">
                 <label className="form-label">Teléfono</label>
-                <input className="form-input" value={form.phone || ''} onChange={e => editar({ phone: e.target.value })} />
+                <input className="form-input" type="tel" value={form.phone || ''} maxLength={LIMITES.telefono} onChange={e => editar({ phone: e.target.value })} />
               </div>
               <div className="form-group">
                 <label className="form-label">Dirección</label>
-                <input className="form-input" value={form.address || ''} onChange={e => editar({ address: e.target.value })} />
+                <input className="form-input" value={form.address || ''} maxLength={LIMITES.direccion} onChange={e => editar({ address: e.target.value })} />
               </div>
               <div className="form-group">
                 <label className="form-label">Instagram</label>
@@ -374,6 +383,7 @@ export default function SettingsPage() {
                   className="form-input"
                   placeholder="@mi_negocio"
                   value={form.socialLinks?.instagram || ''}
+                  maxLength={LIMITES.instagram}
                   onChange={e => editar({ socialLinks: { ...form.socialLinks, instagram: e.target.value } })}
                 />
               </div>
@@ -383,6 +393,7 @@ export default function SettingsPage() {
                   className="form-input"
                   placeholder="https://maps.app.goo.gl/..."
                   value={form.mapsUrl || ''}
+                  maxLength={LIMITES.url}
                   onChange={e => editar({ mapsUrl: e.target.value })}
                 />
                 <p className="text-xs text-muted" style={{ marginTop: 4 }}>
