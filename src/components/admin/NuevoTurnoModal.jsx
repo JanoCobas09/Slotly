@@ -5,6 +5,7 @@ import { createAppointment, updateAppointment } from '../../lib/repository';
 import { calculateAvailableSlots } from '../../utils/availabilityEngine';
 import { formatPrice, toDateString } from '../../utils/dateUtils';
 import Icon from '../Icon';
+import { esReservaDelCliente } from '../../utils/turnos';
 
 /**
  * El staff agenda un turno a mano.
@@ -24,10 +25,10 @@ import Icon from '../Icon';
  * Nace 'pendiente' (lo exigen las Rules) y se confirma acto seguido: si el
  * barbero lo cargó es porque ya lo acordó con el cliente.
  *
- * Con `turno`, el mismo formulario EDITA ese turno en vez de crear otro. Solo
- * se ofrece para los que cargó el propio negocio (`type: 'manual'`): los que
- * reservó el cliente son un acuerdo con él, y moverlos sin avisarle lo deja
- * yendo a un horario que ya no es el suyo.
+ * Con `turno`, el mismo formulario EDITA ese turno en vez de crear otro. El
+ * dueño puede editar cualquiera; si lo reservó el cliente se le recomienda
+ * hablar con él antes: moverlo sin avisarle lo deja yendo a un horario que
+ * ya no es el suyo.
  */
 export default function NuevoTurnoModal({ onClose, turno = null }) {
   const editando = Boolean(turno);
@@ -189,6 +190,13 @@ export default function NuevoTurnoModal({ onClose, turno = null }) {
               ? 'Cambiá lo que necesites. Si lo movés de día u hora, el horario viejo queda libre para las reservas online.'
               : 'Para el cliente que te pidió turno por WhatsApp o en persona. Queda confirmado y bloquea el horario para las reservas online.'}
           </p>
+
+          {editando && esReservaDelCliente(turno) && (
+            <div className="notice notice-info" style={{ marginBottom: 'var(--space-md)', fontSize: 14 }}>
+              <Icon name="warning" /> <strong>Este turno lo reservó el cliente{turno.clientName ? ` (${turno.clientName})` : ''}.</strong>{' '}
+              Te recomendamos hablar con él antes de modificarlo, así no llega a un horario que ya no es el suyo.
+            </div>
+          )}
 
           {error && (
             <div className="badge badge-danger" style={{ display: 'block', padding: '8px 12px', borderRadius: 8, marginBottom: 'var(--space-md)' }}>

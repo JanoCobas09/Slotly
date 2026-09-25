@@ -5,7 +5,7 @@ import { updateAppointment, cancelAppointment } from '../../lib/repository';
 import NuevoTurnoModal from '../../components/admin/NuevoTurnoModal';
 import { formatDate, formatPrice } from '../../utils/dateUtils';
 import Icon from '../../components/Icon';
-import { esTurnoEditable } from '../../utils/turnos';
+import { esTurnoEditable, confirmacionCancelar } from '../../utils/turnos';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Todos' },
@@ -81,9 +81,9 @@ export default function AppointmentsPage() {
     });
   };
 
-  const handleCancel = (id) => {
-    if (window.confirm('¿Cancelar esta cita?')) {
-      cancelAppointment(businessId, id).catch((err) => {
+  const handleCancel = (apt) => {
+    if (window.confirm(confirmacionCancelar(apt))) {
+      cancelAppointment(businessId, apt.id).catch((err) => {
         console.error('[AppointmentsPage] No se pudo cancelar:', err);
         alert('No se pudo cancelar el turno: ' + err.message);
       });
@@ -115,7 +115,7 @@ export default function AppointmentsPage() {
               disabled={!started}
               style={!started ? { opacity: 0.35, cursor: 'not-allowed' } : {}}
             ><Icon name="user-x" /></button>
-            <button className="btn btn-ghost btn-sm" title="Cancelar" onClick={() => handleCancel(apt.id)}><Icon name="x-circle" /></button>
+            <button className="btn btn-ghost btn-sm" title="Cancelar" onClick={() => handleCancel(apt)}><Icon name="x-circle" /></button>
           </>
         )}
         {apt.status === 'pendiente' && (

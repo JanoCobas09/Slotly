@@ -8,7 +8,7 @@ import { formatPrice, formatDate, toDateString } from '../../utils/dateUtils';
 import NuevoTurnoModal from '../../components/admin/NuevoTurnoModal';
 import AgendaDelDia from '../../components/admin/AgendaDelDia';
 import Icon from '../../components/Icon';
-import { esTurnoEditable } from '../../utils/turnos';
+import { esTurnoEditable, confirmacionCancelar } from '../../utils/turnos';
 
 const STATUS_BADGES = {
   pendiente:  'badge-warning',
@@ -115,7 +115,7 @@ export default function DashboardPage() {
   // Acciones sobre un turno desde la agenda: confirmar, completar, no asistió,
   // cancelar. Completar y "no asistió" recién cuando el turno ya empezó.
   const cambiarEstado = (apt, status) => {
-    if (status === 'cancelada' && !window.confirm('¿Cancelar este turno?')) return;
+    if (status === 'cancelada' && !window.confirm(confirmacionCancelar(apt))) return;
     updateAppointment(businessId, apt.id, { status }).catch((err) => {
       console.error('[Dashboard] No se pudo actualizar el turno:', err);
       alert('No se pudo actualizar el turno: ' + err.message);
