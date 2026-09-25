@@ -101,7 +101,14 @@ export default function AdminLayout() {
 
       {/* Sidebar */}
       <aside className={`admin-sidebar ${sidebarOpen ? 'open' : ''}`}>
-        <div className="admin-sidebar-header">
+        {/* Tocar el negocio lleva a su configuración (el dueño) o a la
+            propia (el staff): es donde uno espera encontrar "lo mío". */}
+        <Link
+          to={isOwner ? '/admin/configuracion' : '/admin/ajustes'}
+          className="admin-sidebar-header"
+          onClick={() => setSidebarOpen(false)}
+          title={isOwner ? 'Configuración del negocio' : 'Mi configuración'}
+        >
           {business ? (
             <span className="header-logo-icon">
               <Icon name={rubroIcon} size="20" />
@@ -110,7 +117,7 @@ export default function AdminLayout() {
             <img src="/img/slotly-icon.svg" alt="Slotly" width="32" height="32" />
           )}
           <span>{business?.name || 'Slotly'}</span>
-        </div>
+        </Link>
 
         {/* Badge de rol */}
         <div style={{ padding: '0 var(--space-md) var(--space-md)', textAlign: 'center' }}>

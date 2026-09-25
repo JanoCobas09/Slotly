@@ -1765,6 +1765,12 @@ select.form-input {
   align-items: center;
   gap: var(--space-sm);
   border-bottom: 1px solid rgba(255,255,255,0.08);
+  text-decoration: none;
+  transition: background var(--transition);
+}
+
+.admin-sidebar-header:hover {
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .admin-sidebar-header .header-logo-icon {
