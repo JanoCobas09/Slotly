@@ -32,7 +32,7 @@ import Icon from '../Icon';
 export default function NuevoTurnoModal({ onClose, turno = null }) {
   const editando = Boolean(turno);
   const { user } = useAuth();
-  const { appointments, professionals, services, professionalServices, schedules, business, businessId } = useTenant();
+  const { appointments, professionals, services, professionalServices, schedules, business, businessId, blockedDays } = useTenant();
 
   const esStaffAsignado = user?.role === 'admin' && Boolean(user?.professionalId);
   const hoy = toDateString(new Date());
@@ -116,6 +116,9 @@ export default function NuevoTurnoModal({ onClose, turno = null }) {
   }, [form.professionalId, form.serviceId, form.date, schedules, appointments, services, professionalServices, business, editando, turno]);
 
   const slot = slots.find((s) => s.startTime === form.startTime);
+  // Se permite igual (el dueño decide), pero se avisa: ese día lo marcó como
+  // no laborable y online nadie puede reservar.
+  const diaBloqueado = blockedDays.some((b) => b.date === form.date);
   const digitos = form.clientPhone.replace(/\D/g, '');
   const telefonoOk = digitos.length === 0 || (digitos.length >= 10 && digitos.length <= 13);
   const listo = Boolean(slot) && form.clientName.trim().length > 0 && telefonoOk && !guardando;
@@ -241,6 +244,12 @@ export default function NuevoTurnoModal({ onClose, turno = null }) {
               </select>
             </div>
           </div>
+
+          {diaBloqueado && (
+            <div className="notice notice-info" style={{ marginBottom: 'var(--space-md)', fontSize: 14 }}>
+              <Icon name="lock" /> Marcaste este día como bloqueado. Podés agendar igual, pero online nadie puede reservar ese día.
+            </div>
+          )}
 
           <div className="form-group">
             <label className="form-label">Nombre del cliente</label>

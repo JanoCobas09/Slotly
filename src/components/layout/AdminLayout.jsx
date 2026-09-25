@@ -16,6 +16,7 @@ const ownerNavItems = [
   { to: '/admin/servicios',     icon: 'services',   label: 'Servicios' },
   { to: '/admin/promociones',   icon: 'tag',        label: 'Promociones' },
   { to: '/admin/citas',         icon: 'calendar',   label: 'Citas' },
+  { to: '/admin/dias-bloqueados', icon: 'lock',     label: 'Días bloqueados' },
   { to: '/admin/admins',        icon: 'shield',     label: 'Administradores' },
   { to: '/admin/configuracion', icon: 'settings',   label: 'Configuración' },
   { to: '/admin/soporte',       icon: 'chat',       label: 'Soporte' },

@@ -293,7 +293,9 @@ function ultimoDiaReservable(maxAdvanceDays) {
   return toDateString(d);
 }
 
-function DatePicker({ selectedDate, onSelect, professionalId, schedules: allSchedules, businessHours, maxAdvanceDays }) {
+function DatePicker({ selectedDate, onSelect, professionalId, schedules: allSchedules, businessHours, maxAdvanceDays, blockedDays = [] }) {
+  // Días que el negocio marcó como no laborables (feriados, vacaciones).
+  const bloqueados = new Set(blockedDays.map((b) => b.date));
   const [viewDate, setViewDate] = useState(() => {
     if (selectedDate) return new Date(selectedDate + 'T00:00:00');
     return new Date();
@@ -345,7 +347,7 @@ function DatePicker({ selectedDate, onSelect, professionalId, schedules: allSche
             if (day === null) return <div key={`empty-${idx}`} className="calendar-day empty" />;
             const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
             const isPastDate = dateStr < today || (hasta !== null && dateStr > hasta);
-            const works = professionalWorksOnDate(professionalId, dateStr, allSchedules, businessHours);
+            const works = professionalWorksOnDate(professionalId, dateStr, allSchedules, businessHours) && !bloqueados.has(dateStr);
             const isSelected = dateStr === selectedDate;
             const isToday = dateStr === today;
 
@@ -677,7 +679,7 @@ export default function BookingPage() {
   const [reservando, setReservando] = useState(false);
 
   // Datos ya filtrados por el negocio del slug de la URL.
-  const { professionals, services, professionalServices, schedules, appointments, business, slug, businessId, promotions } =
+  const { professionals, services, professionalServices, schedules, appointments, business, slug, businessId, promotions, blockedDays } =
     useTenant();
   const { customerFields } = useBusinessContext();
   const { step, professionalId, serviceId, date, timeSlot, personalInfo, customFieldValues } = booking;
@@ -973,6 +975,7 @@ export default function BookingPage() {
           schedules={schedules}
           businessHours={business.businessHours}
           maxAdvanceDays={business.maxAdvanceDays}
+          blockedDays={blockedDays}
         />
       )}
 

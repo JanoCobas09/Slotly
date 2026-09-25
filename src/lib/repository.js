@@ -20,6 +20,7 @@
 //   businesses            → marca, horarios, isFrozen        público
 //   billing               → deuda, abono, vencimientos       solo plataforma
 //   professionals / services / schedules / professional_services / promotions   públicas
+//   blocked_days          → días que el negocio no atiende      pública
 //   appointments          → privado (staff + dueño del turno)
 //   notifications (+ notification_reads)  → privado, por rol
 //   push_subscriptions    → Web Push (Fase 5 — stubs acá abajo)
@@ -116,16 +117,29 @@ function liveTable(table, { filterCol, filterVal, orderCol, ascending = true } =
   })();
 
   const filtro = filterCol ? `${filterCol}=eq.${filterVal}` : undefined;
+  // Los DELETE van en un listener aparte y SIN filtro: Supabase Realtime no
+  // entrega eventos de borrado a una suscripción filtrada (el registro viejo
+  // solo trae la clave primaria, no hay `business_id` contra el cual
+  // filtrar). Antes, con todo en un solo listener filtrado, las bajas no
+  // llegaban nunca: al reemplazar los servicios de un profesional
+  // (replaceMatching = borrar + insertar) la pantalla sumaba los nuevos sin
+  // sacar los viejos y mostraba duplicados hasta recargar. Sin filtro llegan
+  // los borrados de cualquier negocio, pero solo se saca lo que ya estaba en
+  // `estado`, que es únicamente lo de este.
   const canal = supabase
     .channel(`live-${table}-${contadorCanal++}`)
-    .on('postgres_changes', { event: '*', schema: 'public', table, filter: filtro }, (payload) => {
-      if (payload.eventType === 'INSERT') {
-        estado = [...estado, payload.new];
-      } else if (payload.eventType === 'UPDATE') {
-        estado = estado.map((r) => (r.id === payload.new.id ? payload.new : r));
-      } else if (payload.eventType === 'DELETE') {
-        estado = estado.filter((r) => r.id !== payload.old.id);
-      }
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table, filter: filtro }, (payload) => {
+      estado = [...estado.filter((r) => r.id !== payload.new.id), payload.new];
+      emitir();
+    })
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table, filter: filtro }, (payload) => {
+      estado = estado.map((r) => (r.id === payload.new.id ? payload.new : r));
+      emitir();
+    })
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table }, (payload) => {
+      const id = payload.old?.id;
+      if (!id || !estado.some((r) => r.id === id)) return;
+      estado = estado.filter((r) => r.id !== id);
       emitir();
     })
     .subscribe((status, err) => { if (err) onError(err); });
@@ -399,6 +413,33 @@ export async function updateInSubcollection(businessId, name, id, cambios) {
 
 export async function removeFromSubcollection(businessId, name, id) {
   const { error } = await supabase.from(nombreTabla(name)).delete().eq('id', id).eq('business_id', businessId);
+  if (error) throw error;
+}
+
+// ============================================================================
+// DÍAS BLOQUEADOS
+// ============================================================================
+
+/**
+ * Bloquea uno o varios días (fechas 'YYYY-MM-DD'). Los que ya estaban
+ * bloqueados se ignoran: bloquear un rango que pisa días ya marcados no es
+ * un error.
+ */
+export async function blockDays(businessId, fechas) {
+  if (!fechas.length) return;
+  const { error } = await supabase
+    .from('blocked_days')
+    .upsert(fechas.map((date) => ({ business_id: businessId, date })), {
+      onConflict: 'business_id,date',
+      ignoreDuplicates: true,
+    });
+  if (error) throw error;
+}
+
+/** Desbloquea uno o varios días. */
+export async function unblockDays(businessId, fechas) {
+  if (!fechas.length) return;
+  const { error } = await supabase.from('blocked_days').delete().eq('business_id', businessId).in('date', fechas);
   if (error) throw error;
 }
 

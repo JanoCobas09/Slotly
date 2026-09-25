@@ -49,6 +49,12 @@ export function usePromotions() {
   return state.promotions || [];
 }
 
+/** Días puntuales en que el negocio no atiende (feriados, vacaciones). */
+export function useBlockedDays() {
+  const { state } = useBusiness();
+  return state.blockedDays || [];
+}
+
 /** Notificaciones del staff (las escribe un trigger de Functions). */
 export function useNotifications() {
   const { state } = useBusiness();
@@ -76,6 +82,7 @@ export function useTenant() {
   const schedules = useSchedules();
   const professionalServices = useProfessionalServices();
   const promotions = usePromotions();
+  const blockedDays = useBlockedDays();
   const authorizedAdmins = useAuthorizedAdmins();
 
   return useMemo(
@@ -91,6 +98,7 @@ export function useTenant() {
       schedules,
       professionalServices,
       promotions,
+      blockedDays,
       authorizedAdmins,
     }),
     [
@@ -105,6 +113,7 @@ export function useTenant() {
       schedules,
       professionalServices,
       promotions,
+      blockedDays,
       authorizedAdmins,
     ]
   );

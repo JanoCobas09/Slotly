@@ -20,13 +20,14 @@ const COLECCIONES = [
   'schedules',
   'professionalServices',
   'promotions',
+  'blockedDays',
   'appointments',
   'admins',
 ];
 
 // Lo que puede leer cualquiera sin estar logueado: lo que la página de reservas
 // necesita para armar la grilla.
-const PUBLICAS = ['professionals', 'services', 'schedules', 'professionalServices', 'promotions'];
+const PUBLICAS = ['professionals', 'services', 'schedules', 'professionalServices', 'promotions', 'blockedDays'];
 
 const VACIO = { ...Object.fromEntries(COLECCIONES.map((c) => [c, []])), notifications: [] };
 
