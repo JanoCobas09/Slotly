@@ -35,11 +35,13 @@ function Stepper({ step }) {
   );
 }
 
-/** Link para "Cómo llegar": el que cargó el negocio, o una búsqueda por su dirección. */
+/**
+ * Link para "Cómo llegar" y el mapa: SOLO el que cargó el negocio. Sin link
+ * de Maps no se muestra nada de ubicación — ni mapa ni botón —, en vez de
+ * adivinar el lugar buscando por el texto de la dirección.
+ */
 function linkComoLlegar(business) {
-  if (business.mapsUrl) return business.mapsUrl;
-  const dir = business.address?.trim();
-  return dir ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(dir)}` : null;
+  return business.mapsUrl?.trim() || null;
 }
 
 // ---- CABECERA DEL NEGOCIO (foto, nombre, colores, contacto) ----
@@ -106,8 +108,8 @@ function coordsDelLink(url) {
  * link es largo, las coordenadas salen de él mismo; si es corto
  * (maps.app.goo.gl/...), las resuelve el servidor (resolve-maps-link),
  * porque el navegador no puede seguir esa redirección. Mientras resuelve, no
- * se pinta nada (sin mapa "de mentira" que después salta). Solo si no hay
- * link, o no se pudo resolver, se busca por el texto de la dirección.
+ * se pinta nada (sin mapa "de mentira" que después salta). Solo si el
+ * link no se pudo resolver, se busca por el texto de la dirección.
  */
 function useUbicacionDelMapa(business) {
   const link = business.mapsUrl?.trim() || '';
@@ -144,14 +146,14 @@ function useUbicacionDelMapa(business) {
 // Vista previa del mapa (embed de Google Maps, sin API key) centrada en la
 // ubicación real del negocio, que abre su link al tocarla, más la dirección
 // como texto plano: se puede seleccionar o copiar con el botón, pero no lleva
-// a ningún lado — para eso está "Cómo llegar". Sin dirección ni link, no se
-// muestra nada.
+// a ningún lado — para eso está "Cómo llegar". Sin link de Maps cargado, no
+// se muestra nada (ver linkComoLlegar).
 function BusinessMap({ business }) {
   const [copiado, setCopiado] = useState(false);
   const { consulta, ftid, cargando } = useUbicacionDelMapa(business);
-  if (!consulta && !cargando) return null;
+  const comoLlegar = linkComoLlegar(business);
+  if (!comoLlegar || (!consulta && !cargando)) return null;
   const dir = business.address?.trim();
-  const comoLlegar = linkComoLlegar(business) || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(consulta)}`;
 
   const copiar = async () => {
     try {
