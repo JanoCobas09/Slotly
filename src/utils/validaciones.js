@@ -127,19 +127,6 @@ export function validarFranjas(franjas, dia = '') {
   return '';
 }
 
-/** Un día con descanso (breakStart/breakEnd), el formato de "Mi perfil". */
-export function validarDiaConDescanso(d, dia = '') {
-  if (!d.isActive) return '';
-  const err = validarFranjas([{ startTime: d.startTime, endTime: d.endTime }], dia);
-  if (err) return err;
-  if (d.breakStart || d.breakEnd) {
-    const en = dia ? ` del ${dia}` : '';
-    if (!esHora(d.breakStart) || !esHora(d.breakEnd) || d.breakStart >= d.breakEnd) return `El descanso${en} necesita inicio y fin, con el fin después del inicio.`;
-    if (d.breakStart < d.startTime || d.breakEnd > d.endTime) return `El descanso${en} tiene que quedar adentro del horario.`;
-  }
-  return '';
-}
-
 // ── Equipo ─────────────────────────────────────────────────────────────────
 export function validarEmailObligatorio(email) {
   if (vacio(email)) return 'El email es obligatorio.';
