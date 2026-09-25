@@ -3893,3 +3893,84 @@ select.form-input {
   }
   .booking-step-title { font-size: 1.25rem; }
 }
+
+/* ── Días bloqueados: bloqueo parcial y detalle del día ── */
+/* Parte del día bloqueada: solo el borde punteado, sin relleno, para que se
+   distinga de un día entero (rayado). */
+.calendar-day.parcial {
+  color: var(--danger);
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+  outline: 1.5px dashed var(--danger);
+  outline-offset: -1.5px;
+}
+
+.calendar-day.elegido {
+  box-shadow: 0 0 0 2px var(--primary);
+}
+
+.leyenda-parcial {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  outline: 1.5px dashed var(--danger);
+  outline-offset: -1.5px;
+}
+
+.bloqueo-detalle {
+  margin-top: var(--space-lg);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.bloqueo-detalle-titulo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.bloqueo-alcance {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-bottom: var(--space-md);
+}
+
+.bloqueo-detalle .bloqueo-alcance {
+  margin-bottom: 0;
+}
+
+.bloqueo-opcion {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.bloqueo-opcion input {
+  accent-color: var(--primary);
+}
+
+.bloqueo-horas {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.bloqueo-horas .form-input {
+  max-width: 140px;
+}
+
+.bloqueo-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+}

@@ -9,6 +9,7 @@ import { promoParaSlot, precioConPromo } from '../../utils/promoEngine';
 import { formatDate, formatPrice, toDateString, getMonthName, getLocalDayOfWeek } from '../../utils/dateUtils';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
 import Icon from '../../components/Icon';
+import { esDiaEntero, rangosComoOcupados } from '../../utils/bloqueos';
 
 // ---- STEPPER ----
 function Stepper({ step }) {
@@ -294,8 +295,9 @@ function ultimoDiaReservable(maxAdvanceDays) {
 }
 
 function DatePicker({ selectedDate, onSelect, professionalId, schedules: allSchedules, businessHours, maxAdvanceDays, blockedDays = [] }) {
-  // Días que el negocio marcó como no laborables (feriados, vacaciones).
-  const bloqueados = new Set(blockedDays.map((b) => b.date));
+  // Días que el negocio bloqueó ENTEROS (feriados, vacaciones). Los que solo
+  // tienen un rango bloqueado se ofrecen igual: esas horas las saca la grilla.
+  const bloqueados = new Set(blockedDays.filter(esDiaEntero).map((b) => b.date));
   const [viewDate, setViewDate] = useState(() => {
     if (selectedDate) return new Date(selectedDate + 'T00:00:00');
     return new Date();
@@ -811,13 +813,15 @@ export default function BookingPage() {
       serviceId,
       date,
       schedules,
-      appointments: ocupados.lista,
+      // Los rangos bloqueados por el negocio ese día van como horarios
+      // ocupados: el motor los saca de la grilla sin saber de bloqueos.
+      appointments: [...ocupados.lista, ...rangosComoOcupados(blockedDays, date, professionalId)],
       services,
       professionalServices,
       slotInterval: business.slotInterval,
       businessHours: business.businessHours,
     });
-  }, [professionalId, serviceId, date, schedules, ocupados, cargandoOcupados, services, professionalServices, business]);
+  }, [professionalId, serviceId, date, schedules, ocupados, cargandoOcupados, services, professionalServices, business, blockedDays]);
 
   if (blockedReason) {
     return <BookingUnavailable reason={blockedReason} business={business} />;

@@ -6,6 +6,7 @@ import { calculateAvailableSlots } from '../../utils/availabilityEngine';
 import { formatPrice, toDateString } from '../../utils/dateUtils';
 import Icon from '../Icon';
 import { esReservaDelCliente } from '../../utils/turnos';
+import { turnoBloqueado, diaEnteroBloqueado } from '../../utils/bloqueos';
 
 /**
  * El staff agenda un turno a mano.
@@ -119,7 +120,9 @@ export default function NuevoTurnoModal({ onClose, turno = null }) {
   const slot = slots.find((s) => s.startTime === form.startTime);
   // Se permite igual (el dueño decide), pero se avisa: ese día lo marcó como
   // no laborable y online nadie puede reservar.
-  const diaBloqueado = blockedDays.some((b) => b.date === form.date);
+  const diaBloqueado = slot
+    ? turnoBloqueado(blockedDays, form.date, slot.startTime, slot.endTime)
+    : diaEnteroBloqueado(blockedDays, form.date);
   const digitos = form.clientPhone.replace(/\D/g, '');
   const telefonoOk = digitos.length === 0 || (digitos.length >= 10 && digitos.length <= 13);
   const listo = Boolean(slot) && form.clientName.trim().length > 0 && telefonoOk && !guardando;
@@ -255,7 +258,7 @@ export default function NuevoTurnoModal({ onClose, turno = null }) {
 
           {diaBloqueado && (
             <div className="notice notice-info" style={{ marginBottom: 'var(--space-md)', fontSize: 14 }}>
-              <Icon name="lock" /> Marcaste este día como bloqueado. Podés agendar igual, pero online nadie puede reservar ese día.
+              <Icon name="lock" /> Bloqueaste {slot ? 'este horario' : 'este día'}. Podés agendar igual, pero online nadie puede reservar ahí.
             </div>
           )}
 

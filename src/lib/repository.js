@@ -421,25 +421,27 @@ export async function removeFromSubcollection(businessId, name, id) {
 // ============================================================================
 
 /**
- * Bloquea uno o varios días (fechas 'YYYY-MM-DD'). Los que ya estaban
- * bloqueados se ignoran: bloquear un rango que pisa días ya marcados no es
- * un error.
+ * Bloquea uno o varios días (fechas 'YYYY-MM-DD'). Sin `rango`, el día
+ * entero; con `rango` ({ startTime, endTime }, 'HH:MM'), solo ese horario de
+ * cada día. Quien llama ya filtra lo que estaba bloqueado igual (los índices
+ * únicos de la tabla harían fallar el lote entero por un repetido).
  */
-export async function blockDays(businessId, fechas) {
+export async function blockDays(businessId, fechas, rango = null) {
   if (!fechas.length) return;
-  const { error } = await supabase
-    .from('blocked_days')
-    .upsert(fechas.map((date) => ({ business_id: businessId, date })), {
-      onConflict: 'business_id,date',
-      ignoreDuplicates: true,
-    });
+  const filas = fechas.map((date) => ({
+    business_id: businessId,
+    date,
+    start_time: rango?.startTime || null,
+    end_time: rango?.endTime || null,
+  }));
+  const { error } = await supabase.from('blocked_days').insert(filas);
   if (error) throw error;
 }
 
-/** Desbloquea uno o varios días. */
-export async function unblockDays(businessId, fechas) {
-  if (!fechas.length) return;
-  const { error } = await supabase.from('blocked_days').delete().eq('business_id', businessId).in('date', fechas);
+/** Saca bloqueos puntuales (un día entero o un rango), por id. */
+export async function removeBlocks(businessId, ids) {
+  if (!ids.length) return;
+  const { error } = await supabase.from('blocked_days').delete().eq('business_id', businessId).in('id', ids);
   if (error) throw error;
 }
 
