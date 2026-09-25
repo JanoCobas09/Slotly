@@ -3602,7 +3602,8 @@ select.form-input {
   color: #fff;
   font-size: 0.7rem;
   font-weight: 700;
-  font-family: var(--font-mono);
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -3703,7 +3704,7 @@ select.form-input {
 .campana-texto { flex: 1; min-width: 0; }
 .campana-titulo { font-weight: 700; font-size: 0.9rem; }
 .campana-cuerpo { font-size: 0.85rem; color: var(--text-secondary); }
-.campana-hace { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; font-family: var(--font-mono); }
+.campana-hace { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; font-variant-numeric: tabular-nums; }
 
 .campana-punto {
   width: 8px;
@@ -3822,7 +3823,8 @@ select.form-input {
 }
 
 .cita-tarjeta-hora {
-  font-family: var(--font-mono);
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
   font-weight: 700;
   font-size: 1.1rem;
 }
