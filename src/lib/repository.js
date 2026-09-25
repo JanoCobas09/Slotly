@@ -288,6 +288,38 @@ export async function removeBusinessLogo(businessId) {
 }
 
 // ============================================================================
+// FOTO DE CADA PROFESIONAL
+// ============================================================================
+// Mismo bucket que el logo, en `{businessId}/professionals/{profId}`: el
+// primer segmento del path sigue siendo el negocio, así que la misma policy
+// de Storage (can_manage sobre ese negocio) cubre esto sin migración nueva.
+// Un archivo fijo por profesional: subir otra pisa la anterior.
+
+const FOTO_PROF_PATH = (businessId, profId) => `${businessId}/professionals/${profId}`;
+
+/**
+ * Sube la foto de un profesional y devuelve su URL pública. Lleva `?v=` con
+ * la hora de subida: el path es siempre el mismo, y sin eso el navegador (y
+ * la CDN) seguirían mostrando la foto vieja después de cambiarla.
+ */
+export async function uploadProfessionalPhoto(businessId, profId, file) {
+  const path = FOTO_PROF_PATH(businessId, profId);
+  const { error } = await supabase.storage.from('business-logos').upload(path, file, {
+    contentType: file.type,
+    upsert: true,
+  });
+  if (error) throw error;
+  const { data } = supabase.storage.from('business-logos').getPublicUrl(path);
+  return `${data.publicUrl}?v=${Date.now()}`;
+}
+
+/** Borra la foto del bucket. Quien llama todavía tiene que limpiar `avatarUrl`. */
+export async function removeProfessionalPhoto(businessId, profId) {
+  const { error } = await supabase.storage.from('business-logos').remove([FOTO_PROF_PATH(businessId, profId)]);
+  if (error && !/not.?found/i.test(error.message || '')) throw error;
+}
+
+// ============================================================================
 // FACTURACIÓN (privada — solo dueño de plataforma)
 // ============================================================================
 

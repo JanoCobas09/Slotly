@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTenant } from '../../hooks/useTenantData';
 import {
   addToSubcollection,
@@ -8,6 +8,8 @@ import {
   getStaffContacts,
   saveStaffContact,
   removeStaffContact,
+  uploadProfessionalPhoto,
+  removeProfessionalPhoto,
 } from '../../lib/repository';
 import { getDayName } from '../../utils/dateUtils';
 import { getPlan } from '../../config/plans';
@@ -50,6 +52,26 @@ export default function ProfessionalsPage() {
   const [editSchedules, setEditSchedules] = useState([]);
   const [editServices, setEditServices]   = useState([]); // serviceIds seleccionados
 
+  // Foto de perfil. Se elige en el modal pero se sube recién al Guardar: un
+  // profesional nuevo todavía no tiene id (y el path del archivo lo usa), y
+  // así "Cancelar" no deja una foto subida a medias. `preview` es lo que se
+  // ve en el modal: la URL guardada, o la del archivo recién elegido.
+  const FOTO_VACIA = { archivo: null, preview: null, quitar: false };
+  const [foto, setFoto] = useState(FOTO_VACIA);
+  const [errorFoto, setErrorFoto] = useState('');
+  const inputFotoRef = useRef(null);
+
+  const elegirFoto = (ev) => {
+    const file = ev.target.files?.[0];
+    if (inputFotoRef.current) inputFotoRef.current.value = '';
+    if (!file) return;
+    setErrorFoto('');
+    if (!file.type.startsWith('image/')) { setErrorFoto('Tiene que ser una imagen.'); return; }
+    if (file.size > 5 * 1024 * 1024) { setErrorFoto('La imagen no puede pesar más de 5 MB.'); return; }
+    setFoto({ archivo: file, preview: URL.createObjectURL(file), quitar: false });
+  };
+  const quitarFoto = () => setFoto({ archivo: null, preview: null, quitar: true });
+
   // El teléfono y el mail del staff NO viven en el documento del profesional:
   // ese es de lectura pública. Se traen aparte, del documento privado.
   const [contactos, setContactos] = useState({});
@@ -80,6 +102,8 @@ export default function ProfessionalsPage() {
     if (llegoAlTope || sinServicios) return;
     setEditing(null);
     setForm({ name: '', specialty: '', phone: '', email: '', bio: '' });
+    setFoto(FOTO_VACIA);
+    setErrorFoto('');
     setEditSchedules(Array.from({ length: 7 }, (_, i) => ({
       dayOfWeek: i,
       isActive: i < 6,
@@ -97,6 +121,8 @@ export default function ProfessionalsPage() {
   // ── Abrir modal EDITAR ─────────────────────────────────────────────────────
   const openEdit = (prof) => {
     setEditing(prof);
+    setFoto({ archivo: null, preview: prof.avatarUrl || null, quitar: false });
+    setErrorFoto('');
     const contacto = contactos[prof.id] || {};
     setForm({ name: prof.name, specialty: prof.specialty || '', phone: contacto.phone || '', email: contacto.email || '', bio: prof.bio || '' });
     const profSchedules = schedules.filter(s => s.professionalId === prof.id);
@@ -159,6 +185,15 @@ export default function ProfessionalsPage() {
         await updateInSubcollection(businessId, 'professionals', profId, { ...publico });
       }
 
+      // Foto: se sube una nueva, o se borra la que había si la quitaron.
+      if (foto.archivo) {
+        const url = await uploadProfessionalPhoto(businessId, profId, foto.archivo);
+        await updateInSubcollection(businessId, 'professionals', profId, { avatarUrl: url });
+      } else if (foto.quitar && editing?.avatarUrl) {
+        await removeProfessionalPhoto(businessId, profId);
+        await updateInSubcollection(businessId, 'professionals', profId, { avatarUrl: null });
+      }
+
       await saveStaffContact(businessId, profId, { phone, email });
       setContactos((prev) => ({ ...prev, [profId]: { phone, email } }));
 
@@ -213,6 +248,10 @@ export default function ProfessionalsPage() {
       await replaceMatching(businessId, 'professionalServices', 'professionalId', id, []);
       await removeStaffContact(businessId, id);
       await removeFromSubcollection(businessId, 'professionals', id);
+      // La foto, si tenía. Un fallo acá no deshace el borrado: queda un
+      // archivo huérfano en el bucket, nada que el usuario tenga que ver.
+      removeProfessionalPhoto(businessId, id).catch((err) =>
+        console.error('[ProfessionalsPage] No se pudo borrar la foto:', err));
       setContactos((prev) => { const { [id]: _, ...resto } = prev; return resto; });
     } catch (err) {
       console.error('[ProfessionalsPage] No se pudo eliminar:', err);
@@ -316,7 +355,9 @@ export default function ProfessionalsPage() {
                 <tr key={prof.id}>
                   <td>
                     <div className="flex items-center gap-sm">
-                      <div className="avatar avatar-sm">{prof.name.split(' ').map(n => n[0]).join('')}</div>
+                      <div className="avatar avatar-sm">
+                        {prof.avatarUrl ? <img src={prof.avatarUrl} alt={prof.name} /> : prof.name.split(' ').map(n => n[0]).join('')}
+                      </div>
                       <strong>{prof.name}</strong>
                     </div>
                   </td>
@@ -372,6 +413,35 @@ export default function ProfessionalsPage() {
 
             <div className="modal-body">
               <div className="flex flex-col gap-md">
+
+                {/* ─ Foto de perfil ─ */}
+                <div className="form-group">
+                  <label className="form-label">Foto de perfil</label>
+                  <div className="flex items-center gap-md">
+                    <div className="avatar avatar-lg" style={{ flexShrink: 0 }}>
+                      {foto.preview
+                        ? <img src={foto.preview} alt={form.name || 'Foto'} />
+                        : (form.name.trim() ? form.name.trim().split(/s+/).map(n => n[0]).join('').slice(0, 2) : <Icon name="user" />)}
+                    </div>
+                    <div className="flex flex-col gap-sm">
+                      <div className="flex gap-sm">
+                        <button type="button" className="btn btn-outline btn-sm" onClick={() => inputFotoRef.current?.click()} disabled={guardando}>
+                          {foto.preview ? 'Cambiar foto' : 'Subir foto'}
+                        </button>
+                        {foto.preview && (
+                          <button type="button" className="btn btn-ghost btn-sm" onClick={quitarFoto} disabled={guardando}>
+                            Quitar
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted">
+                        La ven tus clientes al elegir con quién atenderse. JPG o PNG, hasta 5 MB.
+                      </p>
+                      {errorFoto && <p className="text-xs" style={{ color: 'var(--danger)' }}>{errorFoto}</p>}
+                    </div>
+                    <input ref={inputFotoRef} type="file" accept="image/*" onChange={elegirFoto} style={{ display: 'none' }} />
+                  </div>
+                </div>
 
                 {/* ─ Datos básicos ─ */}
                 <div className="form-group">

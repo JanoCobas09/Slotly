@@ -533,7 +533,9 @@ function BookingSummary({ professional, service, date, timeSlot, price, original
         <div className="summary-card">
           <div className="summary-header">
             <div className="avatar avatar-lg" style={{ margin: '0 auto var(--space-sm)' }}>
-              {professional.name.split(' ').map(n => n[0]).join('')}
+              {professional.avatarUrl
+                ? <img src={professional.avatarUrl} alt={professional.name} />
+                : professional.name.split(' ').map(n => n[0]).join('')}
             </div>
             <h3>{professional.name}</h3>
             <p className="text-sm" style={{ opacity: 0.8 }}>{professional.specialty}</p>
