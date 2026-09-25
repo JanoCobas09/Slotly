@@ -6,8 +6,6 @@ import BusinessSync from './contexts/BusinessSync';
 import { isPlatformOwner } from './config/platform';
 import Header from './components/layout/Header';
 import Footer from './components/layout/Footer';
-import AdminLayout from './components/layout/AdminLayout';
-import SuperAdminLayout from './components/layout/SuperAdminLayout';
 
 // ── Carga diferida por ruta ────────────────────────────────────────────────
 // Cada bloque se descarga solo cuando hace falta. Antes todo iba en un único
@@ -22,6 +20,10 @@ import LoginPage from './pages/client/LoginPage';
 import NoBusinessPage from './pages/client/NoBusinessPage';
 import CuentaSinNegocio from './pages/client/CuentaSinNegocio';
 
+// Los paneles (dueño/staff y plataforma) también diferidos: con la campanita,
+// el push y la barra lateral, el cliente que solo reserva no los baja nunca.
+const AdminLayout      = lazy(() => import('./components/layout/AdminLayout'));
+const SuperAdminLayout = lazy(() => import('./components/layout/SuperAdminLayout'));
 const LandingPage      = lazy(() => import('./pages/LandingPage'));
 const BookingPage      = lazy(() => import('./pages/client/BookingPage'));
 const ConfirmationPage = lazy(() => import('./pages/client/ConfirmationPage'));

@@ -6,16 +6,19 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        // Firebase pesa más que todo el código de la app junta y casi nunca
-        // cambia. En un chunk aparte, el navegador lo cachea entre despliegues
-        // en vez de volver a bajarlo con cada cambio de una pantalla.
+        // Librerías que casi nunca cambian, en archivos aparte: el navegador
+        // las guarda en caché entre despliegues y con cada cambio de la app
+        // solo baja de nuevo el código propio. `react-dom/client` va explícito
+        // porque es lo que importa main.jsx: con solo 'react-dom' en la lista,
+        // React quedaba mezclado con el código de la app y se re-descargaba
+        // entero en cada deploy.
+        //
+        // No listar acá nada que no se use: un módulo listado entra al build
+        // aunque nadie lo importe (así quedaba un chunk "firebase" vacío,
+        // resto de antes de la migración a Supabase).
         manualChunks: {
-          // firebase/storage entra acá desde que existe la foto del negocio
-          // (src/lib/repository.js, uploadBusinessLogo). Listar un módulo acá
-          // lo mete en el bundle aunque nadie lo importe — no agregar otros
-          // sin que algo los use de verdad.
-          firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/functions', 'firebase/storage'],
-          react: ['react', 'react-dom', 'react-router-dom'],
+          react: ['react', 'react-dom', 'react-dom/client', 'react-router-dom'],
+          supabase: ['@supabase/supabase-js'],
         },
       },
     },
