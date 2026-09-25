@@ -280,7 +280,20 @@ function ServiceSelect({ services, professionalServices, professionalId, selecte
 }
 
 // ---- DATE PICKER ----
-function DatePicker({ selectedDate, onSelect, professionalId, schedules: allSchedules, businessHours }) {
+/**
+ * Último día que se puede reservar según la ventana del negocio
+ * (`maxAdvanceDays`), o null si no tiene límite. Mismo cálculo que el trigger
+ * enforce_max_advance_days de la base: hoy + N días, inclusive.
+ */
+function ultimoDiaReservable(maxAdvanceDays) {
+  const n = Number(maxAdvanceDays);
+  if (!n) return null;
+  const d = new Date();
+  d.setDate(d.getDate() + n);
+  return toDateString(d);
+}
+
+function DatePicker({ selectedDate, onSelect, professionalId, schedules: allSchedules, businessHours, maxAdvanceDays }) {
   const [viewDate, setViewDate] = useState(() => {
     if (selectedDate) return new Date(selectedDate + 'T00:00:00');
     return new Date();
@@ -296,6 +309,10 @@ function DatePicker({ selectedDate, onSelect, professionalId, schedules: allSche
   // No se puede retroceder de este mes: es el mes en el que se abrió el
   // picker (o el de la fecha ya elegida), nunca uno anterior al actual.
   const enMesMasTemprano = year === now.getFullYear() && month === now.getMonth();
+  // Ventana de reserva: ni días ni meses más allá del último reservable.
+  const hasta = ultimoDiaReservable(maxAdvanceDays);
+  const ultimoDelMes = `${year}-${String(month + 1).padStart(2, '0')}-${String(new Date(year, month + 1, 0).getDate()).padStart(2, '0')}`;
+  const enMesMasLejano = hasta !== null && ultimoDelMes >= hasta;
 
   const days = [];
   for (let i = 0; i < startOffset; i++) days.push(null);
@@ -305,7 +322,10 @@ function DatePicker({ selectedDate, onSelect, professionalId, schedules: allSche
     if (enMesMasTemprano) return;
     setViewDate(new Date(year, month - 1, 1));
   };
-  const nextMonth = () => setViewDate(new Date(year, month + 1, 1));
+  const nextMonth = () => {
+    if (enMesMasLejano) return;
+    setViewDate(new Date(year, month + 1, 1));
+  };
 
   return (
     <div>
@@ -315,7 +335,7 @@ function DatePicker({ selectedDate, onSelect, professionalId, schedules: allSche
         <div className="calendar-header">
           <button className="calendar-nav" onClick={prevMonth} disabled={enMesMasTemprano} aria-label="Mes anterior">◀</button>
           <h3>{getMonthName(month)} {year}</h3>
-          <button className="calendar-nav" onClick={nextMonth} aria-label="Mes siguiente">▶</button>
+          <button className="calendar-nav" onClick={nextMonth} disabled={enMesMasLejano} aria-label="Mes siguiente">▶</button>
         </div>
         <div className="calendar-grid">
           {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map(d => (
@@ -324,7 +344,7 @@ function DatePicker({ selectedDate, onSelect, professionalId, schedules: allSche
           {days.map((day, idx) => {
             if (day === null) return <div key={`empty-${idx}`} className="calendar-day empty" />;
             const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            const isPastDate = dateStr < today;
+            const isPastDate = dateStr < today || (hasta !== null && dateStr > hasta);
             const works = professionalWorksOnDate(professionalId, dateStr, allSchedules, businessHours);
             const isSelected = dateStr === selectedDate;
             const isToday = dateStr === today;
@@ -342,6 +362,11 @@ function DatePicker({ selectedDate, onSelect, professionalId, schedules: allSche
           })}
         </div>
       </div>
+      {hasta && (
+        <p className="text-sm text-muted" style={{ textAlign: 'center', marginTop: 'var(--space-md)' }}>
+          <Icon name="calendar" /> Por ahora se puede reservar hasta el {formatDate(hasta)}.
+        </p>
+      )}
     </div>
   );
 }
@@ -947,6 +972,7 @@ export default function BookingPage() {
           professionalId={professionalId}
           schedules={schedules}
           businessHours={business.businessHours}
+          maxAdvanceDays={business.maxAdvanceDays}
         />
       )}
 

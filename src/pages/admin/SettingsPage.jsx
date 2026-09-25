@@ -302,6 +302,30 @@ export default function SettingsPage() {
                 </p>
               </div>
               <div className="form-group">
+                <label className="form-label">Hasta cuándo pueden reservar</label>
+                {/* Vacío = sin límite (lo de siempre). Sirve para no abrir
+                    días cuyos horarios todavía no definiste. Lo hace cumplir
+                    también la base (trigger), no solo este calendario. */}
+                <select
+                  className="form-input"
+                  value={form.maxAdvanceDays ?? ''}
+                  onChange={e => editar({ maxAdvanceDays: e.target.value ? parseInt(e.target.value) : null })}
+                >
+                  <option value="">Sin límite</option>
+                  <option value={3}>3 días</option>
+                  <option value={7}>1 semana</option>
+                  <option value={10}>10 días</option>
+                  <option value={14}>2 semanas</option>
+                  <option value={21}>3 semanas</option>
+                  <option value={30}>1 mes</option>
+                  <option value={60}>2 meses</option>
+                  <option value={90}>3 meses</option>
+                </select>
+                <p className="text-sm text-muted" style={{ marginTop: 6 }}>
+                  El {terminology.customerNoun} solo ve disponibles los días dentro de ese plazo. Útil si todavía no definiste tus horarios de las semanas que vienen. Los {terminology.appointmentNoun}s que cargás vos desde el panel no tienen límite.
+                </p>
+              </div>
+              <div className="form-group">
                 <label className="form-label">Teléfono</label>
                 <input className="form-input" value={form.phone || ''} onChange={e => editar({ phone: e.target.value })} />
               </div>
