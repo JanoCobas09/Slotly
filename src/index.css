@@ -1788,6 +1788,42 @@ select.form-input {
   gap: 2px;
 }
 
+/* Scroll fino y oscuro, a tono con el sidebar: la barra nativa (clara, con
+   flechas) no combinaba. Chrome/Edge/Safari usan los ::-webkit-scrollbar de
+   abajo. scrollbar-width/color quedan SOLO para Firefox: en Chrome, si están
+   puestas, pisan a los ::-webkit-* y vuelven las flechitas en Windows. */
+@supports not selector(::-webkit-scrollbar) {
+  .admin-nav {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+  }
+}
+
+.admin-nav::-webkit-scrollbar {
+  width: 6px;
+}
+
+.admin-nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.admin-nav::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+}
+
+.admin-nav:hover::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.26);
+}
+
+.admin-nav::-webkit-scrollbar-thumb:active {
+  background: var(--primary-soft);
+}
+
+.admin-nav::-webkit-scrollbar-button {
+  display: none;
+}
+
 .admin-nav-item {
   display: flex;
   align-items: center;
