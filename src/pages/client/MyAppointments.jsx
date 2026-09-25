@@ -118,9 +118,7 @@ export default function MyAppointments() {
                 {esperandoSena(apt) ? (
                   <>
                     <span className="badge badge-warning">Falta pagar la seña</span>
-                    {apt.depositCheckoutUrl && (
-                      <a className="btn btn-primary btn-sm" href={apt.depositCheckoutUrl}><Icon name="lock" /> Pagar seña</a>
-                    )}
+                    <Link className="btn btn-primary btn-sm" to={`/${slug}/pago?turno=${apt.id}`}><Icon name="lock" /> Pagar seña</Link>
                   </>
                 ) : (
                   <span className={`badge ${statusInfo.className}`}>{statusInfo.label}</span>

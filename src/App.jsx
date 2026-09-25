@@ -245,11 +245,12 @@ export default function App() {
             <ClientLayout><TenantRoute><ConfirmationPage /></TenantRoute></ClientLayout>
           </ProtectedRoute>
         } />
-        {/* Vuelta desde Mercado Pago después de pagar (o no) la seña. */}
+        {/* Seguimiento de la seña (y vuelta desde Mercado Pago). Sin
+            ProtectedRoute a propósito: MP puede devolver al cliente a otro
+            navegador sin la sesión, y el login perdía el ?turno= de la URL.
+            La página consulta el estado por el id del turno (estado-sena). */}
         <Route path="/:businessSlug/pago" element={
-          <ProtectedRoute>
-            <ClientLayout><TenantRoute><PagoSenaPage /></TenantRoute></ClientLayout>
-          </ProtectedRoute>
+          <ClientLayout><TenantRoute><PagoSenaPage /></TenantRoute></ClientLayout>
         } />
         <Route path="/:businessSlug/mis-citas" element={
           <ProtectedRoute>

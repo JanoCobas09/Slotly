@@ -931,7 +931,10 @@ dominio de más autorizado no es un agujero de seguridad, solo ruido).
    browser); Edge Functions `mp-conexion`, `mp-oauth-callback`, `mp-webhook`
    (sin JWT, ver config.toml), `mp-refund`, y `create-appointment` devuelve
    `checkoutUrl` cuando hay seña; front: `SenaMercadoPagoCard`, `SenaTurno`,
-   `PagoSenaPage` (`/:slug/pago`, a donde vuelve MP). Secrets:
+   `PagoSenaPage` (`/:slug/pago`, seguimiento del pago: pública, consulta
+   `estado-sena` por id de turno cada 4s — MP puede devolver al cliente a otro
+   navegador sin sesión; al tocar "Pagar seña" MP se abre en otra pestaña y
+   la de Slotly queda en el seguimiento, que pasa sola a confirmado). Secrets:
    `MP_CLIENT_ID`, `MP_CLIENT_SECRET` (y opcional `APP_URL`). En la app de MP
    la URL de redirección es `https://<ref>.supabase.co/functions/v1/mp-oauth-callback`.
    `supabase/tests/test-sena.mjs` 41/41 — con token falso: el cobro real y la

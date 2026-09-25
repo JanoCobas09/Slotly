@@ -857,6 +857,14 @@ export default function BookingPage() {
     return <BookingUnavailable reason={blockedReason} business={business} />;
   }
 
+  // Un turno de este cliente esperando la seña (cerró Mercado Pago, o
+  // volvió a entrar al link después): que no se pierda, se le muestra
+  // arriba con el camino al seguimiento del pago.
+  const senaPendiente = user && appointments.find((a) =>
+    a.userId === user.id && a.depositStatus === 'pendiente'
+    && a.depositExpiresAt && new Date(a.depositExpiresAt) > new Date()
+  );
+
   const canGoNext = () => {
     switch (step) {
       case 1: return !!professionalId;
@@ -897,6 +905,21 @@ export default function BookingPage() {
     setReservando(true);
     setError('');
 
+    // Con seña, Mercado Pago se abre en OTRA pestaña y esta se queda en la
+    // pantalla de seguimiento (/:slug/pago), que pasa sola a "confirmado"
+    // cuando se acredita el pago. Así el cliente nunca pierde de vista en
+    // qué estado está su turno — sobre todo desde la app instalada, donde
+    // reemplazar esta pantalla por MP lo dejaba, al volver, en el paso 1.
+    // La pestaña se abre ACÁ, antes del await: después de esperar al
+    // servidor el navegador ya no la considera un clic y la bloquea.
+    let ventanaMp = null;
+    if (senaEstimada > 0) {
+      ventanaMp = window.open('', '_blank');
+      // Que la página de MP no pueda tocar esta pestaña (window.opener).
+      if (ventanaMp) ventanaMp.opener = null;
+      try { ventanaMp?.document.write('<p style="font-family:sans-serif;padding:24px">Abriendo Mercado Pago…</p>'); } catch { /* pestaña ya en otro origen */ }
+    }
+
     const notes = customFieldsNotes;
 
     const datos = {
@@ -931,12 +954,19 @@ export default function BookingPage() {
         notes,
       });
       // El negocio pide seña: el turno queda retenido y se paga en Mercado
-      // Pago. Al volver, MP lo trae a /:slug/pago (PagoSenaPage).
+      // Pago. Al terminar, MP vuelve a /:slug/pago (PagoSenaPage).
       if (res.status === 'pending_payment' && res.checkoutUrl) {
         dispatch({ type: 'RESET' });
-        window.location.assign(res.checkoutUrl);
+        if (ventanaMp && !ventanaMp.closed) {
+          ventanaMp.location.href = res.checkoutUrl;
+          navigate(`/${slug}/pago?turno=${res.id}`);
+        } else {
+          // Bloquearon la pestaña nueva: MP en esta misma, como antes.
+          window.location.assign(res.checkoutUrl);
+        }
         return;
       }
+      ventanaMp?.close();
 
       const id = res.id;
       datos.price = res.price;
@@ -947,6 +977,7 @@ export default function BookingPage() {
         state: { appointment: { ...datos, id, businessId, status: 'pendiente' } },
       });
     } catch (err) {
+      ventanaMp?.close();
       console.error('[BookingPage] No se pudo reservar:', err);
       // La Edge Function devuelve mensajes ya escritos para el cliente
       // ("Ese horario ya fue tomado. Elegí otro."), así que se muestran tal
@@ -969,6 +1000,16 @@ export default function BookingPage() {
   return (
     <div className={`booking-container ${step === 6 ? 'has-confirm-bar' : ''}`}>
       <BusinessHero business={business} compacta={step > 1} />
+      {senaPendiente && (
+        <div className="notice notice-warn mb-md" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', flexWrap: 'wrap' }}>
+          <span style={{ flex: 1, minWidth: 200 }}>
+            <Icon name="clock" /> Tenés un turno el {formatDate(senaPendiente.appointmentDate)} a las {senaPendiente.startTime} esperando el pago de la seña.
+          </span>
+          <button className="btn btn-primary btn-sm" onClick={() => navigate(`/${slug}/pago?turno=${senaPendiente.id}`)}>
+            Ver estado del pago
+          </button>
+        </div>
+      )}
       <Stepper step={step} />
       {error && (
         <div className="badge badge-danger mb-md" style={{ display: 'block', textAlign: 'center', padding: '12px', borderRadius: '8px', fontSize: '14px' }}>

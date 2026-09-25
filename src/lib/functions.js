@@ -199,3 +199,13 @@ export function desconectarMercadoPago({ businessId }) {
 export function devolverSena({ appointmentId }) {
   return llamar('mp-refund', { appointmentId });
 }
+
+/**
+ * Estado de la seña de un turno, sin sesión (la pantalla /:slug/pago puede
+ * abrirse en otro navegador que el de la reserva al volver de Mercado Pago).
+ * Devuelve `{ turno }` con los mismos nombres que un turno del contexto, o
+ * `{ turno: null }` si ya no existe (se venció el plazo y se liberó).
+ */
+export function estadoSena({ appointmentId }) {
+  return llamar('estado-sena', { appointmentId });
+}
