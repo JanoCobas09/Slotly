@@ -5,7 +5,7 @@ import { useAuth } from './AuthContext';
 import {
   subscribeAllBusinesses,
   subscribeBusiness,
-  subscribeBilling,
+  subscribeAllBilling,
   subscribeSubcollection,
   subscribeAppointmentsDeProfesional,
   subscribeMyAppointments,
@@ -57,6 +57,12 @@ export default function BusinessSync() {
 
   const esPlataforma = user?.isPlatformTeam === true;
   const businessIdPropio = user?.businessId || null;
+  // Sin sesión = visitante del link de reserva: lee los datos una vez y no
+  // abre canales de Realtime (ver `enVivo` en repository.js). Mira y se va;
+  // no necesita ver al instante un cambio del dueño, y cada conexión en vivo
+  // cuenta para el tope del proyecto (~200 simultáneas en el plan gratuito).
+  // Al iniciar sesión (redirect de Google = recarga completa) pasa a en vivo.
+  const enVivo = Boolean(user?.id);
 
   // Evita re-suscribirse en loop cuando el slug resuelve al mismo negocio.
   const slugResuelto = useRef({ slug: null, businessId: null });
@@ -87,8 +93,7 @@ export default function BusinessSync() {
     //    documento público, que puede leer cualquier cliente.
     if (esPlataforma) {
       let negocios = [];
-      const facturacion = new Map();
-      const subsBilling = new Map();
+      let facturacion = new Map();
 
       const emitir = () => {
         dispatch({
@@ -99,39 +104,20 @@ export default function BusinessSync() {
 
       const desuscribirLista = subscribeAllBusinesses((lista) => {
         negocios = lista;
+        emitir();
+      }, onError);
 
-        // Alta: escuchar la facturación de los negocios nuevos.
-        for (const n of lista) {
-          if (subsBilling.has(n.id)) continue;
-          subsBilling.set(
-            n.id,
-            subscribeBilling(
-              n.id,
-              (datos) => {
-                facturacion.set(n.id, datos || {});
-                emitir();
-              },
-              onError
-            )
-          );
-        }
-
-        // Baja: soltar los que ya no están.
-        const vigentes = new Set(lista.map((n) => n.id));
-        for (const [id, off] of subsBilling) {
-          if (!vigentes.has(id)) {
-            off();
-            subsBilling.delete(id);
-            facturacion.delete(id);
-          }
-        }
-
+      // Toda la facturación en UNA suscripción. Antes se abría un canal de
+      // Realtime por negocio (con 100 negocios, 100 canales); el resultado
+      // que se arma es el mismo: cada negocio con su fila de `billing`.
+      const desuscribirFacturacion = subscribeAllBilling((filas) => {
+        facturacion = new Map(filas.map((fila) => [fila.businessId, fila]));
         emitir();
       }, onError);
 
       return () => {
         desuscribirLista();
-        for (const off of subsBilling.values()) off();
+        desuscribirFacturacion();
       };
     }
 
@@ -165,7 +151,8 @@ export default function BusinessSync() {
           desuscribir = subscribeBusiness(
             businessId,
             (negocio) => dispatch({ type: 'SET_BUSINESSES', payload: negocio ? [negocio] : [] }),
-            onError
+            onError,
+            { enVivo }
           );
         } catch (err) {
           onError(err);
@@ -180,7 +167,7 @@ export default function BusinessSync() {
 
     // 4. Nadie logueado y sin slug: no hay nada que mostrar.
     dispatch({ type: 'SET_BUSINESSES', payload: [] });
-  }, [loading, esPlataforma, businessIdPropio, slug, user?.isBypass, dispatch]);
+  }, [loading, esPlataforma, businessIdPropio, slug, user?.isBypass, enVivo, dispatch]);
 
   // ── Subcolecciones del negocio activo ────────────────────────────────────
   // Se suscriben acá, en un solo lugar, y no dentro de cada hook: si cada
@@ -229,7 +216,7 @@ export default function BusinessSync() {
       : PUBLICAS;
 
     const offs = colecciones.map((col) =>
-      subscribeSubcollection(businessId, col, cb(col), onError(col))
+      subscribeSubcollection(businessId, col, cb(col), onError(col), { enVivo })
     );
 
     // La campanita: el dueño ve todas las del negocio, el staff asignado las suyas.
@@ -250,7 +237,7 @@ export default function BusinessSync() {
     dispatch({ type: 'SET_TENANT_DATA', payload: VACIO });
 
     return () => offs.forEach((off) => off());
-  }, [businessId, esBypass, uid, rol, profId, esPlataforma, dispatch]);
+  }, [businessId, esBypass, uid, rol, profId, esPlataforma, enVivo, dispatch]);
 
   return null;
 }

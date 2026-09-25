@@ -157,7 +157,15 @@ function toRow(table, obj) {
 // más un canal que va aplicando los deltas sobre una copia en memoria.
 let contadorCanal = 0;
 
-function liveTable(table, { filterCol, filterVal, orderCol, ascending = true } = {}, cb, onError) {
+// Opciones comunes a liveTable/liveRow:
+//   pk      → columna que identifica cada fila (default 'id'). `billing` no
+//             tiene `id`: su clave es `business_id`, y comparando por `id`
+//             (undefined === undefined) una actualización pisaba TODAS las filas.
+//   enVivo  → false = una sola lectura, sin canal de Realtime. Es lo que usa
+//             el visitante anónimo del link de reserva (ver BusinessSync):
+//             mira y se va, no necesita cambios al instante, y cada canal
+//             abierto cuenta para el tope de conexiones del proyecto.
+function liveTable(table, { filterCol, filterVal, orderCol, ascending = true, pk = 'id', enVivo = true } = {}, cb, onError) {
   let alive = true;
   let estado = [];
 
@@ -181,6 +189,8 @@ function liveTable(table, { filterCol, filterVal, orderCol, ascending = true } =
     emitir();
   })();
 
+  if (!enVivo) return () => { alive = false; };
+
   const filtro = filterCol ? `${filterCol}=eq.${filterVal}` : undefined;
   // Los DELETE van en un listener aparte y SIN filtro: Supabase Realtime no
   // entrega eventos de borrado a una suscripción filtrada (el registro viejo
@@ -194,17 +204,17 @@ function liveTable(table, { filterCol, filterVal, orderCol, ascending = true } =
   const canal = supabase
     .channel(`live-${table}-${contadorCanal++}`)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table, filter: filtro }, (payload) => {
-      estado = [...estado.filter((r) => r.id !== payload.new.id), payload.new];
+      estado = [...estado.filter((r) => r[pk] !== payload.new[pk]), payload.new];
       emitir();
     })
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table, filter: filtro }, (payload) => {
-      estado = estado.map((r) => (r.id === payload.new.id ? payload.new : r));
+      estado = estado.map((r) => (r[pk] === payload.new[pk] ? payload.new : r));
       emitir();
     })
     .on('postgres_changes', { event: 'DELETE', schema: 'public', table }, (payload) => {
-      const id = payload.old?.id;
-      if (!id || !estado.some((r) => r.id === id)) return;
-      estado = estado.filter((r) => r.id !== id);
+      const id = payload.old?.[pk];
+      if (!id || !estado.some((r) => r[pk] === id)) return;
+      estado = estado.filter((r) => r[pk] !== id);
       emitir();
     })
     .subscribe((status, err) => { if (err) onError(err); });
@@ -216,7 +226,7 @@ function liveTable(table, { filterCol, filterVal, orderCol, ascending = true } =
 }
 
 /** Como liveTable, pero para un único registro por columna=valor (ej. id). */
-function liveRow(table, matchCol, matchVal, cb, onError) {
+function liveRow(table, matchCol, matchVal, cb, onError, { enVivo = true } = {}) {
   let alive = true;
   const emitir = (row) => { if (alive) cb(row ? fromRow(table, row) : null); };
 
@@ -226,6 +236,8 @@ function liveRow(table, matchCol, matchVal, cb, onError) {
     if (!alive) return;
     emitir(data);
   })();
+
+  if (!enVivo) return () => { alive = false; };
 
   const canal = supabase
     .channel(`live-${table}-${matchVal}-${contadorCanal++}`)
@@ -294,8 +306,9 @@ export async function getBusinessIdBySlug(slug) {
 }
 
 /** Escucha un negocio puntual. Devuelve la función para desuscribirse. */
-export function subscribeBusiness(businessId, cb, onError) {
-  return liveRow('businesses', 'id', businessId, cb, onError);
+/** `opciones.enVivo = false`: una sola lectura, sin Realtime (ver liveTable). */
+export function subscribeBusiness(businessId, cb, onError, opciones) {
+  return liveRow('businesses', 'id', businessId, cb, onError, opciones);
 }
 
 /** Escucha TODOS los negocios. Solo el dueño de plataforma puede listar (RLS). */
@@ -415,8 +428,13 @@ export async function removeProfessionalPhoto(businessId, profId) {
 // FACTURACIÓN (privada — solo dueño de plataforma)
 // ============================================================================
 
-export function subscribeBilling(businessId, cb, onError) {
-  return liveRow('billing', 'business_id', businessId, cb, onError);
+/**
+ * La facturación de TODOS los negocios en una sola suscripción, para el panel
+ * global (RLS: solo el equipo de plataforma lee `billing`). Reemplaza abrir un
+ * canal de Realtime por negocio: con 100 negocios eran 100 canales abiertos.
+ */
+export function subscribeAllBilling(cb, onError) {
+  return liveTable('billing', { pk: 'business_id' }, cb, onError);
 }
 
 export async function getBilling(businessId) {
@@ -468,8 +486,9 @@ export async function upgradePlan(businessId, { planId, whatsappQuota, monthlyFe
 const nombreTabla = (name) => toSnake(name);
 
 /** Escucha una "subcolección" del negocio (professionals, services, etc.). */
-export function subscribeSubcollection(businessId, name, cb, onError) {
-  return liveTable(nombreTabla(name), { filterCol: 'business_id', filterVal: businessId }, cb, onError);
+/** `opciones.enVivo = false`: una sola lectura, sin Realtime (ver liveTable). */
+export function subscribeSubcollection(businessId, name, cb, onError, opciones = {}) {
+  return liveTable(nombreTabla(name), { filterCol: 'business_id', filterVal: businessId, ...opciones }, cb, onError);
 }
 
 export async function addToSubcollection(businessId, name, data) {

@@ -956,6 +956,14 @@ dominio de más autorizado no es un agujero de seguridad, solo ruido).
    (`traducirError`) + `_shared/auth.ts` (`errorDeFuncionSql`) traducen el
    nombre de la restricción a un mensaje legible — si renombrás una
    restricción, actualizá los tres. `supabase/tests/test-validaciones.mjs` 41/41.
+5d. **Realtime acotado (25/09/2026).** El visitante SIN sesión del link de
+   reserva lee negocio y colecciones públicas una sola vez, sin canales de
+   Realtime (`enVivo: false` en liveTable/liveRow, decidido en BusinessSync):
+   cada canal cuenta para el tope de conexiones del plan. Con sesión
+   (cliente, staff, dueño, plataforma) todo sigue en vivo como antes. El
+   panel global lee toda la facturación en una sola suscripción
+   (`subscribeAllBilling`) en vez de un canal por negocio — ojo: `billing`
+   no tiene `id`, por eso liveTable acepta `pk`.
 6. **Abuso de reservas.** Hecho: un turno por día y tope de 3 a futuro por
    cuenta. Falta, por orden: bloquear cliente desde el panel (para la cuenta que
    se porta mal), y App Check con reCAPTCHA v3 sobre los callables para frenar
