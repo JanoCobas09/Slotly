@@ -3450,13 +3450,15 @@ select.form-input {
   padding: 0;
 }
 
+/* Horas con la misma tipografía que el resto de los números del panel, con
+   cifras de ancho fijo (tabular-nums) para que la columna quede alineada. */
 .agenda-hora {
-  font-family: var(--font-mono);
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
   font-size: 0.95rem;
   font-weight: 700;
   padding: 10px 0 10px 12px;
   color: var(--text);
-  letter-spacing: -0.02em;
 }
 
 .agenda-celda {
@@ -3468,12 +3470,15 @@ select.form-input {
 }
 
 .agenda-libre {
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   color: var(--text-muted);
   padding: 8px 0;
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  display: inline-block;
+}
+
+.agenda-libre::first-letter {
   text-transform: uppercase;
-  letter-spacing: 0.08em;
 }
 
 .agenda-turno {
@@ -4148,8 +4153,8 @@ select.form-input {
 .mini-turno.estado-no_asistio { border-left-color: var(--danger); opacity: 0.75; }
 
 .mini-turno-hora {
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.72rem;
   font-weight: 700;
   color: var(--text-secondary);
 }
@@ -4267,6 +4272,7 @@ select.form-input {
 }
 
 .mes-mini {
+  font-variant-numeric: tabular-nums;
   font-size: 0.7rem;
   padding: 1px 5px;
   border-radius: 4px;
@@ -4287,6 +4293,23 @@ select.form-input {
   font-size: 0.65rem;
   color: var(--text-muted);
   padding-left: 5px;
+}
+
+.semana-mas {
+  border: 1px dashed var(--border);
+  background: transparent;
+  border-radius: 6px;
+  padding: 6px;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.semana-mas:hover {
+  border-color: var(--primary);
+  color: var(--primary);
 }
 
 /* ── Celular: la semana pasa a lista por día; el mes muestra solo cantidades ── */

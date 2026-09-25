@@ -29,6 +29,12 @@ const VISTAS = [
 
 const DIAS_CORTOS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
+// Cuántos turnos se dibujan por día antes de resumir en "+N más" (que abre
+// ese día). Sin tope, un día cargado estira toda la grilla: 20 turnos en la
+// semana o en una celda del mes rompen la vista.
+const MAX_SEMANA = 6;
+const MAX_MES = 3;
+
 const aFecha = (iso) => new Date(`${iso}T12:00:00`);
 
 function sumarDias(iso, n) {
@@ -217,15 +223,24 @@ export default function InicioPage() {
                   <div className="semana-dia-turnos">
                     {turnos.length === 0 ? (
                       <span className="semana-vacio">{bloqueo === 'entero' ? 'Bloqueado' : 'Libre'}</span>
-                    ) : turnos.map((a) => (
-                      <button key={a.id} className={`mini-turno estado-${a.status}`} onClick={() => irAlDia(iso)}>
-                        <span className="mini-turno-hora">{a.startTime}</span>
-                        <span className="mini-turno-cliente">{nombreTurno(a)}</span>
-                        <span className="mini-turno-detalle">
-                          {nombreSrv(a)}{varios && !filtroProf ? ` · ${nombreProf(a.professionalId)}` : ''}
-                        </span>
-                      </button>
-                    ))}
+                    ) : (
+                      <>
+                        {turnos.slice(0, MAX_SEMANA).map((a) => (
+                          <button key={a.id} className={`mini-turno estado-${a.status}`} onClick={() => irAlDia(iso)}>
+                            <span className="mini-turno-hora">{a.startTime}</span>
+                            <span className="mini-turno-cliente">{nombreTurno(a)}</span>
+                            <span className="mini-turno-detalle">
+                              {nombreSrv(a)}{varios && !filtroProf ? ` · ${nombreProf(a.professionalId)}` : ''}
+                            </span>
+                          </button>
+                        ))}
+                        {turnos.length > MAX_SEMANA && (
+                          <button className="semana-mas" onClick={() => irAlDia(iso)}>
+                            +{turnos.length - MAX_SEMANA} más
+                          </button>
+                        )}
+                      </>
+                    )}
                   </div>
                 </div>
               );
@@ -254,12 +269,12 @@ export default function InicioPage() {
                   </span>
                   {activos > 0 && <span className="mes-celda-cuenta">{activos}</span>}
                   <span className="mes-celda-lista">
-                    {turnos.slice(0, 3).map((a) => (
+                    {turnos.slice(0, MAX_MES).map((a) => (
                       <span key={a.id} className={`mes-mini estado-${a.status}`}>
                         {a.startTime} {nombreTurno(a)}
                       </span>
                     ))}
-                    {turnos.length > 3 && <span className="mes-mas">+{turnos.length - 3} más</span>}
+                    {turnos.length > MAX_MES && <span className="mes-mas">+{turnos.length - MAX_MES} más</span>}
                   </span>
                 </button>
               );
