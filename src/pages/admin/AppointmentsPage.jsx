@@ -5,6 +5,7 @@ import { updateAppointment, cancelAppointment } from '../../lib/repository';
 import NuevoTurnoModal from '../../components/admin/NuevoTurnoModal';
 import { formatDate, formatPrice } from '../../utils/dateUtils';
 import Icon from '../../components/Icon';
+import { esTurnoEditable } from '../../utils/turnos';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Todos' },
@@ -42,6 +43,7 @@ function isAppointmentStarted(apt) {
   return aptDateTime <= new Date();
 }
 
+
 export default function AppointmentsPage() {
   const { user } = useAuth();
   const { appointments, professionals, services, business, businessId } = useTenant();
@@ -52,6 +54,7 @@ export default function AppointmentsPage() {
   const [filterStatus, setFilterStatus] = useState('');
   const [filterDate,   setFilterDate]   = useState('');
   const [agendando,    setAgendando]    = useState(false);
+  const [editando,     setEditando]     = useState(null);
 
   const filtered = useMemo(() => {
     let result = [...appointments].sort((a, b) => {
@@ -93,6 +96,9 @@ export default function AppointmentsPage() {
     const blockedMsg = 'El turno todavía no comenzó';
     return (
       <div className="table-actions">
+        {esTurnoEditable(apt, isOwner) && (
+          <button className="btn btn-ghost btn-sm" title="Editar turno" onClick={() => setEditando(apt)}><Icon name="edit" /></button>
+        )}
         {(apt.status === 'pendiente' || apt.status === 'confirmada') && (
           <>
             <button
@@ -134,6 +140,7 @@ export default function AppointmentsPage() {
       </div>
 
       {agendando && <NuevoTurnoModal onClose={() => setAgendando(false)} />}
+      {editando && <NuevoTurnoModal turno={editando} onClose={() => setEditando(null)} />}
 
       {/* Filtros */}
       <div className="filters-bar">

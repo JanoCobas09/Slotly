@@ -23,23 +23,39 @@ import Icon from '../Icon';
  *
  * Nace 'pendiente' (lo exigen las Rules) y se confirma acto seguido: si el
  * barbero lo cargó es porque ya lo acordó con el cliente.
+ *
+ * Con `turno`, el mismo formulario EDITA ese turno en vez de crear otro. Solo
+ * se ofrece para los que cargó el propio negocio (`type: 'manual'`): los que
+ * reservó el cliente son un acuerdo con él, y moverlos sin avisarle lo deja
+ * yendo a un horario que ya no es el suyo.
  */
-export default function NuevoTurnoModal({ onClose }) {
+export default function NuevoTurnoModal({ onClose, turno = null }) {
+  const editando = Boolean(turno);
   const { user } = useAuth();
   const { appointments, professionals, services, professionalServices, schedules, business, businessId } = useTenant();
 
   const esStaffAsignado = user?.role === 'admin' && Boolean(user?.professionalId);
   const hoy = toDateString(new Date());
 
-  const [form, setForm] = useState({
-    professionalId: esStaffAsignado ? user.professionalId : (professionals[0]?.id || ''),
-    serviceId: '',
-    date: hoy,
-    startTime: '',
-    clientName: '',
-    clientPhone: '',
-    notes: '',
-  });
+  const [form, setForm] = useState(() => editando
+    ? {
+        professionalId: turno.professionalId || '',
+        serviceId: turno.serviceId || '',
+        date: turno.appointmentDate,
+        startTime: turno.startTime,
+        clientName: turno.clientName || '',
+        clientPhone: turno.clientPhone || '',
+        notes: turno.notes || '',
+      }
+    : {
+        professionalId: esStaffAsignado ? user.professionalId : (professionals[0]?.id || ''),
+        serviceId: '',
+        date: hoy,
+        startTime: '',
+        clientName: '',
+        clientPhone: '',
+        notes: '',
+      });
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
 
@@ -71,18 +87,33 @@ export default function NuevoTurnoModal({ onClose }) {
 
   const slots = useMemo(() => {
     if (!form.professionalId || !form.serviceId || !form.date) return [];
-    return calculateAvailableSlots({
+    const libres = calculateAvailableSlots({
       professionalId: form.professionalId,
       serviceId: form.serviceId,
       date: form.date,
       schedules,
-      appointments,
+      // Al editar, el propio turno no cuenta como ocupado: si no, su
+      // horario actual (y cualquiera que se le pise) aparecería tomado.
+      appointments: editando ? appointments.filter((a) => a.id !== turno.id) : appointments,
       services,
       professionalServices,
       slotInterval: business.slotInterval,
       businessHours: business.businessHours,
     });
-  }, [form.professionalId, form.serviceId, form.date, schedules, appointments, services, professionalServices, business]);
+    // Mismo profesional, servicio y día que ya tenía: su horario original
+    // se ofrece siempre, aunque el negocio haya cambiado el horario de
+    // atención después — cambiar solo el nombre o la nota no tiene por qué
+    // obligar a mover el turno.
+    const mismoLugar = editando
+      && form.professionalId === turno.professionalId
+      && form.serviceId === turno.serviceId
+      && form.date === turno.appointmentDate;
+    if (mismoLugar && !libres.some((s) => s.startTime === turno.startTime)) {
+      return [{ startTime: turno.startTime, endTime: turno.endTime }, ...libres]
+        .sort((a, b) => a.startTime.localeCompare(b.startTime));
+    }
+    return libres;
+  }, [form.professionalId, form.serviceId, form.date, schedules, appointments, services, professionalServices, business, editando, turno]);
 
   const slot = slots.find((s) => s.startTime === form.startTime);
   const digitos = form.clientPhone.replace(/\D/g, '');
@@ -94,6 +125,27 @@ export default function NuevoTurnoModal({ onClose }) {
     setGuardando(true);
     setError('');
     try {
+      if (editando) {
+        const cambioHorario = form.date !== turno.appointmentDate || slot.startTime !== turno.startTime;
+        await updateAppointment(businessId, turno.id, {
+          professionalId: form.professionalId,
+          serviceId: form.serviceId,
+          appointmentDate: form.date,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+          price: precio,
+          durationMinutes: duracion,
+          serviceName: servicio?.name || '',
+          clientName: form.clientName.trim().slice(0, 120),
+          clientPhone: form.clientPhone.trim().slice(0, 40),
+          notes: form.notes.trim().slice(0, 500),
+          // Si se movió de día u hora, el recordatorio tiene que volver a
+          // salir para el horario nuevo.
+          ...(cambioHorario ? { reminderSentAt: null } : {}),
+        });
+        onClose();
+        return;
+      }
       const id = await createAppointment(businessId, {
         professionalId: form.professionalId,
         serviceId: form.serviceId,
@@ -115,8 +167,8 @@ export default function NuevoTurnoModal({ onClose }) {
       await updateAppointment(businessId, id, { status: 'confirmada' });
       onClose();
     } catch (err) {
-      console.error('[NuevoTurnoModal] No se pudo agendar:', err);
-      setError('No se pudo agendar el turno: ' + err.message);
+      console.error('[NuevoTurnoModal] No se pudo guardar:', err);
+      setError((editando ? 'No se pudieron guardar los cambios: ' : 'No se pudo agendar el turno: ') + err.message);
       setGuardando(false);
     }
   };
@@ -125,13 +177,14 @@ export default function NuevoTurnoModal({ onClose }) {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
         <div className="modal-header">
-          <h3><Icon name="calendar" /> Agendar turno</h3>
+          <h3><Icon name={editando ? 'edit' : 'calendar'} /> {editando ? 'Editar turno' : 'Agendar turno'}</h3>
           <button className="modal-close" onClick={onClose}><Icon name="x" /></button>
         </div>
         <div className="modal-body">
           <p className="text-secondary" style={{ marginBottom: 'var(--space-md)', fontSize: 14 }}>
-            Para el cliente que te pidió turno por WhatsApp o en persona. Queda
-            confirmado y bloquea el horario para las reservas online.
+            {editando
+              ? 'Cambiá lo que necesites. Si lo movés de día u hora, el horario viejo queda libre para las reservas online.'
+              : 'Para el cliente que te pidió turno por WhatsApp o en persona. Queda confirmado y bloquea el horario para las reservas online.'}
           </p>
 
           {error && (
@@ -219,7 +272,9 @@ export default function NuevoTurnoModal({ onClose }) {
         <div className="modal-footer">
           <button className="btn btn-outline" onClick={onClose} disabled={guardando}>Cancelar</button>
           <button className="btn btn-primary" onClick={guardar} disabled={!listo}>
-            {guardando ? 'Agendando…' : slot ? `Agendar ${slot.startTime}` : 'Agendar'}
+            {editando
+              ? (guardando ? 'Guardando…' : 'Guardar cambios')
+              : (guardando ? 'Agendando…' : slot ? `Agendar ${slot.startTime}` : 'Agendar')}
           </button>
         </div>
       </div>

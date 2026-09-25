@@ -8,6 +8,7 @@ import { formatPrice, formatDate, toDateString } from '../../utils/dateUtils';
 import NuevoTurnoModal from '../../components/admin/NuevoTurnoModal';
 import AgendaDelDia from '../../components/admin/AgendaDelDia';
 import Icon from '../../components/Icon';
+import { esTurnoEditable } from '../../utils/turnos';
 
 const STATUS_BADGES = {
   pendiente:  'badge-warning',
@@ -99,6 +100,7 @@ export default function DashboardPage() {
   const { appointments, professionals, services, professionalServices, business, businessId } = useTenant();
   const [showWalkinModal, setShowWalkinModal] = useState(false);
   const [agendando, setAgendando] = useState(false);
+  const [editando, setEditando] = useState(null);
 
   const isOwner = user?.role === 'owner';
   // Local, no toISOString(): eso es UTC, y a partir de las 21:00 en Argentina
@@ -125,6 +127,9 @@ export default function DashboardPage() {
     const empezo = yaEmpezo(apt);
     return (
       <>
+        {esTurnoEditable(apt, isOwner) && (
+          <button className="btn btn-ghost btn-sm" title="Editar turno" onClick={() => setEditando(apt)}><Icon name="edit" /></button>
+        )}
         {apt.status === 'pendiente' && (
           <button className="btn btn-ghost btn-sm" title="Confirmar" onClick={() => cambiarEstado(apt, 'confirmada')}><Icon name="check" /></button>
         )}
@@ -408,6 +413,8 @@ export default function DashboardPage() {
           ))}
         </div>
       </div>
+
+      {editando && <NuevoTurnoModal turno={editando} onClose={() => setEditando(null)} />}
 
       {/* Agenda del día, con todos los profesionales o filtrada por uno. */}
       <div className="card">
