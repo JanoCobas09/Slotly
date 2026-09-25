@@ -533,8 +533,8 @@ export async function cancelAppointment(businessId, id, motivo = '', quien = 'st
       status: 'cancelada',
       cancelled_at: new Date().toISOString(),
       cancellation_reason: motivo,
-      // 'client' o 'staff'. El trigger handle_turno_cancelado avisa a la
-      // barbería solo cuando canceló el cliente.
+      // 'client' o 'staff'. La base lo corrige igual según la sesión
+      // (registrar_quien_cancela) y el aviso dice quién canceló.
       cancelled_by: quien,
     })
     .eq('id', id)

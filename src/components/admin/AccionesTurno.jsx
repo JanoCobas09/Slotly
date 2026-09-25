@@ -1,5 +1,5 @@
 import { useTenant } from '../../hooks/useTenantData';
-import { updateAppointment } from '../../lib/repository';
+import { updateAppointment, cancelAppointment } from '../../lib/repository';
 import { esTurnoEditable, confirmacionCancelar } from '../../utils/turnos';
 import Icon from '../Icon';
 
@@ -17,7 +17,14 @@ export default function AccionesTurno({ apt, isOwner, onEditar }) {
 
   const cambiarEstado = (status) => {
     if (status === 'cancelada' && !window.confirm(confirmacionCancelar(apt))) return;
-    updateAppointment(businessId, apt.id, { status }).catch((err) => {
+    // Cancelar por el mismo camino que Citas (fecha y quién). Con un update
+    // de `status` solo, el aviso le llegaba al negocio como si hubiera
+    // cancelado el cliente. Igual, quién canceló lo termina de decidir la
+    // base con la sesión (trigger registrar_quien_cancela).
+    const accion = status === 'cancelada'
+      ? cancelAppointment(businessId, apt.id, '', 'staff')
+      : updateAppointment(businessId, apt.id, { status });
+    accion.catch((err) => {
       console.error('[AccionesTurno] No se pudo actualizar el turno:', err);
       alert('No se pudo actualizar el turno: ' + err.message);
     });
