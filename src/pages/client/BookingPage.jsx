@@ -376,7 +376,7 @@ function DatePicker({ selectedDate, onSelect, professionalId, schedules: allSche
 }
 
 // ---- TIME SLOT GRID ----
-function TimeSlotGrid({ slots, selectedSlot, onSelect, date, cargando, serviceId, dayOfWeek, promotions }) {
+function TimeSlotGrid({ slots, selectedSlot, onSelect, date, cargando, serviceId, dayOfWeek, promotions, minAdvanceHours }) {
   const morning = slots.filter(s => parseInt(s.startTime.split(':')[0]) < 13);
   const afternoon = slots.filter(s => parseInt(s.startTime.split(':')[0]) >= 13);
   const esPromo = (slot) => Boolean(promoParaSlot(promotions, { serviceId, dayOfWeek, startTime: slot.startTime }));
@@ -402,6 +402,11 @@ function TimeSlotGrid({ slots, selectedSlot, onSelect, date, cargando, serviceId
           <div className="empty-state-icon"><Icon name="calendar" /></div>
           <p>No hay horarios disponibles para este día</p>
           <p className="text-sm text-muted mt-sm">Probá seleccionando otra fecha</p>
+          {minAdvanceHours > 0 && (
+            <p className="text-sm text-muted mt-sm">
+              Este negocio toma turnos con al menos {minAdvanceHours === 1 ? '1 hora' : `${minAdvanceHours} horas`} de anticipación.
+            </p>
+          )}
         </div>
       </div>
     );
@@ -838,7 +843,7 @@ export default function BookingPage() {
   // Calculate available slots
   const availableSlots = useMemo(() => {
     if (!professionalId || !serviceId || !date || cargandoOcupados) return [];
-    return calculateAvailableSlots({
+    const slots = calculateAvailableSlots({
       professionalId,
       serviceId,
       date,
@@ -851,6 +856,14 @@ export default function BookingPage() {
       slotInterval: business.slotInterval,
       businessHours: business.businessHours,
     });
+    // Anticipación mínima del negocio (Configuración): con 3 horas, a las
+    // 14:00 el turno de las 16:00 ya no se ofrece. Se filtra acá y no en
+    // availabilityEngine (que no se toca); la base lo vuelve a frenar con el
+    // trigger enforce_min_advance_hours.
+    const minimo = Number(business.minAdvanceHours) || 0;
+    if (!minimo) return slots;
+    const desde = Date.now() + minimo * 3600 * 1000;
+    return slots.filter((s) => new Date(`${date}T${s.startTime}:00`).getTime() >= desde);
   }, [professionalId, serviceId, date, schedules, ocupados, cargandoOcupados, services, professionalServices, business, blockedDays]);
 
   if (blockedReason) {
@@ -1072,6 +1085,7 @@ export default function BookingPage() {
           serviceId={serviceId}
           dayOfWeek={dayOfWeek}
           promotions={promotions}
+          minAdvanceHours={Number(business.minAdvanceHours) || 0}
         />
       )}
 

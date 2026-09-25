@@ -338,6 +338,29 @@ export default function SettingsPage() {
                 </p>
               </div>
               <div className="form-group">
+                <label className="form-label">Con cuánta anticipación mínima pueden reservar</label>
+                {/* Vacío = sin mínimo (lo de siempre). Lo hace cumplir también
+                    la base (trigger enforce_min_advance_hours), no solo la grilla. */}
+                <select
+                  className="form-input"
+                  value={form.minAdvanceHours ?? ''}
+                  onChange={e => editar({ minAdvanceHours: e.target.value ? parseInt(e.target.value) : null })}
+                >
+                  <option value="">Sin mínimo</option>
+                  <option value={1}>1 hora antes</option>
+                  <option value={2}>2 horas antes</option>
+                  <option value={3}>3 horas antes</option>
+                  <option value={4}>4 horas antes</option>
+                  <option value={6}>6 horas antes</option>
+                  <option value={12}>12 horas antes</option>
+                  <option value={24}>1 día antes</option>
+                  <option value={48}>2 días antes</option>
+                </select>
+                <p className="text-sm text-muted" style={{ marginTop: 6 }}>
+                  Con 3 horas, a las 14:00 el {terminology.customerNoun} ya no ve disponible el {terminology.appointmentNoun} de las 16:00. Los {terminology.appointmentNoun}s que cargás vos desde el panel no tienen mínimo.
+                </p>
+              </div>
+              <div className="form-group">
                 <label className="form-label">Teléfono</label>
                 <input className="form-input" value={form.phone || ''} onChange={e => editar({ phone: e.target.value })} />
               </div>

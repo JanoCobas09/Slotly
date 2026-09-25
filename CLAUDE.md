@@ -941,6 +941,11 @@ dominio de más autorizado no es un agujero de seguridad, solo ruido).
    confirmación por webhook de un pago aprobado solo se prueban con usuarios
    de prueba de MP contra el deploy (localmente SUPABASE_URL es `kong:8000`
    y MP no puede llegar).
+5b. **Anticipación mínima (25/09/2026).** `businesses.min_advance_hours`
+   (NULL = sin mínimo): con 3, a las 14:00 el turno de las 16:00 no se
+   ofrece. BookingPage filtra la grilla después de availabilityEngine (que
+   no se toca) y el trigger `enforce_min_advance_hours` frena al que se lo
+   saltee. Solo turnos de cliente, igual que `max_advance_days`.
 6. **Abuso de reservas.** Hecho: un turno por día y tope de 3 a futuro por
    cuenta. Falta, por orden: bloquear cliente desde el panel (para la cuenta que
    se porta mal), y App Check con reCAPTCHA v3 sobre los callables para frenar
