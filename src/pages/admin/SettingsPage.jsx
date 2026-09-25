@@ -369,8 +369,6 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <SenaMercadoPagoCard form={form} editar={editar} businessId={businessId} terminology={terminology} />
-
         </div>
 
         {/* Right: Preview */}
@@ -428,6 +426,8 @@ export default function SettingsPage() {
               ))}
             </div>
           </div>
+
+          <SenaMercadoPagoCard form={form} editar={editar} businessId={businessId} terminology={terminology} />
         </div>
       </div>
 
