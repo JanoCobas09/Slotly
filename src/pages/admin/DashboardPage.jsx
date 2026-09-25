@@ -8,7 +8,7 @@ import { formatPrice, formatDate, toDateString } from '../../utils/dateUtils';
 import NuevoTurnoModal from '../../components/admin/NuevoTurnoModal';
 import AgendaDelDia from '../../components/admin/AgendaDelDia';
 import Icon from '../../components/Icon';
-import { esTurnoEditable, confirmacionCancelar } from '../../utils/turnos';
+import AccionesTurno from '../../components/admin/AccionesTurno';
 
 const STATUS_BADGES = {
   pendiente:  'badge-warning',
@@ -100,7 +100,6 @@ export default function DashboardPage() {
   const { appointments, professionals, services, professionalServices, business, businessId } = useTenant();
   const [showWalkinModal, setShowWalkinModal] = useState(false);
   const [agendando, setAgendando] = useState(false);
-  const [editando, setEditando] = useState(null);
 
   const isOwner = user?.role === 'owner';
   // Local, no toISOString(): eso es UTC, y a partir de las 21:00 en Argentina
@@ -112,33 +111,8 @@ export default function DashboardPage() {
     ? appointments
     : appointments.filter(a => a.professionalId === user?.professionalId);
 
-  // Acciones sobre un turno desde la agenda: confirmar, completar, no asistió,
-  // cancelar. Completar y "no asistió" recién cuando el turno ya empezó.
-  const cambiarEstado = (apt, status) => {
-    if (status === 'cancelada' && !window.confirm(confirmacionCancelar(apt))) return;
-    updateAppointment(businessId, apt.id, { status }).catch((err) => {
-      console.error('[Dashboard] No se pudo actualizar el turno:', err);
-      alert('No se pudo actualizar el turno: ' + err.message);
-    });
-  };
-  const yaEmpezo = (apt) => new Date(`${apt.appointmentDate}T${apt.startTime}:00`) <= new Date();
-  const accionesDeTurno = (apt) => {
-    if (apt.status !== 'pendiente' && apt.status !== 'confirmada') return null;
-    const empezo = yaEmpezo(apt);
-    return (
-      <>
-        {esTurnoEditable(apt, isOwner) && (
-          <button className="btn btn-ghost btn-sm" title="Editar turno" onClick={() => setEditando(apt)}><Icon name="edit" /></button>
-        )}
-        {apt.status === 'pendiente' && (
-          <button className="btn btn-ghost btn-sm" title="Confirmar" onClick={() => cambiarEstado(apt, 'confirmada')}><Icon name="check" /></button>
-        )}
-        <button className="btn btn-ghost btn-sm" title={empezo ? 'Marcar como completada' : 'Todavía no empezó'} disabled={!empezo} style={!empezo ? { opacity: 0.35 } : undefined} onClick={() => cambiarEstado(apt, 'completada')}><Icon name="check-circle" /></button>
-        <button className="btn btn-ghost btn-sm" title={empezo ? 'No asistió' : 'Todavía no empezó'} disabled={!empezo} style={!empezo ? { opacity: 0.35 } : undefined} onClick={() => cambiarEstado(apt, 'no_asistio')}><Icon name="user-x" /></button>
-        <button className="btn btn-ghost btn-sm" title="Cancelar" onClick={() => cambiarEstado(apt, 'cancelada')}><Icon name="x-circle" /></button>
-      </>
-    );
-  };
+  // Acciones sobre un turno de la agenda (mismo componente que Inicio).
+  const accionesDeTurno = (apt) => <AccionesTurno apt={apt} isOwner={isOwner} />;
 
   // ══════════════════════════════════════════════════════════════════════════
   // VISTA STAFF ASIGNADO
@@ -414,18 +388,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {editando && <NuevoTurnoModal turno={editando} onClose={() => setEditando(null)} />}
-
-      {/* Agenda del día, con todos los profesionales o filtrada por uno. */}
-      <div className="card">
-        <AgendaDelDia
-          appointments={visibleAppointments}
-          professionals={professionals}
-          services={services}
-          business={business}
-          renderAcciones={accionesDeTurno}
-        />
-      </div>
     </div>
   );
 }

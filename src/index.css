@@ -3974,3 +3974,337 @@ select.form-input {
   justify-content: space-between;
   gap: var(--space-md);
 }
+
+.agenda-bloqueo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  margin-bottom: var(--space-md);
+  border-radius: var(--radius-md);
+  background: var(--danger-light);
+  color: var(--danger);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+/* ============================================
+   INICIO — agenda en día / semana / mes
+   ============================================ */
+.inicio-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-md);
+}
+
+.vista-tabs {
+  display: inline-flex;
+  padding: 3px;
+  background: var(--bg-secondary, #f2efe8);
+  border-radius: var(--radius-md);
+  gap: 2px;
+}
+
+.vista-tab {
+  border: none;
+  background: transparent;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.vista-tab:hover { color: var(--text); }
+
+.vista-tab.activa {
+  background: var(--surface);
+  color: var(--primary);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ── Semana ── */
+.semana-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.semana-dia {
+  display: flex;
+  flex-direction: column;
+  min-height: 320px;
+  border-right: 1px solid var(--border);
+  min-width: 0;
+}
+
+.semana-dia:last-child { border-right: none; }
+.semana-dia.pasado { background: rgba(0, 0, 0, 0.015); }
+.semana-dia.bloqueado {
+  background: repeating-linear-gradient(135deg, var(--danger-light) 0 6px, transparent 6px 12px);
+}
+
+.semana-dia-cabecera {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 4px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  font: inherit;
+}
+
+.semana-dia-cabecera:hover { background: var(--bg); }
+
+.semana-dia-nombre {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.semana-dia-num {
+  font-size: 1.15rem;
+  font-weight: 700;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.semana-dia.hoy .semana-dia-num {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+.semana-dia-lock {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  color: var(--danger);
+  font-size: 0.8rem;
+}
+
+.semana-dia-turnos {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 6px;
+}
+
+.semana-vacio {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  text-align: center;
+  padding-top: 8px;
+}
+
+.mini-turno {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  min-width: 0;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.mini-turno:hover { box-shadow: var(--shadow-sm); }
+
+.mini-turno.estado-pendiente  { border-left-color: var(--warning); }
+.mini-turno.estado-confirmada { border-left-color: var(--success); }
+.mini-turno.estado-completada { border-left-color: var(--primary); opacity: 0.75; }
+.mini-turno.estado-no_asistio { border-left-color: var(--danger); opacity: 0.75; }
+
+.mini-turno-hora {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.mini-turno-cliente,
+.mini-turno-detalle {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mini-turno-cliente {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.mini-turno-detalle {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+/* ── Mes ── */
+.mes-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  border-top: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.mes-cabecera {
+  padding: 8px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.mes-celda {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  min-height: 104px;
+  padding: 6px;
+  border: none;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.mes-celda:hover { background: var(--bg); }
+.mes-celda.vacia { background: var(--bg); cursor: default; }
+.mes-celda.pasado { color: var(--text-muted); }
+.mes-celda.bloqueado {
+  background: repeating-linear-gradient(135deg, var(--danger-light) 0 6px, var(--surface) 6px 12px);
+}
+
+.mes-celda-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mes-celda-num {
+  font-size: 0.85rem;
+  font-weight: 700;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.mes-celda.hoy .mes-celda-num {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+.mes-celda-lock { color: var(--danger); font-size: 0.8rem; }
+
+/* La cantidad solo se ve en el celular, donde no entran los nombres. */
+.mes-celda-cuenta {
+  display: none;
+  align-self: center;
+  min-width: 22px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--primary);
+  color: var(--on-primary);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.mes-celda-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mes-mini {
+  font-size: 0.7rem;
+  padding: 1px 5px;
+  border-radius: 4px;
+  border-left: 3px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mes-mini.estado-pendiente  { border-left-color: var(--warning); }
+.mes-mini.estado-confirmada { border-left-color: var(--success); }
+.mes-mini.estado-completada { border-left-color: var(--primary); opacity: 0.7; }
+.mes-mini.estado-no_asistio { border-left-color: var(--danger); opacity: 0.7; }
+
+.mes-mas {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  padding-left: 5px;
+}
+
+/* ── Celular: la semana pasa a lista por día; el mes muestra solo cantidades ── */
+@media (max-width: 760px) {
+  .semana-grid { grid-template-columns: 1fr; }
+  .semana-dia {
+    min-height: 0;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    flex-direction: row;
+  }
+  .semana-dia:last-child { border-bottom: none; }
+  .semana-dia-cabecera {
+    width: 64px;
+    flex-shrink: 0;
+    border-bottom: none;
+    border-right: 1px solid var(--border);
+  }
+  .semana-dia-turnos { flex: 1; min-width: 0; }
+  .semana-vacio { text-align: left; padding-top: 4px; }
+
+  .mes-celda { min-height: 58px; align-items: center; }
+  .mes-celda-top { justify-content: center; }
+  .mes-celda-lock { display: none; }
+  .mes-celda-lista { display: none; }
+  .mes-celda-cuenta { display: inline-block; }
+}

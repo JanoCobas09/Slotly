@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { formatDate, toDateString, timeToMinutes } from '../../utils/dateUtils';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
 import Icon from '../Icon';
+import { diaEnteroBloqueado, rangosDelDia } from '../../utils/bloqueos';
 
 /**
  * La agenda de un día, como un calendario: una fila por franja horaria, con
@@ -70,11 +71,25 @@ export default function AgendaDelDia({
   onSelect = null,
   /** Acciones opcionales por turno: (apt) => ReactNode. */
   renderAcciones = null,
+  /**
+   * Controlada desde afuera (Inicio): si vienen, la fecha y el filtro de
+   * profesional los maneja quien la usa, y `sinCabecera` esconde la barra
+   * propia de navegación porque la pantalla ya tiene la suya.
+   */
+  fecha: fechaControlada,
+  onFechaChange,
+  filtroProfesional,
+  sinCabecera = false,
+  /** Días/horarios bloqueados del negocio, para avisar arriba de la agenda. */
+  blockedDays = [],
 }) {
   const { terminology } = useBusinessContext();
   const hoy = toDateString(new Date());
-  const [fecha, setFecha] = useState(hoy);
-  const [filtroProf, setFiltroProf] = useState('');
+  const [fechaInterna, setFechaInterna] = useState(hoy);
+  const [filtroInterno, setFiltroProf] = useState('');
+  const fecha = fechaControlada ?? fechaInterna;
+  const setFecha = onFechaChange ?? setFechaInterna;
+  const filtroProf = filtroProfesional ?? filtroInterno;
 
   const profActivo = professionalId || filtroProf || null;
   const varios = !professionalId && professionals.length > 1;
@@ -169,8 +184,12 @@ export default function AgendaDelDia({
 
   const activos = delDia.filter((a) => a.status === 'pendiente' || a.status === 'confirmada');
 
+  const bloqueadoEntero = diaEnteroBloqueado(blockedDays, fecha);
+  const rangosBloqueados = rangosDelDia(blockedDays, fecha);
+
   return (
     <div className="agenda">
+      {!sinCabecera && (
       <div className="agenda-cabecera">
         <div className="agenda-nav">
           <button className="btn btn-ghost btn-sm" onClick={() => setFecha(sumarDias(fecha, -1))} aria-label="Día anterior">‹</button>
@@ -201,6 +220,16 @@ export default function AgendaDelDia({
           </select>
         )}
       </div>
+      )}
+
+      {(bloqueadoEntero || rangosBloqueados.length > 0) && (
+        <div className="agenda-bloqueo">
+          <Icon name="lock" />{' '}
+          {bloqueadoEntero
+            ? 'Bloqueaste este día: nadie puede reservar online.'
+            : `Horario bloqueado: ${rangosBloqueados.map((r) => `${r.startTime} a ${r.endTime}`).join(', ')}.`}
+        </div>
+      )}
 
       {cerrado && delDia.length === 0 ? (
         <div className="empty-state" style={{ padding: 'var(--space-xl)' }}>

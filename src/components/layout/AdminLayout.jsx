@@ -11,7 +11,8 @@ import Icon from '../Icon';
 
 // Items visibles solo para el dueño (owner)
 const ownerNavItems = [
-  { to: '/admin',               icon: 'dashboard', label: 'Dashboard',        end: true },
+  { to: '/admin',               icon: 'home',      label: 'Inicio',           end: true },
+  { to: '/admin/dashboard',     icon: 'dashboard', label: 'Dashboard' },
   { to: '/admin/profesionales', icon: 'users',      label: 'Profesionales' },
   { to: '/admin/servicios',     icon: 'services',   label: 'Servicios' },
   { to: '/admin/promociones',   icon: 'tag',        label: 'Promociones' },

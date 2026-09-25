@@ -34,6 +34,7 @@ const ProfessionalsPage   = lazy(() => import('./pages/admin/ProfessionalsPage')
 const ServicesPage        = lazy(() => import('./pages/admin/ServicesPage'));
 const PromotionsPage      = lazy(() => import('./pages/admin/PromotionsPage'));
 const BlockedDaysPage     = lazy(() => import('./pages/admin/BlockedDaysPage'));
+const InicioPage          = lazy(() => import('./pages/admin/InicioPage'));
 const AppointmentsPage    = lazy(() => import('./pages/admin/AppointmentsPage'));
 const SettingsPage        = lazy(() => import('./pages/admin/SettingsPage'));
 const AdminsPage          = lazy(() => import('./pages/admin/AdminsPage'));
@@ -141,6 +142,16 @@ function EntryRoute() {
   return <LandingPage />;
 }
 
+/**
+ * La portada del panel: para el dueño es Inicio (la agenda en día, semana y
+ * mes); para el staff sigue siendo "Hoy" (DashboardPage en su vista de
+ * staff). Las estadísticas del dueño viven en /admin/dashboard.
+ */
+function AdminHome() {
+  const { user } = useAuth();
+  return user?.role === 'owner' ? <InicioPage /> : <DashboardPage />;
+}
+
 function ClientLayout({ children }) {
   return (
     <>
@@ -195,7 +206,8 @@ export default function App() {
             <AdminLayout />
           </ProtectedRoute>
         }>
-          <Route index element={<DashboardPage />} />
+          <Route index element={<AdminHome />} />
+          <Route path="dashboard" element={<DashboardPage />} />
           <Route path="profesionales" element={<ProfessionalsPage />} />
           <Route path="servicios" element={<ServicesPage />} />
           <Route path="promociones" element={<PromotionsPage />} />
