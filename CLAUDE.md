@@ -1010,6 +1010,21 @@ dominio de más autorizado no es un agujero de seguridad, solo ruido).
    `HorarioSemanal` elige horas de una lista de 15 en 15 con las que se pisan
    en gris; el administrador de sucursal ve en gris las franjas del
    profesional en otras sucursales (`ocupadas`). `supabase/tests/test-bloqueos-y-pisadas.mjs` 21/21.
+5h. **Principio de privacidad + permisos huérfanos (26/09/2026).** Migración
+   `20261012000000_principio_de_privacidad.sql`: `businesses.privacidad_clientes`
+   (activado por defecto en healthcare, professional_services y wellness; solo
+   el dueño lo cambia, trigger `proteger_privacidad`). Activado, la plataforma
+   (dueño y moderadores) no lee `appointments` ni `notifications` de ese
+   negocio (RLS con `negocio_privado()`); ve la agenda por
+   `turnos_sin_cliente()` (sin nombre/teléfono/mail/cuenta/notas/motivo/datos
+   del pago), que BusinessSync lee cada minuto (`subscribeTurnosSinCliente`,
+   sin Realtime). Cierra la app, no la base: con la service role o el panel de
+   Supabase se ve todo. Se arregló de paso `auth_is_platform()`, que hacía
+   `'moderator'::boolean` y le rompía toda policy al moderador. Edge Function
+   nueva `limpiar-claims-huerfanos`: AuthContext la llama al entrar si el
+   negocio / la sucursal / el perfil de profesional de los claims ya no
+   existe, y la cuenta sigue como usuario sin negocio (→ /onboarding).
+   `supabase/tests/test-privacidad.mjs` 19/19 (necesita `functions serve`).
 6. **Abuso de reservas.** Hecho: un turno por día y tope de 3 a futuro por
    cuenta. Falta, por orden: bloquear cliente desde el panel (para la cuenta que
    se porta mal), y App Check con reCAPTCHA v3 sobre los callables para frenar

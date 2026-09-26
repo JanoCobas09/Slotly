@@ -79,6 +79,41 @@ async function reclamarPendientes(supabaseUser) {
 }
 
 /**
+ * Si los permisos de la cuenta apuntan a algo que ya no existe (el negocio
+ * borrado, la sucursal del administrador de sucursal, el perfil del
+ * profesional), los limpia y devuelve la cuenta sin ellos. Sin esto, alguien
+ * que era staff de un negocio que se borró quedaba con el rol viejo: al
+ * entrar lo mandaba a un panel vacío en vez de ofrecerle crear su negocio.
+ *
+ * Ante cualquier duda (una consulta que falla, sin red) no toca nada: la
+ * función del servidor vuelve a verificar todo antes de limpiar.
+ */
+async function limpiarSiHuerfano(supabaseUser) {
+  const meta = supabaseUser.app_metadata || {};
+  if (meta.platform || !meta.business_id) return supabaseUser;
+  try {
+    const consultas = [supabase.from('businesses').select('id').eq('id', meta.business_id).maybeSingle()];
+    if (meta.role === 'manager' && meta.branch_id) {
+      consultas.push(supabase.from('branches').select('id').eq('id', meta.branch_id).maybeSingle());
+    }
+    if (meta.role === 'admin' && meta.professional_id) {
+      consultas.push(supabase.from('professionals').select('id').eq('id', meta.professional_id).maybeSingle());
+    }
+    const resultados = await Promise.all(consultas);
+    if (resultados.some((r) => r.error) || resultados.every((r) => r.data)) return supabaseUser;
+
+    const { data, error } = await supabase.functions.invoke('limpiar-claims-huerfanos');
+    if (error || data?.status !== 'cleared') return supabaseUser;
+    const { data: refreshed, error: refreshErr } = await supabase.auth.refreshSession();
+    if (refreshErr || !refreshed?.user) return supabaseUser;
+    return refreshed.user;
+  } catch (err) {
+    console.error('[auth] No se pudo revisar si los permisos siguen vigentes:', err);
+    return supabaseUser;
+  }
+}
+
+/**
  * ¿Corresponde reintentar el reclamo para este uid? Marca y responde.
  *
  * Una vez por sesión del navegador, no por carga de página: casi todos los
@@ -178,6 +213,10 @@ export function AuthProvider({ children }) {
       if (!meta.platform && !meta.business_id && tocaReintentar(supabaseUser.id)) {
         supabaseUser = await reclamarPendientes(supabaseUser);
       }
+      // No en cada renovación del token (cada hora): al entrar y al recargar.
+      if (_event !== 'TOKEN_REFRESHED') {
+        supabaseUser = await limpiarSiHuerfano(supabaseUser);
+      }
 
       dispatch({ type: 'LOGIN', payload: buildUser(supabaseUser) });
     });
@@ -228,6 +267,7 @@ export function AuthProvider({ children }) {
       if (!meta.platform && !meta.business_id) {
         supabaseUser = await reclamarPendientes(supabaseUser);
       }
+      supabaseUser = await limpiarSiHuerfano(supabaseUser);
       const user = buildUser(supabaseUser);
       dispatch({ type: 'LOGIN', payload: user });
       return { success: true, user };

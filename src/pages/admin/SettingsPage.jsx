@@ -426,6 +426,30 @@ export default function SettingsPage() {
             </div>
           </div>
 
+          {/* Principio de privacidad: la plataforma ve la agenda, no quién
+              reserva. La base lo hace cumplir (RLS + turnos_sin_cliente) y
+              solo el dueño lo puede cambiar (trigger proteger_privacidad). */}
+          <div className="card mt-md">
+            <h3 className="mb-sm"><Icon name="lock" /> Principio de privacidad</h3>
+            <label className="flex items-center gap-sm" style={{ cursor: user?.role === 'owner' ? 'pointer' : 'default' }}>
+              <input
+                type="checkbox"
+                checked={Boolean(form.privacidadClientes)}
+                disabled={user?.role !== 'owner'}
+                onChange={(e) => editar({ privacidadClientes: e.target.checked })}
+              />
+              <span><strong>Activar el principio de privacidad</strong></span>
+            </label>
+            <p className="text-sm text-secondary" style={{ marginTop: 8 }}>
+              Con esto activado, el equipo de Slotly puede ver tu agenda (qué {terminology.appointmentNoun}s hay, a qué hora y de qué servicio)
+              pero <strong>no quién los reserva</strong>: ni el nombre, ni el teléfono, ni el mail, ni las notas de tus {terminology.customerNoun}s.
+              Tu equipo y vos los siguen viendo igual que siempre.
+            </p>
+            {user?.role !== 'owner' && (
+              <p className="text-xs text-muted" style={{ marginTop: 6 }}>Solo el dueño del negocio lo puede cambiar.</p>
+            )}
+          </div>
+
         </div>
 
         {/* Right: Preview */}

@@ -11,6 +11,7 @@ import {
   subscribeAppointmentsDeSucursal,
   subscribeMyAppointments,
   subscribeNotifications,
+  subscribeTurnosSinCliente,
   getBusinessIdBySlug,
 } from '../lib/repository';
 
@@ -185,6 +186,10 @@ export default function BusinessSync() {
   const profId = user?.professionalId ?? null;
   const branchId = user?.branchId ?? null;
   const esBypass = Boolean(user?.isBypass);
+  // Principio de privacidad del negocio que mira la plataforma: la agenda le
+  // llega sin datos del cliente y sin avisos (RLS tampoco la dejaría).
+  const agendaPrivada = esPlataforma
+    && Boolean((state.businesses || []).find((b) => b.id === businessId)?.privacidadClientes);
 
   useEffect(() => {
     if (!businessId || esBypass) {
@@ -218,7 +223,8 @@ export default function BusinessSync() {
 
     const cb = (col) => (filas) => dispatch({ type: 'SET_TENANT_DATA', payload: { [col]: filas } });
 
-    const colecciones = esStaffCompleto ? COLECCIONES
+    const colecciones = agendaPrivada ? COLECCIONES.filter((c) => c !== 'appointments')
+      : esStaffCompleto ? COLECCIONES
       : esStaffAsignado ? COLECCIONES.filter((c) => c !== 'appointments')
       : PUBLICAS; // manager, cliente y anónimo (la agenda del manager va aparte, filtrada)
 
@@ -227,7 +233,9 @@ export default function BusinessSync() {
     );
 
     // La campanita: el dueño ve todas las del negocio, el staff asignado las suyas.
-    if (esStaffCompleto) {
+    if (agendaPrivada) {
+      offs.push(subscribeTurnosSinCliente(businessId, cb('appointments'), onError('appointments')));
+    } else if (esStaffCompleto) {
       offs.push(subscribeNotifications(businessId, {}, cb('notifications'), onError('notifications')));
     } else if (esStaffAsignado) {
       offs.push(subscribeNotifications(businessId, { professionalId: profId }, cb('notifications'), onError('notifications')));
@@ -248,7 +256,7 @@ export default function BusinessSync() {
     dispatch({ type: 'SET_TENANT_DATA', payload: VACIO });
 
     return () => offs.forEach((off) => off());
-  }, [businessId, esBypass, uid, rol, profId, branchId, esPlataforma, enVivo, dispatch]);
+  }, [businessId, esBypass, uid, rol, profId, branchId, esPlataforma, agendaPrivada, enVivo, dispatch]);
 
   return null;
 }

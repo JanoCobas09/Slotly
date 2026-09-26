@@ -633,6 +633,25 @@ export function subscribeAppointmentsDeSucursal(businessId, branchId, cb, onErro
 }
 
 /**
+ * La agenda de un negocio con el principio de privacidad activado, vista por
+ * la plataforma: los mismos turnos SIN nada del cliente (turnos_sin_cliente
+ * en la base). No hay Realtime —RLS no le deja a la plataforma ver esas
+ * filas, y el canal tampoco las entregaría—: se vuelve a leer cada minuto.
+ */
+export function subscribeTurnosSinCliente(businessId, cb, onError) {
+  let alive = true;
+  const leer = async () => {
+    const { data, error } = await supabase.rpc('turnos_sin_cliente', { p_business_id: businessId });
+    if (!alive) return;
+    if (error) { onError(error); return; }
+    cb((data || []).map((fila) => ({ ...fromRow('appointments', fila), clientName: 'Cliente (privado)' })));
+  };
+  leer();
+  const intervalo = setInterval(leer, 60000);
+  return () => { alive = false; clearInterval(intervalo); };
+}
+
+/**
  * Reemplaza las franjas de un profesional en UNA sucursal, sin tocar las que
  * tiene en otras. Es lo que usa el administrador de sucursal (RLS solo le
  * deja escribir las de la suya).
@@ -667,12 +686,17 @@ export async function createAppointment(businessId, data) {
 }
 
 export async function updateAppointment(businessId, id, cambios) {
-  const { error } = await supabase
+  // Un UPDATE que RLS no deja pasar no tira error: afecta 0 filas. Sin este
+  // chequeo, tocar "confirmar" sin permiso (ej. la plataforma en un negocio
+  // con privacidad) no hacía nada y no avisaba.
+  const { data, error } = await supabase
     .from('appointments')
     .update(toRow('appointments', cambios))
     .eq('id', id)
-    .eq('business_id', businessId);
+    .eq('business_id', businessId)
+    .select('id');
   if (error) throw traducirError(error);
+  if (!data?.length) throw new Error('No tenés permiso para modificar este turno.');
 }
 
 /** Cancelar. Los turnos no se borran nunca: así queda historial. */
