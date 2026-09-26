@@ -3,6 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../hooks/useTenantData';
 import { updateAppointment, cancelAppointment } from '../../lib/repository';
 import NuevoTurnoModal from '../../components/admin/NuevoTurnoModal';
+import LinkPublicoBoton from '../../components/admin/LinkPublicoBoton';
 import { formatDate, formatPrice } from '../../utils/dateUtils';
 import Icon from '../../components/Icon';
 import SenaTurno from '../../components/admin/SenaTurno';
@@ -146,6 +147,7 @@ export default function AppointmentsPage() {
           <span className="badge badge-neutral">{filtered.length} resultado{filtered.length !== 1 ? 's' : ''}</span>
           {/* El staff carga los turnos que le piden por WhatsApp o en persona,
               así la agenda online y la de siempre son la misma. */}
+          <LinkPublicoBoton />
           <button className="btn btn-primary" onClick={() => setAgendando(true)}>
             + Agendar turno
           </button>

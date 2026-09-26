@@ -9,6 +9,7 @@ import { formatDate, toDateString, getMonthName } from '../../utils/dateUtils';
 import { diaEnteroBloqueado, rangosDelDia } from '../../utils/bloqueos';
 import Icon from '../../components/Icon';
 import PrimerosPasos from '../../components/admin/PrimerosPasos';
+import LinkPublicoBoton from '../../components/admin/LinkPublicoBoton';
 import { hayVariasSucursales, sucursalesActivas, profesionalesDeSucursal, horarioDe } from '../../utils/sucursales';
 
 /**
@@ -161,7 +162,10 @@ export default function InicioPage() {
     <div>
       <div className="admin-page-header">
         <h1>Inicio</h1>
-        <button className="btn btn-primary" onClick={() => setAgendando(true)}>+ Agendar {terminology.appointmentNoun}</button>
+        <div className="flex items-center gap-sm">
+          <LinkPublicoBoton />
+          <button className="btn btn-primary" onClick={() => setAgendando(true)}>+ Agendar {terminology.appointmentNoun}</button>
+        </div>
       </div>
 
       <PrimerosPasos />

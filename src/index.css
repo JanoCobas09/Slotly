@@ -1923,6 +1923,51 @@ select.form-input {
   margin-bottom: var(--space-xl);
 }
 
+/* "Link para tus clientes" (LinkPublicoBoton): panel que baja del botón. */
+.link-publico {
+  position: relative;
+}
+
+.link-publico-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  width: min(360px, calc(100vw - 32px));
+  padding: var(--space-md);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.link-publico-url {
+  padding: 8px 10px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  word-break: break-all;
+}
+
+.link-publico-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+@media (max-width: 768px) {
+  /* En el celular el encabezado pasa a una columna: el panel se abre
+     alineado a la izquierda del botón, no se sale de la pantalla. */
+  .link-publico-panel {
+    right: auto;
+    left: 0;
+  }
+}
+
 .hamburger {
   display: none;
   background: none;
