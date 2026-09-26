@@ -9,7 +9,7 @@ import { promoParaSlot, precioConPromo } from '../../utils/promoEngine';
 import { formatDate, formatPrice, toDateString, getMonthName, getLocalDayOfWeek } from '../../utils/dateUtils';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
 import Icon from '../../components/Icon';
-import { esDiaEntero, rangosComoOcupados } from '../../utils/bloqueos';
+import { esDiaEntero, rangosComoOcupados, bloqueosQueAplican } from '../../utils/bloqueos';
 import { esTelefono, problema, LIMITES } from '../../utils/validaciones';
 import ErrorDeCampo from '../../components/ErrorDeCampo';
 import { useErrorDeCampo } from '../../hooks/useErrorDeCampo';
@@ -945,7 +945,7 @@ export default function BookingPage() {
       schedules,
       // Los rangos bloqueados por el negocio ese día van como horarios
       // ocupados: el motor los saca de la grilla sin saber de bloqueos.
-      appointments: [...ocupados.lista, ...rangosComoOcupados(blockedDays, date, professionalId)],
+      appointments: [...ocupados.lista, ...rangosComoOcupados(bloqueosQueAplican(blockedDays, { professionalId }), date, professionalId)],
       services,
       professionalServices,
       slotInterval: business.slotInterval,
@@ -1186,7 +1186,7 @@ export default function BookingPage() {
           schedules={schedules}
           businessHours={business.businessHours}
           maxAdvanceDays={business.maxAdvanceDays}
-          blockedDays={blockedDays}
+          blockedDays={bloqueosQueAplican(blockedDays, { professionalId })}
         />
       )}
 

@@ -5,6 +5,19 @@
 // solo un rango ('HH:MM'–'HH:MM') si lo tiene. Un día puede tener varios.
 // Mismas reglas que el trigger enforce_blocked_days de la base.
 
+/**
+ * Los bloqueos que cuentan para un profesional en una sucursal — mismas
+ * reglas que enforce_blocked_days: los de todo el negocio, los de esa
+ * sucursal y los de ese profesional (que solo lo frenan a él).
+ * Sin `professionalId` quedan afuera los de cada profesional (vista del
+ * negocio); sin `branchId` no se filtra por sucursal.
+ */
+export function bloqueosQueAplican(blockedDays, { professionalId = null, branchId = null } = {}) {
+  return (blockedDays || []).filter((b) =>
+    (!b.professionalId || b.professionalId === professionalId)
+    && (!b.branchId || !branchId || b.branchId === branchId));
+}
+
 /** ¿Es un bloqueo de día entero? */
 export const esDiaEntero = (b) => !b.startTime;
 

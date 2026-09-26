@@ -83,15 +83,25 @@ export default function BlockedDaysPage() {
   const { terminology } = useBusinessContext();
   const hoy = toDateString(new Date());
 
-  // Sucursales: el dueño elige si el bloqueo es de todo el negocio o de una
-  // sucursal; el administrador de sucursal solo maneja los de la suya (los de
-  // todo el negocio los ve, pero no los puede liberar — RLS tampoco).
+  // Tres alcances, según quién entra (la base hace cumplir lo mismo):
+  //   dueño       → todo el negocio o una sucursal (elige arriba)
+  //   admin. de sucursal → solo la suya; los de todo el negocio los ve, sin liberarlos
+  //   profesional → solo los suyos: lo sacan a él de la grilla, el negocio sigue
+  // Los de un profesional no se mezclan con los del negocio ni de las sucursales.
   const esManager = user?.role === 'manager';
+  const esProfesional = user?.role === 'admin';
+  const miProfesional = user?.professionalId || null;
   const varias = hayVariasSucursales(branches);
   const [sucursal, setSucursal] = useState(esManager ? user.branchId : null); // null = todas
-  const blockedDays = todosLosBloqueos.filter((b) => (sucursal === null ? !b.branchId : (!b.branchId || b.branchId === sucursal)));
-  const puedeLiberar = (b) => !(esManager && !b.branchId);
-  const etiqueta = (b) => (sucursal !== null && !b.branchId ? ' · todo el negocio' : '');
+  const blockedDays = todosLosBloqueos.filter((b) => {
+    if (esProfesional) return b.professionalId === miProfesional || (!b.professionalId && !b.branchId);
+    if (b.professionalId) return false;
+    return sucursal === null ? !b.branchId : (!b.branchId || b.branchId === sucursal);
+  });
+  const puedeLiberar = (b) => (esProfesional ? b.professionalId === miProfesional : !(esManager && !b.branchId));
+  const etiqueta = (b) => (
+    (esProfesional ? !b.professionalId : sucursal !== null && !b.branchId) ? ' · todo el negocio' : ''
+  );
 
   const [vista, setVista] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
   const [seleccionado, setSeleccionado] = useState(null);
@@ -111,6 +121,7 @@ export default function BlockedDaysPage() {
   const turnosEn = (b) => vivos.filter((a) =>
     a.appointmentDate === b.date
     && (!b.branchId || a.branchId === b.branchId)
+    && (!b.professionalId || a.professionalId === b.professionalId)
     && (esDiaEntero(b) || (a.startTime < b.endTime && (a.endTime || a.startTime) > b.startTime))
   ).length;
 
@@ -140,7 +151,9 @@ export default function BlockedDaysPage() {
     const pendientes = fechas.filter((f) =>
       !diaEnteroBloqueado(blockedDays, f)
       && !(r && rangosDelDia(blockedDays, f).some((b) => b.startTime === r.startTime && b.endTime === r.endTime)));
-    return ejecutar(() => blockDays(businessId, pendientes, r, sucursal));
+    return ejecutar(() => (esProfesional
+      ? blockDays(businessId, pendientes, r, null, miProfesional)
+      : blockDays(businessId, pendientes, r, sucursal)));
   };
 
   const rangoFechasValido = rango.desde && rango.hasta && rango.desde >= hoy && rango.hasta >= rango.desde;
@@ -196,12 +209,14 @@ export default function BlockedDaysPage() {
     <div>
       <div className="admin-page-header">
         <div>
-          <h1>Días bloqueados</h1>
+          <h1>{esProfesional ? 'Mis días libres' : 'Días bloqueados'}</h1>
           <p className="text-secondary text-sm" style={{ marginTop: 4 }}>
-            Los días (o partes del día) que no vas a trabajar. Ahí nadie puede reservar online, aunque tu horario semanal diga que atendés.
+            {esProfesional
+              ? `Los días (o partes del día) que no vas a atender. Solo te afectan a vos: en esos horarios nadie te puede reservar, pero el negocio sigue tomando ${terminology.appointmentNoun}s con los demás.`
+              : 'Los días (o partes del día) que no vas a trabajar. Ahí nadie puede reservar online, aunque tu horario semanal diga que atendés.'}
           </p>
         </div>
-        {varias && !esManager && (
+        {varias && !esManager && !esProfesional && (
           <select className="form-input" style={{ maxWidth: 260 }} value={sucursal || ''} onChange={(e) => { setSucursal(e.target.value || null); setSeleccionado(null); }}>
             <option value="">Todas las sucursales</option>
             {sucursalesActivas(branches).map((b) => <option key={b.id} value={b.id}>Solo {b.name}</option>)}

@@ -997,6 +997,19 @@ dominio de más autorizado no es un agujero de seguridad, solo ruido).
    candado + link para pasarse; al bajar de plan se conserva lo cargado pero no
    se suma. Tope de sucursales también en la base
    (`20261010000000_limite_sucursales.sql`, cuenta las activas).
+5g. **Bloqueos por profesional y nada que se pise entre sucursales (26/09/2026).**
+   Migración `20261011000000_bloqueos_profesional_y_sin_pisarse.sql`.
+   `blocked_days.professional_id`: tres alcances — negocio (sin sucursal ni
+   profesional, solo el dueño), sucursal (dueño o su administrador) y
+   profesional (lo carga él mismo en "Mis días libres"; sin sucursal, solo lo
+   saca a él de la grilla). `enforce_blocked_days` y `bloqueosQueAplican()`
+   (utils/bloqueos.js) aplican las mismas reglas. Triggers nuevos:
+   `schedules_sin_pisarse` (un profesional no tiene dos franjas pisadas el
+   mismo día, en ninguna sucursal) y `turnos_sin_pisarse` (tampoco dos turnos
+   vivos, incluido el que carga el staff a mano; el walk-in no se frena).
+   `HorarioSemanal` elige horas de una lista de 15 en 15 con las que se pisan
+   en gris; el administrador de sucursal ve en gris las franjas del
+   profesional en otras sucursales (`ocupadas`). `supabase/tests/test-bloqueos-y-pisadas.mjs` 21/21.
 6. **Abuso de reservas.** Hecho: un turno por día y tope de 3 a futuro por
    cuenta. Falta, por orden: bloquear cliente desde el panel (para la cuenta que
    se porta mal), y App Check con reCAPTCHA v3 sobre los callables para frenar

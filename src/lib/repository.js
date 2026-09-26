@@ -559,7 +559,7 @@ export async function removeFromSubcollection(businessId, name, id) {
  * cada día. Quien llama ya filtra lo que estaba bloqueado igual (los índices
  * únicos de la tabla harían fallar el lote entero por un repetido).
  */
-export async function blockDays(businessId, fechas, rango = null, branchId = null) {
+export async function blockDays(businessId, fechas, rango = null, branchId = null, professionalId = null) {
   if (!fechas.length) return;
   const filas = fechas.map((date) => ({
     business_id: businessId,
@@ -567,7 +567,10 @@ export async function blockDays(businessId, fechas, rango = null, branchId = nul
     start_time: rango?.startTime || null,
     end_time: rango?.endTime || null,
     // null = todas las sucursales (lo de siempre); si no, solo esa.
-    branch_id: branchId,
+    branch_id: professionalId ? null : branchId,
+    // El de un profesional (lo carga él): solo lo saca a él de la grilla, en
+    // cualquier sucursal. El negocio sigue atendiendo con los demás.
+    professional_id: professionalId,
   }));
   const { error } = await supabase.from('blocked_days').insert(filas);
   if (error) throw traducirError(error);

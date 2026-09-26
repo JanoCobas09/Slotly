@@ -6,7 +6,7 @@ import AgendaDelDia from '../../components/admin/AgendaDelDia';
 import AccionesTurno from '../../components/admin/AccionesTurno';
 import NuevoTurnoModal from '../../components/admin/NuevoTurnoModal';
 import { formatDate, toDateString, getMonthName } from '../../utils/dateUtils';
-import { diaEnteroBloqueado, rangosDelDia } from '../../utils/bloqueos';
+import { diaEnteroBloqueado, rangosDelDia, bloqueosQueAplican } from '../../utils/bloqueos';
 import Icon from '../../components/Icon';
 import PrimerosPasos from '../../components/admin/PrimerosPasos';
 import LinkPublicoBoton from '../../components/admin/LinkPublicoBoton';
@@ -63,7 +63,7 @@ const diaNum = (iso) => Number(iso.slice(8, 10));
 
 export default function InicioPage() {
   const { user } = useAuth();
-  const { appointments, professionals: todosLosProfesionales, services, business, blockedDays, branches, schedules } = useTenant();
+  const { appointments, professionals: todosLosProfesionales, services, business, blockedDays: todosLosBloqueos, branches, schedules } = useTenant();
   const { terminology } = useBusinessContext();
   const isOwner = user?.role === 'owner';
   // El administrador de sucursal: la agenda de SU sucursal (ya le llega
@@ -83,6 +83,9 @@ export default function InicioPage() {
   const [vista, setVista] = useState('dia');
   const [fecha, setFecha] = useState(hoy);
   const [filtroProf, setFiltroProf] = useState('');
+  // Los bloqueos que se marcan en la agenda: los del negocio y los de la
+  // sucursal que se mira; los de un profesional, solo al filtrar por él.
+  const blockedDays = bloqueosQueAplican(todosLosBloqueos, { professionalId: filtroProf || null, branchId: sucursalActiva || null });
   const [agendando, setAgendando] = useState(false);
   const [editando, setEditando] = useState(null);
 

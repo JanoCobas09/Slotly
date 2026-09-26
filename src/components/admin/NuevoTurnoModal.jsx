@@ -9,7 +9,7 @@ import { esReservaDelCliente } from '../../utils/turnos';
 import { esTelefono, problema } from '../../utils/validaciones';
 import ErrorDeCampo from '../ErrorDeCampo';
 import { useErrorDeCampo } from '../../hooks/useErrorDeCampo';
-import { turnoBloqueado, diaEnteroBloqueado } from '../../utils/bloqueos';
+import { turnoBloqueado, diaEnteroBloqueado, bloqueosQueAplican } from '../../utils/bloqueos';
 
 /**
  * El staff agenda un turno a mano.
@@ -131,12 +131,13 @@ export default function NuevoTurnoModal({ onClose, turno = null }) {
   const slot = slots.find((s) => s.startTime === form.startTime);
   // Precio: el de la sucursal donde cae el horario, si tiene uno propio.
   const precioFinal = slot?.branchId && servicio && !ps?.customPrice ? precioEn(servicio, slot.branchId, branchServicePrices) : precio;
-  const bloqueosDelTurno = slot?.branchId ? blockedDays.filter((b) => !b.branchId || b.branchId === slot.branchId) : blockedDays;
+  // Los del negocio, los de la sucursal del horario y los del profesional elegido.
+  const bloqueosDelTurno = bloqueosQueAplican(blockedDays, { professionalId: form.professionalId, branchId: slot?.branchId || null });
   // Se permite igual (el dueño decide), pero se avisa: ese día lo marcó como
   // no laborable y online nadie puede reservar.
   const diaBloqueado = slot
     ? turnoBloqueado(bloqueosDelTurno, form.date, slot.startTime, slot.endTime)
-    : diaEnteroBloqueado(blockedDays, form.date);
+    : diaEnteroBloqueado(bloqueosDelTurno, form.date);
   const digitos = form.clientPhone.replace(/\D/g, '');
   const telefonoOk = digitos.length === 0 || (digitos.length >= 10 && digitos.length <= 13 && esTelefono(form.clientPhone));
 

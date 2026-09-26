@@ -13,6 +13,52 @@ import { FRANJA_VACIA } from '../../utils/horarioSemanal';
 //
 // Forma del estado y conversión desde/hacia `schedules`: utils/horarioSemanal.js.
 
+// Las horas se eligen de una lista de 15 en 15 minutos (no un campo libre):
+// así las que se pisan con otra franja se ven en gris y no se pueden elegir.
+const HORAS = Array.from({ length: 96 }, (_, i) =>
+  `${String(Math.floor(i / 4)).padStart(2, '0')}:${String((i % 4) * 15).padStart(2, '0')}`);
+
+/**
+ * Lo que la franja `j` de un día no puede pisar: las otras franjas de ese
+ * mismo día en el editor (de cualquier sucursal) y las `ocupadas` de afuera
+ * (las que el profesional tiene en otra sucursal y este editor no muestra).
+ */
+function tomadosPara(dia, j, ocupadasDelDia, nombreSucursal) {
+  return [
+    ...dia.franjas
+      .filter((f, k) => k !== j && f.startTime && f.endTime && f.startTime < f.endTime)
+      .map((f) => ({ startTime: f.startTime, endTime: f.endTime, etiqueta: nombreSucursal(f.branchId) })),
+    ...ocupadasDelDia,
+  ];
+}
+
+/** Lista de horas con las que se pisan apagadas y diciendo con qué. */
+function SelectorHora({ valor, onChange, tipo, inicio, tomados, ...resto }) {
+  const motivo = (t) => {
+    if (tipo === 'fin' && inicio && t <= inicio) return '';
+    const choca = tomados.find((o) => (tipo === 'inicio'
+      ? o.startTime <= t && t < o.endTime
+      // El fin choca si el rango [inicio, t) se mete en otra franja.
+      : (inicio ? inicio < o.endTime && t > o.startTime : o.startTime < t && t <= o.endTime)));
+    if (!choca) return null;
+    return choca.etiqueta ? `ocupado en ${choca.etiqueta}` : 'ocupado';
+  };
+  const opciones = valor && !HORAS.includes(valor) ? [...HORAS, valor].sort() : HORAS;
+  return (
+    <select className="form-input" value={valor || ''} onChange={(e) => onChange(e.target.value)} {...resto}>
+      <option value="">--:--</option>
+      {opciones.map((t) => {
+        const m = motivo(t);
+        return (
+          <option key={t} value={t} disabled={m !== null}>
+            {m ? `${t} · ${m}` : t}
+          </option>
+        );
+      })}
+    </select>
+  );
+}
+
 /**
  * Editor de la semana. Controlado: recibe `dias` y avisa cada cambio con
  * `onChange(nuevosDias)`. `diaCorto` muestra "lun" en vez de "lunes" (el
@@ -23,9 +69,17 @@ import { FRANJA_VACIA } from '../../utils/horarioSemanal';
  *
  * `errorCampo` (opcional, useErrorDeCampo): marca en rojo la franja que no
  * deja guardar — campo `franja-<dayOfWeek>-<índice>`, como validarFranjas.
+ *
+ * `ocupadas` (opcional): franjas del profesional que este editor no toca
+ * ([{ dayOfWeek, startTime, endTime, etiqueta }], ej. las de otra sucursal
+ * para el administrador de una). Se muestran en gris en su día y sus horas
+ * no se pueden elegir. La base igual rechaza dos franjas que se pisen.
  */
-export default function HorarioSemanal({ dias, onChange, diaCorto = false, sucursales = [], sucursalPorDefecto = null, errorCampo }) {
+export default function HorarioSemanal({ dias, onChange, diaCorto = false, sucursales = [], sucursalPorDefecto = null, errorCampo, ocupadas = [] }) {
   const conSucursal = sucursales.length > 1;
+  const nombreSucursal = (id) => (conSucursal ? sucursales.find((b) => b.id === id)?.name || '' : '');
+  const ocupadasDe = (dayOfWeek) => ocupadas.filter((o) => o.dayOfWeek === dayOfWeek && o.startTime && o.endTime)
+    .sort((a, b) => a.startTime.localeCompare(b.startTime));
   const cambiarDia = (dayIndex, fn) => onChange(dias.map((d, i) => (i === dayIndex ? fn(d) : d)));
 
   const toggleDia = (dayIndex) => cambiarDia(dayIndex, (d) => ({ ...d, isActive: !d.isActive }));
@@ -74,15 +128,17 @@ export default function HorarioSemanal({ dias, onChange, diaCorto = false, sucur
                   // siguientes quedaban corridas respecto de la primera.
                   <><span /><span style={{ width: 44 }} /></>
                 )}
-                <input
-                  className="form-input" type="time" value={franja.startTime}
+                <SelectorHora
+                  tipo="inicio" valor={franja.startTime} aria-label="Desde"
+                  tomados={tomadosPara(dia, franjaIdx, ocupadasDe(dia.dayOfWeek ?? dayIdx), nombreSucursal)}
                   {...errorCampo?.campo(`franja-${dia.dayOfWeek ?? dayIdx}-${franjaIdx}`)}
-                  onChange={(e) => editarFranja(dayIdx, franjaIdx, 'startTime', e.target.value)}
+                  onChange={(v) => editarFranja(dayIdx, franjaIdx, 'startTime', v)}
                 />
-                <input
-                  className="form-input" type="time" value={franja.endTime}
+                <SelectorHora
+                  tipo="fin" valor={franja.endTime} inicio={franja.startTime} aria-label="Hasta"
+                  tomados={tomadosPara(dia, franjaIdx, ocupadasDe(dia.dayOfWeek ?? dayIdx), nombreSucursal)}
                   {...errorCampo?.campo(`franja-${dia.dayOfWeek ?? dayIdx}-${franjaIdx}`)}
-                  onChange={(e) => editarFranja(dayIdx, franjaIdx, 'endTime', e.target.value)}
+                  onChange={(v) => editarFranja(dayIdx, franjaIdx, 'endTime', v)}
                 />
                 {dia.franjas.length > 1 ? (
                   <button
@@ -113,6 +169,16 @@ export default function HorarioSemanal({ dias, onChange, diaCorto = false, sucur
               <span />
             </div>
           )}
+          {/* Lo que ya tiene en otra sucursal ese día: en gris, sin tocar. */}
+          {ocupadasDe(dia.dayOfWeek ?? dayIdx).map((o, k) => (
+            <div key={`ocupada-${k}`} className="schedule-row schedule-row-ocupada" title="Ya tiene este horario en otra sucursal">
+              <span className="text-xs">{o.etiqueta ? `En ${o.etiqueta}` : 'Ocupado'}</span>
+              <span style={{ width: 44 }} />
+              <span className="schedule-ocupada-hora">{o.startTime}</span>
+              <span className="schedule-ocupada-hora">{o.endTime}</span>
+              <span />
+            </div>
+          ))}
           {dia.isActive && (
             <button type="button" className="schedule-franja-agregar" onClick={() => agregarFranja(dayIdx)}>
               <Icon name="link" size="0.85em" /> Agregar franja

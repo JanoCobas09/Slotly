@@ -4421,6 +4421,9 @@ select.form-input {
 
 /* Sucursal de cada franja (HorarioSemanal), cuando el negocio tiene varias. */
 .schedule-row .schedule-franja-sucursal { grid-column: 3 / 5; font-size: 0.8125rem; padding-top: 6px; padding-bottom: 6px; }
+/* Franja que el profesional tiene en otra sucursal (HorarioSemanal `ocupadas`): en gris, no se edita. */
+.schedule-row-ocupada { color: var(--text-muted); }
+.schedule-ocupada-hora { padding: 8px 12px; border-radius: var(--radius-md); background: var(--bg-secondary); border: 1px dashed var(--border-hover); font-size: 0.875rem; text-align: center; }
 @media (max-width: 840px) {
   .schedule-row .schedule-franja-sucursal { grid-column: 1 / -1; }
 }

@@ -33,6 +33,7 @@ const adminNavItems = [
   // La tabla con confirmar / completar / no asistió / cancelar y "Agendar
   // turno". Sin esta entrada el staff no tenía forma de llegar.
   { to: '/admin/citas',   icon: 'calendar', label: 'Mi Agenda' },
+  { to: '/admin/dias-bloqueados', icon: 'lock', label: 'Mis días libres' },
   { to: '/admin/ajustes', icon: 'settings', label: 'Mi Configuración' },
   { to: '/admin/soporte', icon: 'chat',     label: 'Soporte' },
 ];

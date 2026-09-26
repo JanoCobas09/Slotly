@@ -162,14 +162,16 @@ export function horariosFlojos({ celdas, abiertas }, cuantos = 3) {
  */
 export function ocupacionProfesionales({ turnos, rango, professionals, schedules, blockedDays, sucursalId = '' }) {
   const fechas = fechasDelRango(rango);
-  const bloqueado = (f) => (blockedDays || []).some((b) => b.date === f && !b.startTime
-    && (!b.branchId || !sucursalId || b.branchId === sucursalId));
+  // Los del negocio, los de la sucursal y los de ESE profesional.
+  const bloqueado = (f, profId) => (blockedDays || []).some((b) => b.date === f && !b.startTime
+    && (!b.branchId || !sucursalId || b.branchId === sucursalId)
+    && (!b.professionalId || b.professionalId === profId));
   return (professionals || []).map((p) => {
     const franjas = (schedules || []).filter((s) => s.professionalId === p.id && s.isActive !== false && s.startTime && s.endTime
       && (!sucursalId || s.branchId === sucursalId));
     let disponibles = 0;
     for (const f of fechas) {
-      if (bloqueado(f)) continue;
+      if (bloqueado(f, p.id)) continue;
       const dia = getLocalDayOfWeek(aFecha(f));
       for (const s of franjas) if (s.dayOfWeek === dia) disponibles += timeToMinutes(s.endTime) - timeToMinutes(s.startTime);
     }

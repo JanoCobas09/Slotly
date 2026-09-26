@@ -3,7 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../hooks/useTenantData';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
 import { replaceSchedulesDeSucursal } from '../../lib/repository';
-import { profesionalesDeSucursal, schedulesDeSucursal } from '../../utils/sucursales';
+import { profesionalesDeSucursal, schedulesDeSucursal, nombreSucursal } from '../../utils/sucursales';
 import { diasDesdeSchedules, schedulesDesdeDias } from '../../utils/horarioSemanal';
 import { validarFranjas } from '../../utils/validaciones';
 import { getDayName } from '../../utils/dateUtils';
@@ -134,7 +134,12 @@ export default function EquipoSucursalPage() {
               <p className="text-xs text-muted" style={{ marginBottom: 'var(--space-sm)' }}>
                 Solo el horario en esta sucursal. Para horario cortado, agregá más de una franja el mismo día.
               </p>
-              <HorarioSemanal dias={dias} onChange={setDias} diaCorto errorCampo={errorCampo} />
+              <HorarioSemanal
+                dias={dias} onChange={setDias} diaCorto errorCampo={errorCampo}
+                ocupadas={schedules
+                  .filter((s) => s.professionalId === editando.id && s.branchId !== branchId && s.isActive !== false && s.startTime && s.endTime)
+                  .map((s) => ({ dayOfWeek: s.dayOfWeek, startTime: s.startTime, endTime: s.endTime, etiqueta: nombreSucursal(branches, s.branchId) }))}
+              />
               <ErrorDeCampo error={errorCampo} prefijo="franja-" />
               {error && <div className="notice notice-danger mt-md">{error}</div>}
             </div>
