@@ -42,11 +42,12 @@ Deno.serve(async (req) => {
     // deja un pendiente para cuentas sin uid todavía — pero mejor no confiar
     // en esa invariante para siempre) terminaría con los dos roles juntos.
     const claims = pending.platform === 'moderator'
-      ? { platform: 'moderator', business_id: null, role: null, professional_id: null }
+      ? { platform: 'moderator', business_id: null, role: null, professional_id: null, branch_id: null }
       : {
           business_id: pending.business_id,
           role: pending.role,
           professional_id: pending.professional_id ?? null,
+          branch_id: pending.branch_id ?? null,
           platform: null,
         };
 

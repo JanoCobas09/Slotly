@@ -45,7 +45,7 @@ export default function OnboardingPage() {
   useEffect(() => {
     const platformTeam = user?.isPlatformTeam || isPlatformOwner(user?.email);
     if (platformTeam) navigate('/super-admin', { replace: true });
-    else if (user?.role === 'owner' || user?.role === 'admin') navigate('/admin', { replace: true });
+    else if (['owner', 'admin', 'manager'].includes(user?.role)) navigate('/admin', { replace: true });
   }, [user, navigate]);
 
   const handleProfessionChange = (option) => {

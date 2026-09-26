@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
     // la Admin API mergea app_metadata, así que hay que pisar cada clave
     // vieja a mano o quedaría siendo dueño/staff Y moderador a la vez.
     const { error: updateErr } = await admin.auth.admin.updateUserById(targetUser.id, {
-      app_metadata: { platform: 'moderator', business_id: null, role: null, professional_id: null },
+      app_metadata: { platform: 'moderator', business_id: null, role: null, professional_id: null, branch_id: null },
     });
     if (updateErr) throw updateErr;
 

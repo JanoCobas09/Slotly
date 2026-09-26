@@ -964,6 +964,26 @@ dominio de más autorizado no es un agujero de seguridad, solo ruido).
    panel global lee toda la facturación en una sola suscripción
    (`subscribeAllBilling`) en vez de un canal por negocio — ojo: `billing`
    no tiene `id`, por eso liveTable acepta `pk`.
+5e. **Sucursales (26/09/2026).** Migración `20261009000000_sucursales.sql`.
+   Cada negocio tiene ≥1 sucursal (`branches`; la "Principal" se crea sola al
+   crear el negocio y no se puede borrar salvo en la cascada de borrar el
+   negocio). Lo que una sucursal no define (horario, dirección, teléfono,
+   Maps) lo hereda del negocio; `branch_service_prices` pisa el precio del
+   servicio. Un profesional puede trabajar en varias: CADA FRANJA de
+   `schedules` tiene `branch_id`, y la sucursal de un turno sale de la franja
+   que contiene su hora (`sucursal_de_turno`, triggers `*_0_sucursal`).
+   `create_appointment` recorta cada franja con el horario de SU sucursal y
+   usa su precio. Rol nuevo `manager` (claims `branch_id`): ve/gestiona los
+   turnos y avisos de su sucursal, edita franjas y días bloqueados de su
+   sucursal y SOLO el horario de la sucursal (trigger
+   `proteger_campos_sucursal`); lo asigna el dueño en Administradores
+   (set-business-admin con `branchId`). Front: `utils/sucursales.js`
+   (horario/datos/precio efectivos, horarios libres por sucursal sin tocar
+   availabilityEngine), `SucursalesPage`, `EquipoSucursalPage`,
+   `MiSucursalPage`, selector de sucursal por franja en `HorarioSemanal`.
+   Reserva: con >1 sucursal (con profesionales) el cliente elige primero
+   (no es un paso numerado del stepper) o llega con `?sucursal=<id>`; con una
+   sola no se filtra nada. `supabase/tests/test-sucursales.mjs` 25/25.
 6. **Abuso de reservas.** Hecho: un turno por día y tope de 3 a futuro por
    cuenta. Falta, por orden: bloquear cliente desde el panel (para la cuenta que
    se porta mal), y App Check con reCAPTCHA v3 sobre los callables para frenar

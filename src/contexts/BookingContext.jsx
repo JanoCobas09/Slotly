@@ -4,6 +4,8 @@ const BookingContext = createContext();
 
 const initialBooking = {
   step: 1,
+  // Sucursal elegida (solo cuando el negocio tiene más de una).
+  branchId: null,
   professionalId: null,
   serviceId: null,
   date: null,
@@ -16,6 +18,10 @@ const initialBooking = {
 
 function bookingReducer(state, action) {
   switch (action.type) {
+    // Cambiar de sucursal arranca la reserva de nuevo: el profesional, el
+    // servicio y el horario elegidos pueden no existir en la otra.
+    case 'SET_BRANCH':
+      return { ...initialBooking, personalInfo: state.personalInfo, customFieldValues: state.customFieldValues, branchId: action.payload };
     case 'SET_PROFESSIONAL':
       return { ...state, professionalId: action.payload, serviceId: null, date: null, timeSlot: null };
     case 'SET_SERVICE':

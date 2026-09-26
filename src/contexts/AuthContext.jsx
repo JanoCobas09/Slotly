@@ -143,6 +143,8 @@ export function AuthProvider({ children }) {
           : (hasClaims ? meta.role : null) || 'client',
       businessId: platformOwner || moderator ? null : (meta.business_id || null),
       professionalId: platformOwner || moderator ? null : (meta.professional_id || null),
+      // Administrador de sucursal (role 'manager'): la sucursal que administra.
+      branchId: platformOwner || moderator ? null : (meta.branch_id || null),
       isPlatformOwner: platformOwner,
       isModerator: moderator,
       // Dueño o moderador: quien puede entrar al panel global.

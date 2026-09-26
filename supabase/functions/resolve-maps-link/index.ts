@@ -113,17 +113,27 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
-    const { businessId } = await req.json();
+    const { businessId, branchId = null } = await req.json();
     if (!businessId || typeof businessId !== 'string') throw invalidArgument('Falta el negocio.');
 
-    const { data, error } = await supabaseAdmin()
+    const admin = supabaseAdmin();
+    const { data, error } = await admin
       .from('businesses')
       .select('maps_url')
       .eq('id', businessId)
       .maybeSingle();
     if (error) throw error;
 
-    const link = data?.maps_url?.trim();
+    // Una sucursal con link propio usa el suyo; si no, el del negocio.
+    // Igual que con el negocio, el link sale de la base (nunca del pedido).
+    let linkSucursal: string | null = null;
+    if (branchId && typeof branchId === 'string') {
+      const { data: suc } = await admin
+        .from('branches').select('maps_url').eq('id', branchId).eq('business_id', businessId).maybeSingle();
+      linkSucursal = suc?.maps_url?.trim() || null;
+    }
+
+    const link = linkSucursal || data?.maps_url?.trim();
     let ubicacion: Ubicacion | null = null;
     if (link) {
       try {

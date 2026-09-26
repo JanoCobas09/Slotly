@@ -28,14 +28,18 @@ Deno.serve(async (req) => {
 
   try {
     const caller = await getCaller(req);
-    const { email, businessId, role, professionalId = null, name = '' } = await req.json();
+    const { email, businessId, role, professionalId = null, branchId = null, name = '' } = await req.json();
 
-    if (!email || !businessId || !['owner', 'admin'].includes(role)) {
+    // 'manager' = administrador de una sucursal (branch_id obligatorio).
+    if (!email || !businessId || !['owner', 'admin', 'manager'].includes(role)) {
       throw invalidArgument('Faltan email, businessId o role válido.');
+    }
+    if (role === 'manager' && !branchId) {
+      throw invalidArgument('Elegí la sucursal que va a administrar.');
     }
 
     const callerScope = guards.assertCanManageAdmins(caller, businessId);
-    if (callerScope !== 'platform' && role !== 'admin') {
+    if (callerScope !== 'platform' && role === 'owner') {
       throw permissionDenied('Solo la plataforma puede designar dueños.');
     }
 
@@ -45,7 +49,13 @@ Deno.serve(async (req) => {
     // setCustomUserClaims en Firebase), así que si el destinatario ya era
     // moderador de la plataforma, omitir `platform` acá lo dejaría con los
     // dos roles combinados en vez de reemplazar uno por el otro.
-    const claims = { business_id: businessId, role, professional_id: professionalId, platform: null };
+    const claims = {
+      business_id: businessId,
+      role,
+      professional_id: role === 'admin' ? professionalId : null,
+      branch_id: role === 'manager' ? branchId : null,
+      platform: null,
+    };
 
     const admin = supabaseAdmin();
 
@@ -55,6 +65,12 @@ Deno.serve(async (req) => {
       .eq('id', businessId)
       .maybeSingle();
     if (!business) throw notFound(`El negocio ${businessId} no existe.`);
+
+    if (role === 'manager') {
+      const { data: sucursal } = await admin
+        .from('branches').select('id').eq('id', branchId).eq('business_id', businessId).maybeSingle();
+      if (!sucursal) throw notFound('Esa sucursal no es de este negocio.');
+    }
 
     // Se busca al destinatario ANTES de escribir nada: si está fuera del
     // alcance de quien llama hay que rechazar sin dejar la operación a
@@ -81,7 +97,8 @@ Deno.serve(async (req) => {
       email: normalizedEmail,
       name,
       role,
-      professional_id: professionalId,
+      professional_id: claims.professional_id,
+      branch_id: claims.branch_id,
     });
 
     // Nunca entró: su uid todavía no existe, el permiso queda anotado y se
@@ -91,7 +108,8 @@ Deno.serve(async (req) => {
         email: normalizedEmail,
         business_id: businessId,
         role,
-        professional_id: professionalId,
+        professional_id: claims.professional_id,
+        branch_id: claims.branch_id,
       });
       return jsonResponse(
         { status: 'pending', message: 'Se aplicará en su primer login.' },

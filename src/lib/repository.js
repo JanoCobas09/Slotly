@@ -123,6 +123,12 @@ const MENSAJES_VALIDACION = {
   tickets_categoria_valida: 'Categoría inválida.',
   ticket_messages_texto_valido: 'El mensaje no puede estar vacío ni pasar los 4000 caracteres.',
   billing_abono_valido: 'El abono no puede ser negativo.',
+  branches_nombre_valido: 'El nombre de la sucursal tiene que tener entre 2 y 60 caracteres.',
+  branches_direccion_valida: 'La dirección puede tener hasta 200 caracteres.',
+  branches_telefono_valido: 'El teléfono de la sucursal no es válido: usá solo números, con código de área.',
+  branches_maps_valido: 'El link de Google Maps tiene que empezar con https://',
+  branches_horario_valido: 'Revisá el horario de la sucursal: cada día abierto necesita apertura y cierre, y el cierre después de la apertura.',
+  branch_service_prices_precio_valido: 'El precio no puede ser negativo.',
 };
 
 function traducirError(error) {
@@ -523,13 +529,15 @@ export async function removeFromSubcollection(businessId, name, id) {
  * cada día. Quien llama ya filtra lo que estaba bloqueado igual (los índices
  * únicos de la tabla harían fallar el lote entero por un repetido).
  */
-export async function blockDays(businessId, fechas, rango = null) {
+export async function blockDays(businessId, fechas, rango = null, branchId = null) {
   if (!fechas.length) return;
   const filas = fechas.map((date) => ({
     business_id: businessId,
     date,
     start_time: rango?.startTime || null,
     end_time: rango?.endTime || null,
+    // null = todas las sucursales (lo de siempre); si no, solo esa.
+    branch_id: branchId,
   }));
   const { error } = await supabase.from('blocked_days').insert(filas);
   if (error) throw traducirError(error);
@@ -580,6 +588,31 @@ export function subscribeAppointments(businessId, cb, onError) {
  */
 export function subscribeAppointmentsDeProfesional(businessId, professionalId, cb, onError) {
   return liveTable('appointments', { filterCol: 'professional_id', filterVal: professionalId }, cb, onError);
+}
+
+/**
+ * Turnos de UNA sucursal: lo que ve su administrador (role 'manager'). Mismo
+ * criterio que el de un profesional: RLS ya lo limita, el filtro es para no
+ * traer de más.
+ */
+export function subscribeAppointmentsDeSucursal(businessId, branchId, cb, onError) {
+  return liveTable('appointments', { filterCol: 'branch_id', filterVal: branchId }, cb, onError);
+}
+
+/**
+ * Reemplaza las franjas de un profesional en UNA sucursal, sin tocar las que
+ * tiene en otras. Es lo que usa el administrador de sucursal (RLS solo le
+ * deja escribir las de la suya).
+ */
+export async function replaceSchedulesDeSucursal(businessId, professionalId, branchId, franjas) {
+  const { error: delErr } = await supabase
+    .from('schedules').delete()
+    .eq('business_id', businessId).eq('professional_id', professionalId).eq('branch_id', branchId);
+  if (delErr) throw traducirError(delErr);
+  if (!franjas.length) return;
+  const filas = franjas.map((f) => ({ ...toRow('schedules', f), business_id: businessId, professional_id: professionalId, branch_id: branchId }));
+  const { error: insErr } = await supabase.from('schedules').insert(filas);
+  if (insErr) throw traducirError(insErr);
 }
 
 /** Turnos de un cliente puntual. RLS ya limita esto a sus propios turnos. */
@@ -641,7 +674,7 @@ export async function cancelAppointment(businessId, id, motivo = '', quien = 'st
 // una sola clave por notificación: la del que está mirando.
 
 /** Todas las del negocio (dueño), o solo las del profesional (barbero). */
-export function subscribeNotifications(businessId, { professionalId = null } = {}, cb, onError) {
+export function subscribeNotifications(businessId, { professionalId = null, branchId = null } = {}, cb, onError) {
   let alive = true;
   let base = [];
   let leidas = new Set(); // ids de notificación leídas por MI uid
@@ -662,6 +695,7 @@ export function subscribeNotifications(businessId, { professionalId = null } = {
 
     let q = supabase.from('notifications').select('*').eq('business_id', businessId).order('created_at', { ascending: false }).limit(60);
     if (professionalId) q = q.eq('professional_id', professionalId);
+    if (branchId) q = q.eq('branch_id', branchId);
     const { data, error } = await q;
     if (error) return onError(error);
     if (!alive) return;
@@ -683,6 +717,7 @@ export function subscribeNotifications(businessId, { professionalId = null } = {
     .channel(`live-notifications-${businessId}-${professionalId || 'all'}-${contadorCanal++}`)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: filtroNegocio }, (payload) => {
       if (professionalId && payload.new && payload.new.professional_id !== professionalId) return;
+      if (branchId && payload.new && payload.new.branch_id !== branchId) return;
       if (payload.eventType === 'INSERT') base = [payload.new, ...base].slice(0, 60);
       else if (payload.eventType === 'UPDATE') base = base.map((r) => (r.id === payload.new.id ? payload.new : r));
       else if (payload.eventType === 'DELETE') base = base.filter((r) => r.id !== payload.old.id);
@@ -742,7 +777,7 @@ export async function markNotificationRead(businessId, id, uid) {
 // abajo funciona normal.
 
 /** `subscription` es el `.toJSON()` de un PushSubscription: {endpoint, keys:{p256dh, auth}}. */
-export async function savePushToken(businessId, subscription, { uid, role, professionalId = null }) {
+export async function savePushToken(businessId, subscription, { uid, role, professionalId = null, branchId = null }) {
   const { error } = await supabase.from('push_subscriptions').upsert(
     {
       endpoint: subscription.endpoint,
@@ -750,6 +785,8 @@ export async function savePushToken(businessId, subscription, { uid, role, profe
       user_id: uid,
       role,
       professional_id: professionalId,
+      // El administrador de sucursal recibe los push de SU sucursal (send-push).
+      branch_id: branchId,
       p256dh: subscription.keys.p256dh,
       auth_key: subscription.keys.auth,
       updated_at: new Date().toISOString(),

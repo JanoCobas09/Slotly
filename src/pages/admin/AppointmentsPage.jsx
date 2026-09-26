@@ -7,6 +7,7 @@ import { formatDate, formatPrice } from '../../utils/dateUtils';
 import Icon from '../../components/Icon';
 import SenaTurno from '../../components/admin/SenaTurno';
 import { esTurnoEditable, confirmacionCancelar } from '../../utils/turnos';
+import { hayVariasSucursales, sucursalesActivas, nombreSucursal, profesionalesDeSucursal } from '../../utils/sucursales';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Todos' },
@@ -47,9 +48,19 @@ function isAppointmentStarted(apt) {
 
 export default function AppointmentsPage() {
   const { user } = useAuth();
-  const { appointments, professionals, services, business, businessId } = useTenant();
+  const { appointments, professionals: todosLosProfesionales, services, business, businessId, branches, schedules } = useTenant();
 
   const isOwner = user?.role === 'owner';
+  // El administrador de sucursal ve la agenda entera de SU sucursal (ya le
+  // llega filtrada), como el dueño la del negocio. Devolver señas sigue
+  // siendo solo del dueño (SenaTurno recibe isOwner).
+  const esManager = user?.role === 'manager';
+  const verTodo = isOwner || esManager;
+  const varias = isOwner && hayVariasSucursales(branches);
+  const [filterSucursal, setFilterSucursal] = useState('');
+  const professionals = esManager
+    ? profesionalesDeSucursal(todosLosProfesionales, schedules, user.branchId)
+    : filterSucursal ? profesionalesDeSucursal(todosLosProfesionales, schedules, filterSucursal) : todosLosProfesionales;
 
   const [filterProf,   setFilterProf]   = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -65,15 +76,16 @@ export default function AppointmentsPage() {
     });
 
     // Admin/staff asignado solo ve sus propias citas
-    if (!isOwner) {
+    if (!verTodo) {
       result = result.filter(a => a.professionalId === user?.professionalId);
     }
 
+    if (filterSucursal) result = result.filter(a => a.branchId === filterSucursal);
     if (filterProf)   result = result.filter(a => a.professionalId === filterProf);
     if (filterStatus) result = result.filter(a => a.status === filterStatus);
     if (filterDate)   result = result.filter(a => a.appointmentDate === filterDate);
     return result;
-  }, [appointments, filterProf, filterStatus, filterDate, isOwner, user?.professionalId]);
+  }, [appointments, filterProf, filterStatus, filterDate, filterSucursal, verTodo, user?.professionalId]);
 
   const updateStatus = (id, status) => {
     updateAppointment(businessId, id, { status }).catch((err) => {
@@ -97,7 +109,7 @@ export default function AppointmentsPage() {
     const blockedMsg = 'El turno todavía no comenzó';
     return (
       <div className="table-actions">
-        {esTurnoEditable(apt, isOwner) && (
+        {esTurnoEditable(apt, verTodo) && (
           <button className="btn btn-ghost btn-sm" title="Editar turno" onClick={() => setEditando(apt)}><Icon name="edit" /></button>
         )}
         {(apt.status === 'pendiente' || apt.status === 'confirmada') && (
@@ -129,7 +141,7 @@ export default function AppointmentsPage() {
   return (
     <div>
       <div className="admin-page-header">
-        <h1>{isOwner ? 'Citas' : 'Mis Citas'}</h1>
+        <h1>{verTodo ? 'Citas' : 'Mis Citas'}</h1>
         <div className="flex items-center gap-md">
           <span className="badge badge-neutral">{filtered.length} resultado{filtered.length !== 1 ? 's' : ''}</span>
           {/* El staff carga los turnos que le piden por WhatsApp o en persona,
@@ -152,7 +164,18 @@ export default function AppointmentsPage() {
           onChange={e => setFilterDate(e.target.value)}
           style={{ maxWidth: 180 }}
         />
-        {isOwner && (
+        {varias && (
+          <select
+            className="form-input"
+            value={filterSucursal}
+            onChange={e => { setFilterSucursal(e.target.value); setFilterProf(''); }}
+            style={{ maxWidth: 200 }}
+          >
+            <option value="">Todas las sucursales</option>
+            {sucursalesActivas(branches).map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+          </select>
+        )}
+        {verTodo && (
           <select
             className="form-input"
             value={filterProf}
@@ -204,7 +227,8 @@ export default function AppointmentsPage() {
               <div className="cita-tarjeta-cliente">{isWalkin ? <><Icon name="clipboard" /> Servicio sin turno</> : (apt.clientName || 'Cliente')}</div>
               <div className="text-sm text-secondary">
                 {isWalkin ? 'Horario bloqueado' : `${srv?.name || '—'} · ${formatPrice(apt.price, business?.currency)}`}
-                {isOwner && prof && <> · {prof.name}</>}
+                {verTodo && prof && <> · {prof.name}</>}
+                {varias && apt.branchId && <> · {nombreSucursal(branches, apt.branchId)}</>}
               </div>
               {apt.clientPhone && !isWalkin && (
                 <a className="text-sm" href={`tel:${apt.clientPhone}`} style={{ color: 'var(--text-muted)', textDecoration: 'none' }}><Icon name="phone" /> {apt.clientPhone}</a>
@@ -228,7 +252,7 @@ export default function AppointmentsPage() {
             <tr>
               <th>Fecha</th>
               <th>Hora</th>
-              {isOwner && <th>Profesional</th>}
+              {verTodo && <th>Profesional</th>}
               <th>Cliente</th>
               <th>Teléfono</th>
               <th>Servicio</th>
@@ -247,7 +271,12 @@ export default function AppointmentsPage() {
                 <tr key={apt.id} style={isWalkin ? { background: 'var(--bg-secondary)', fontStyle: 'italic' } : {}}>
                   <td>{formatDate(apt.appointmentDate).split(',')[0]}</td>
                   <td><strong>{apt.startTime}</strong> — {apt.endTime}</td>
-                  {isOwner && <td>{prof?.name}</td>}
+                  {verTodo && (
+                    <td>
+                      {prof?.name}
+                      {varias && apt.branchId && <div className="text-xs text-muted">{nombreSucursal(branches, apt.branchId)}</div>}
+                    </td>
+                  )}
                   <td title={apt.notes || undefined}>
                     {isWalkin
                       ? <span className="flex items-center gap-sm"><Icon name="clipboard" /><span>Servicio sin turno</span></span>

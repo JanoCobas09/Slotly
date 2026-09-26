@@ -7,14 +7,17 @@ import { useBusinessContext } from '../../hooks/useBusinessContext';
 import { capitalize as cap } from '../../utils/text';
 import Icon from '../../components/Icon';
 import { validarEmailObligatorio, LIMITES } from '../../utils/validaciones';
+import { sucursalesActivas, nombreSucursal } from '../../utils/sucursales';
 
 const ROLE_OWNER = { value: 'owner', label: 'Dueño/a — acceso total' };
 
-const EMPTY_FORM = { email: '', role: 'admin', professionalId: '', name: '' };
+const EMPTY_FORM = { email: '', role: 'admin', professionalId: '', branchId: '', name: '' };
+const ROLE_MANAGER = { value: 'manager', label: 'Administrador de sucursal — los turnos de su sucursal' };
 
 export default function AdminsPage() {
   const { user } = useAuth();
-  const { authorizedAdmins, professionals, businessId } = useTenant();
+  const { authorizedAdmins, professionals, businessId, branches } = useTenant();
+  const sucursales = sucursalesActivas(branches);
   const { terminology } = useBusinessContext();
   const roleAdmin = { value: 'admin', label: `${cap(terminology.professionalNoun)} — solo sus citas` };
 
@@ -28,7 +31,7 @@ export default function AdminsPage() {
   // Designar dueños es exclusivo de la plataforma: el dueño es quien paga la
   // cuenta, así que quién lo es no se delega al tenant. La Cloud Function
   // rechaza el intento; acá directamente no se ofrece la opción.
-  const roleOptions = user?.isPlatformOwner ? [ROLE_OWNER, roleAdmin] : [roleAdmin];
+  const roleOptions = user?.isPlatformOwner ? [ROLE_OWNER, roleAdmin, ROLE_MANAGER] : [roleAdmin, ROLE_MANAGER];
 
   // Solo el dueño entra acá. El corte va DESPUÉS de los hooks: si va antes,
   // React ve una cantidad distinta de hooks entre renders y explota cuando el
@@ -43,7 +46,7 @@ export default function AdminsPage() {
   };
 
   const openEdit = (admin) => {
-    setForm({ email: admin.email, role: admin.role, professionalId: admin.professionalId || '', name: admin.name || '' });
+    setForm({ email: admin.email, role: admin.role, professionalId: admin.professionalId || '', branchId: admin.branchId || '', name: admin.name || '' });
     setEditTarget(admin.id);
     setError('');
     setShowModal(true);
@@ -59,6 +62,7 @@ export default function AdminsPage() {
     if (errorEmail) return setError(errorEmail);
     if (form.name.trim().length > LIMITES.nombre) return setError(`El nombre puede tener hasta ${LIMITES.nombre} caracteres.`);
     if (form.role === 'admin' && !form.professionalId) return setError(`Los ${terminology.professionalNoun}s deben tener un profesional asignado.`);
+    if (form.role === 'manager' && !form.branchId) return setError('Elegí la sucursal que va a administrar.');
 
     // Verificar duplicado de email (solo en creación nueva)
     if (!editTarget) {
@@ -80,6 +84,7 @@ export default function AdminsPage() {
         businessId,
         role: form.role,
         professionalId: form.role === 'admin' ? form.professionalId : null,
+        branchId: form.role === 'manager' ? form.branchId : null,
         name: form.name.trim(),
       });
       setAviso(
@@ -140,7 +145,7 @@ export default function AdminsPage() {
               <th>Email autorizado</th>
               <th className="oculta-mobile">Nombre</th>
               <th>Rol</th>
-              <th className="oculta-mobile">Profesional vinculado</th>
+              <th className="oculta-mobile">Profesional o sucursal</th>
               <th className="oculta-mobile">Agregado</th>
               <th>Acciones</th>
             </tr>
@@ -153,18 +158,22 @@ export default function AdminsPage() {
                 <tr key={admin.id}>
                   <td>
                     <div className="flex items-center gap-sm">
-                      <span style={{ fontSize: 20 }}><Icon name={admin.role === 'owner' ? 'crown' : 'tag'} /></span>
+                      <span style={{ fontSize: 20 }}><Icon name={admin.role === 'owner' ? 'crown' : admin.role === 'manager' ? 'building' : 'tag'} /></span>
                       <span>{admin.email}</span>
                       {isMe && <span className="badge badge-primary" style={{ fontSize: 10 }}>Vos</span>}
                     </div>
                   </td>
                   <td className="oculta-mobile">{admin.name || '—'}</td>
                   <td>
-                    <span className={`badge ${admin.role === 'owner' ? 'badge-primary' : 'badge-success'}`}>
-                      {admin.role === 'owner' ? 'Dueño/a' : cap(terminology.professionalNoun)}
+                    <span className={`badge ${admin.role === 'owner' ? 'badge-primary' : admin.role === 'manager' ? 'badge-warning' : 'badge-success'}`}>
+                      {admin.role === 'owner' ? 'Dueño/a' : admin.role === 'manager' ? 'Admin. de sucursal' : cap(terminology.professionalNoun)}
                     </span>
                   </td>
-                  <td className="oculta-mobile">{prof?.name || (admin.role === 'owner' ? '—' : <span className="text-muted">Sin asignar</span>)}</td>
+                  <td className="oculta-mobile">
+                    {admin.role === 'manager'
+                      ? (nombreSucursal(branches, admin.branchId) || <span className="text-muted">Sin sucursal</span>)
+                      : prof?.name || (admin.role === 'owner' ? '—' : <span className="text-muted">Sin asignar</span>)}
+                  </td>
                   <td className="text-sm text-secondary oculta-mobile">
                     {/* Viene como Timestamp de Firestore; new Date(timestamp) da Invalid Date. */}
                     {admin.addedAt?.toDate ? admin.addedAt.toDate().toLocaleDateString('es-AR')
@@ -196,6 +205,7 @@ export default function AdminsPage() {
           <li><strong>Quien no está en la lista</strong> → va al flujo normal de reserva de clientes.</li>
           <li><strong>Dueño/a</strong>: ve todas las citas, estadísticas globales y puede modificar todo.</li>
           <li><strong>{cap(terminology.professionalNoun)}</strong>: solo ve las citas asignadas a su perfil de profesional.</li>
+          <li><strong>Administrador de sucursal</strong>: ve y gestiona los turnos de su sucursal, su equipo, sus días bloqueados y su horario. No ve las otras sucursales.</li>
         </ul>
       </div>
 
@@ -247,7 +257,7 @@ export default function AdminsPage() {
                 <select
                   className="form-input"
                   value={form.role}
-                  onChange={e => setForm(f => ({ ...f, role: e.target.value, professionalId: '' }))}
+                  onChange={e => setForm(f => ({ ...f, role: e.target.value, professionalId: '', branchId: '' }))}
                 >
                   {roleOptions.map(opt => (
                     <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -260,6 +270,23 @@ export default function AdminsPage() {
                   </p>
                 )}
               </div>
+
+              {form.role === 'manager' && (
+                <div className="form-group">
+                  <label className="form-label">Sucursal <span className="required">*</span></label>
+                  <select
+                    className="form-input"
+                    value={form.branchId}
+                    onChange={e => setForm(f => ({ ...f, branchId: e.target.value }))}
+                  >
+                    <option value="">— Seleccioná una sucursal —</option>
+                    {sucursales.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                  </select>
+                  <p className="text-xs text-muted" style={{ marginTop: 4 }}>
+                    Solo va a ver los turnos y el equipo de esta sucursal.
+                  </p>
+                </div>
+              )}
 
               {form.role === 'admin' && (
                 <div className="form-group">

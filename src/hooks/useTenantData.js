@@ -55,6 +55,18 @@ export function useBlockedDays() {
   return state.blockedDays || [];
 }
 
+/** Sucursales del negocio (siempre hay al menos la principal). */
+export function useBranches() {
+  const { state } = useBusiness();
+  return state.branches || [];
+}
+
+/** Precios propios de cada sucursal (sin fila = el precio del servicio). */
+export function useBranchServicePrices() {
+  const { state } = useBusiness();
+  return state.branchServicePrices || [];
+}
+
 /** Notificaciones del staff (las escribe un trigger de Functions). */
 export function useNotifications() {
   const { state } = useBusiness();
@@ -83,6 +95,8 @@ export function useTenant() {
   const professionalServices = useProfessionalServices();
   const promotions = usePromotions();
   const blockedDays = useBlockedDays();
+  const branches = useBranches();
+  const branchServicePrices = useBranchServicePrices();
   const authorizedAdmins = useAuthorizedAdmins();
 
   return useMemo(
@@ -99,6 +113,8 @@ export function useTenant() {
       professionalServices,
       promotions,
       blockedDays,
+      branches,
+      branchServicePrices,
       authorizedAdmins,
     }),
     [
@@ -114,6 +130,8 @@ export function useTenant() {
       professionalServices,
       promotions,
       blockedDays,
+      branches,
+      branchServicePrices,
       authorizedAdmins,
     ]
   );

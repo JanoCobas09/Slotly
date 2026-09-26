@@ -55,7 +55,7 @@ export default function LoginPage() {
   const redirectAfterLogin = (user, destino = from) => {
     if (user.isPlatformTeam || isPlatformOwner(user.email)) {
       navigate('/super-admin');
-    } else if (user.role === 'owner' || user.role === 'admin') {
+    } else if (['owner', 'admin', 'manager'].includes(user.role)) {
       navigate('/admin');
     } else if (destino) {
       // Venía del link de un negocio: se lo devuelve ahí a terminar de reservar.

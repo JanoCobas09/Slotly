@@ -53,8 +53,8 @@ export function esFunctionNoDesplegada(err) {
  * Quién puede llamarla: la plataforma para cualquier negocio y cualquier rol;
  * el dueño de un negocio solo dentro del suyo y solo con rol 'admin'.
  */
-export function setBusinessAdmin({ email, businessId, role, professionalId = null, name = '' }) {
-  return llamar('set-business-admin', { email, businessId, role, professionalId, name });
+export function setBusinessAdmin({ email, businessId, role, professionalId = null, branchId = null, name = '' }) {
+  return llamar('set-business-admin', { email, businessId, role, professionalId, branchId, name });
 }
 
 /** Le quita todo acceso administrativo a un mail. */
@@ -96,8 +96,8 @@ export function getBusySlots({ businessId, professionalId, appointmentDate }) {
  * maps.app.goo.gl del lado del servidor). Devuelve `{ ubicacion: { lat, lng } }`
  * o `{ ubicacion: null }` si no hay link o no se pudo resolver. Sin sesión.
  */
-export function resolveMapsLink({ businessId }) {
-  return llamar('resolve-maps-link', { businessId });
+export function resolveMapsLink({ businessId, branchId = null }) {
+  return llamar('resolve-maps-link', { businessId, branchId });
 }
 
 /**

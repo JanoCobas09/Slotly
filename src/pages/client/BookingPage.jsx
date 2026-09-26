@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useBooking } from '../../contexts/BookingContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../hooks/useTenantData';
@@ -11,6 +11,7 @@ import { useBusinessContext } from '../../hooks/useBusinessContext';
 import Icon from '../../components/Icon';
 import { esDiaEntero, rangosComoOcupados } from '../../utils/bloqueos';
 import { esTelefono, LIMITES } from '../../utils/validaciones';
+import { sucursalesActivas, profesionalesDeSucursal, schedulesDeSucursal, precioEn, horarioDe, datosDe } from '../../utils/sucursales';
 
 // ---- STEPPER ----
 function Stepper({ step }) {
@@ -122,7 +123,7 @@ function useUbicacionDelMapa(business) {
   useEffect(() => {
     if (!hayQueResolver) return;
     let vigente = true;
-    resolveMapsLink({ businessId: business.id })
+    resolveMapsLink({ businessId: business.id, branchId: business.sucursalId || null })
       .then(({ ubicacion: u }) => {
         if (!vigente) return;
         // Coordenadas, o (links viejos de "compartir") el lugar por nombre
@@ -135,7 +136,7 @@ function useUbicacionDelMapa(business) {
         if (vigente) setResuelta({ link, coords: null });
       });
     return () => { vigente = false; };
-  }, [hayQueResolver, link, business.id]);
+  }, [hayQueResolver, link, business.id, business.sucursalId]);
 
   const direccion = business.address?.trim() || null;
   if (directas) return { consulta: directas, cargando: false };
@@ -207,6 +208,34 @@ function BusinessMap({ business }) {
         </a>
       </div>
     </section>
+  );
+}
+
+// ---- SUCURSAL ----
+// Primer paso cuando el negocio atiende en más de un lugar: dónde. No es un
+// paso numerado del stepper (no cambia la numeración de los demás): hasta
+// elegir sucursal no se muestra el resto.
+function SucursalSelect({ sucursales, negocio, onSelect }) {
+  return (
+    <div>
+      <h2 className="booking-step-title">Elegí la sucursal</h2>
+      <p className="booking-step-subtitle">¿Dónde te queda mejor?</p>
+      <div className="flex flex-col gap-sm">
+        {sucursales.map((b) => {
+          const { address } = datosDe(b, negocio);
+          return (
+            <button key={b.id} type="button" className="card card-selectable sucursal-opcion" onClick={() => onSelect(b.id)}>
+              <Icon name="pin" />
+              <span style={{ flex: 1, textAlign: 'left' }}>
+                <strong>{b.name}</strong>
+                {address && <span className="text-sm text-secondary" style={{ display: 'block' }}>{address}</span>}
+              </span>
+              <span aria-hidden="true">→</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -708,10 +737,49 @@ export default function BookingPage() {
   const [reservando, setReservando] = useState(false);
 
   // Datos ya filtrados por el negocio del slug de la URL.
-  const { professionals, services, professionalServices, schedules, appointments, business, slug, businessId, promotions, blockedDays } =
-    useTenant();
+  const {
+    professionals: todosLosProfesionales, services: todosLosServicios, schedules: todosLosHorarios,
+    blockedDays: todosLosBloqueos, business: negocio, branches, branchServicePrices,
+    professionalServices, appointments, slug, businessId, promotions,
+  } = useTenant();
   const { customerFields } = useBusinessContext();
   const { step, professionalId, serviceId, date, timeSlot, personalInfo, customFieldValues } = booking;
+
+  // ── Sucursales ──
+  // Con más de una, el cliente elige primero dónde (o llega con
+  // ?sucursal=<id>, el link directo de una sucursal). A partir de ahí todo lo
+  // de abajo trabaja con los datos de ESA sucursal, con los mismos nombres
+  // que antes: sus profesionales, sus franjas, su horario, sus precios, sus
+  // días bloqueados y su dirección. Con una sola sucursal no se filtra nada:
+  // la reserva queda exactamente como era.
+  const [params] = useSearchParams();
+  const sucursales = useMemo(
+    () => sucursalesActivas(branches).filter((b) => profesionalesDeSucursal(todosLosProfesionales, todosLosHorarios, b.id).length > 0),
+    [branches, todosLosProfesionales, todosLosHorarios],
+  );
+  const varias = sucursales.length > 1;
+  const sucursal = varias ? sucursales.find((b) => b.id === booking.branchId) || null : null;
+  const { professionals, schedules, blockedDays, services, business } = useMemo(() => {
+    if (!sucursal) {
+      return { professionals: todosLosProfesionales, schedules: todosLosHorarios, blockedDays: todosLosBloqueos, services: todosLosServicios, business: negocio };
+    }
+    const datos = Object.fromEntries(Object.entries(datosDe(sucursal, negocio)).filter(([, v]) => v));
+    return {
+      professionals: profesionalesDeSucursal(todosLosProfesionales, todosLosHorarios, sucursal.id),
+      schedules: schedulesDeSucursal(todosLosHorarios, sucursal.id),
+      blockedDays: todosLosBloqueos.filter((b) => !b.branchId || b.branchId === sucursal.id),
+      services: todosLosServicios.map((s) => ({ ...s, price: precioEn(s, sucursal.id, branchServicePrices) })),
+      business: { ...negocio, ...datos, businessHours: horarioDe(sucursal, negocio), sucursalId: sucursal.id },
+    };
+  }, [sucursal, todosLosProfesionales, todosLosHorarios, todosLosBloqueos, todosLosServicios, branchServicePrices, negocio]);
+
+  useEffect(() => {
+    const pedida = params.get('sucursal');
+    if (pedida && pedida !== booking.branchId && sucursales.some((b) => b.id === pedida)) {
+      dispatch({ type: 'SET_BRANCH', payload: pedida });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params, sucursales.length]);
   // Día de la semana de la fecha elegida, para saber si hay una promo activa
   // en ese día — mismo remapeo que usa availabilityEngine (0=Lunes).
   const dayOfWeek = date ? getLocalDayOfWeek(new Date(date + 'T00:00:00')) : null;
@@ -738,9 +806,9 @@ export default function BookingPage() {
   // Motivos por los que este negocio no puede tomar turnos ahora mismo.
   // Se calcula acá pero se renderiza recién después de todos los hooks: cortar
   // el render antes rompe las reglas de hooks si el motivo cambia en vivo.
-  const blockedReason = business?.isFrozen
+  const blockedReason = negocio?.isFrozen
     ? 'frozen'
-    : (professionals.length === 0 || services.length === 0)
+    : (todosLosProfesionales.length === 0 || todosLosServicios.length === 0)
       ? 'not-ready'
       : null;
 
@@ -801,6 +869,7 @@ export default function BookingPage() {
       sessionStorage.removeItem(BOOKING_DRAFT_KEY);
     } catch { /* sin sessionStorage, no hay nada que restaurar */ }
     if (!draft?.professionalId || !draft?.serviceId) return;
+    if (draft.branchId) dispatch({ type: 'SET_BRANCH', payload: draft.branchId });
     dispatch({ type: 'SET_PROFESSIONAL', payload: draft.professionalId });
     dispatch({ type: 'SET_SERVICE', payload: draft.serviceId });
     dispatch({ type: 'SET_STEP', payload: 3 });
@@ -876,6 +945,15 @@ export default function BookingPage() {
     return <BookingUnavailable reason={blockedReason} business={business} />;
   }
 
+  if (varias && !sucursal) {
+    return (
+      <div className="booking-container">
+        <BusinessHero business={negocio} />
+        <SucursalSelect sucursales={sucursales} negocio={negocio} onSelect={(id) => { setError(''); dispatch({ type: 'SET_BRANCH', payload: id }); }} />
+      </div>
+    );
+  }
+
   // Un turno de este cliente esperando la seña (cerró Mercado Pago, o
   // volvió a entrar al link después): que no se pierda, se le muestra
   // arriba con el camino al seguimiento del pago.
@@ -906,7 +984,7 @@ export default function BookingPage() {
     // esto, volver de Google largaba de nuevo en "elegí tu profesional".
     if (step === 2 && !user) {
       setError('');
-      try { sessionStorage.setItem(BOOKING_DRAFT_KEY, JSON.stringify({ professionalId, serviceId })); } catch { /* sin storage, hay que re-elegir al volver */ }
+      try { sessionStorage.setItem(BOOKING_DRAFT_KEY, JSON.stringify({ professionalId, serviceId, branchId: booking.branchId })); } catch { /* sin storage, hay que re-elegir al volver */ }
       navigate('/login', { state: { from: `/${slug}` } });
       return;
     }
@@ -1019,6 +1097,12 @@ export default function BookingPage() {
   return (
     <div className={`booking-container ${step === 6 ? 'has-confirm-bar' : ''}`}>
       <BusinessHero business={business} compacta={step > 1} />
+      {sucursal && (
+        <div className="sucursal-elegida">
+          <span><Icon name="pin" /> <strong>{sucursal.name}</strong>{business.address ? ` · ${business.address}` : ''}</span>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setError(''); dispatch({ type: 'SET_BRANCH', payload: null }); }}>Cambiar</button>
+        </div>
+      )}
       {senaPendiente && (
         <div className="notice notice-warn mb-md" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', flexWrap: 'wrap' }}>
           <span style={{ flex: 1, minWidth: 200 }}>

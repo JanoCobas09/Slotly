@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useTenant } from '../../hooks/useTenantData';
+import { useAuth } from '../../contexts/AuthContext';
+import { hayVariasSucursales, sucursalesActivas, nombreSucursal } from '../../utils/sucursales';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
 import { blockDays, removeBlocks } from '../../lib/repository';
 import { formatDate, toDateString, getMonthName } from '../../utils/dateUtils';
@@ -64,9 +66,20 @@ const rangoDe = (a) => (a.modo === 'dia' ? null : { startTime: a.desde, endTime:
 const textoBloqueo = (b) => (esDiaEntero(b) ? 'Todo el día' : `${b.startTime} a ${b.endTime}`);
 
 export default function BlockedDaysPage() {
-  const { blockedDays, appointments, businessId } = useTenant();
+  const { user } = useAuth();
+  const { blockedDays: todosLosBloqueos, appointments, businessId, branches } = useTenant();
   const { terminology } = useBusinessContext();
   const hoy = toDateString(new Date());
+
+  // Sucursales: el dueño elige si el bloqueo es de todo el negocio o de una
+  // sucursal; el administrador de sucursal solo maneja los de la suya (los de
+  // todo el negocio los ve, pero no los puede liberar — RLS tampoco).
+  const esManager = user?.role === 'manager';
+  const varias = hayVariasSucursales(branches);
+  const [sucursal, setSucursal] = useState(esManager ? user.branchId : null); // null = todas
+  const blockedDays = todosLosBloqueos.filter((b) => (sucursal === null ? !b.branchId : (!b.branchId || b.branchId === sucursal)));
+  const puedeLiberar = (b) => !(esManager && !b.branchId);
+  const etiqueta = (b) => (sucursal !== null && !b.branchId ? ' · todo el negocio' : '');
 
   const [vista, setVista] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
   const [seleccionado, setSeleccionado] = useState(null);
@@ -84,6 +97,7 @@ export default function BlockedDaysPage() {
   );
   const turnosEn = (b) => vivos.filter((a) =>
     a.appointmentDate === b.date
+    && (!b.branchId || a.branchId === b.branchId)
     && (esDiaEntero(b) || (a.startTime < b.endTime && (a.endTime || a.startTime) > b.startTime))
   ).length;
 
@@ -113,7 +127,7 @@ export default function BlockedDaysPage() {
     const pendientes = fechas.filter((f) =>
       !diaEnteroBloqueado(blockedDays, f)
       && !(r && rangosDelDia(blockedDays, f).some((b) => b.startTime === r.startTime && b.endTime === r.endTime)));
-    return ejecutar(() => blockDays(businessId, pendientes, r));
+    return ejecutar(() => blockDays(businessId, pendientes, r, sucursal));
   };
 
   const rangoFechasValido = rango.desde && rango.hasta && rango.desde >= hoy && rango.hasta >= rango.desde;
@@ -169,7 +183,19 @@ export default function BlockedDaysPage() {
             Los días (o partes del día) que no vas a trabajar. Ahí nadie puede reservar online, aunque tu horario semanal diga que atendés.
           </p>
         </div>
+        {varias && !esManager && (
+          <select className="form-input" style={{ maxWidth: 260 }} value={sucursal || ''} onChange={(e) => { setSucursal(e.target.value || null); setSeleccionado(null); }}>
+            <option value="">Todas las sucursales</option>
+            {sucursalesActivas(branches).map((b) => <option key={b.id} value={b.id}>Solo {b.name}</option>)}
+          </select>
+        )}
       </div>
+
+      {esManager && (
+        <div className="notice notice-info" style={{ marginBottom: 'var(--space-md)' }}>
+          Bloqueos de <strong>{nombreSucursal(branches, sucursal)}</strong>. Los que valen para todo el negocio los maneja el dueño.
+        </div>
+      )}
 
       {error && (
         <div className="badge badge-danger" style={{ display: 'block', padding: '10px 12px', borderRadius: 8, marginBottom: 'var(--space-md)' }}>
@@ -231,10 +257,10 @@ export default function BlockedDaysPage() {
                   {bloqueosDelSeleccionado.sort((a, b) => (a.startTime || '').localeCompare(b.startTime || '')).map((b) => (
                     <li key={b.id}>
                       <div>
-                        <div style={{ fontWeight: 600 }}><Icon name="lock" /> {textoBloqueo(b)}</div>
+                        <div style={{ fontWeight: 600 }}><Icon name="lock" /> {textoBloqueo(b)}{etiqueta(b)}</div>
                         {avisoTurnos(b)}
                       </div>
-                      <button className="btn btn-ghost btn-sm" onClick={() => ejecutar(() => removeBlocks(businessId, [b.id]))} disabled={ocupado}>Liberar</button>
+                      {puedeLiberar(b) && <button className="btn btn-ghost btn-sm" onClick={() => ejecutar(() => removeBlocks(businessId, [b.id]))} disabled={ocupado}>Liberar</button>}
                     </li>
                   ))}
                 </ul>
@@ -294,12 +320,14 @@ export default function BlockedDaysPage() {
                       {bloques.map((b) => (
                         <div key={b.id} className="bloqueo-item">
                           <div>
-                            <span className="text-sm text-secondary">{textoBloqueo(b)}</span>
+                            <span className="text-sm text-secondary">{textoBloqueo(b)}{etiqueta(b)}</span>
                             {avisoTurnos(b)}
                           </div>
-                          <button className="btn btn-ghost btn-sm" onClick={() => ejecutar(() => removeBlocks(businessId, [b.id]))} disabled={ocupado}>
-                            Liberar
-                          </button>
+                          {puedeLiberar(b) && (
+                            <button className="btn btn-ghost btn-sm" onClick={() => ejecutar(() => removeBlocks(businessId, [b.id]))} disabled={ocupado}>
+                              Liberar
+                            </button>
+                          )}
                         </div>
                       ))}
                     </div>

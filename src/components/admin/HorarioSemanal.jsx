@@ -17,8 +17,12 @@ import { FRANJA_VACIA } from '../../utils/horarioSemanal';
  * Editor de la semana. Controlado: recibe `dias` y avisa cada cambio con
  * `onChange(nuevosDias)`. `diaCorto` muestra "lun" en vez de "lunes" (el
  * modal de Profesionales es angosto).
+ *
+ * `sucursales`: con más de una, cada franja muestra en qué sucursal es. Una
+ * franja nueva arranca en `sucursalPorDefecto` (o la de la franja anterior).
  */
-export default function HorarioSemanal({ dias, onChange, diaCorto = false }) {
+export default function HorarioSemanal({ dias, onChange, diaCorto = false, sucursales = [], sucursalPorDefecto = null }) {
+  const conSucursal = sucursales.length > 1;
   const cambiarDia = (dayIndex, fn) => onChange(dias.map((d, i) => (i === dayIndex ? fn(d) : d)));
 
   const toggleDia = (dayIndex) => cambiarDia(dayIndex, (d) => ({ ...d, isActive: !d.isActive }));
@@ -31,8 +35,15 @@ export default function HorarioSemanal({ dias, onChange, diaCorto = false }) {
   // hay que ajustar el fin.
   const agregarFranja = (dayIndex) => cambiarDia(dayIndex, (d) => {
     const ultima = d.franjas[d.franjas.length - 1];
-    return { ...d, franjas: [...d.franjas, { startTime: ultima?.endTime || '', endTime: '' }] };
+    return { ...d, franjas: [...d.franjas, { startTime: ultima?.endTime || '', endTime: '', branchId: ultima?.branchId || sucursalPorDefecto }] };
   });
+
+  // Al prender un día, sus franjas vacías arrancan en la sucursal por defecto.
+  const prenderDia = (dayIndex) => cambiarDia(dayIndex, (d) => ({
+    ...d,
+    isActive: !d.isActive,
+    franjas: d.franjas.map((f) => (f.branchId ? f : { ...f, branchId: sucursalPorDefecto })),
+  }));
 
   // Nunca queda un día activo sin ninguna fila: si se borra la última, queda
   // una vacía para completar (o se apaga el día con el toggle).
@@ -56,7 +67,9 @@ export default function HorarioSemanal({ dias, onChange, diaCorto = false }) {
                     <button type="button" className="schedule-toggle active" onClick={() => toggleDia(dayIdx)} />
                   </>
                 ) : (
-                  <><span /><span /></>
+                  // El hueco del toggle con su mismo ancho: si no, las franjas
+                  // siguientes quedaban corridas respecto de la primera.
+                  <><span /><span style={{ width: 44 }} /></>
                 )}
                 <input
                   className="form-input" type="time" value={franja.startTime}
@@ -74,12 +87,22 @@ export default function HorarioSemanal({ dias, onChange, diaCorto = false }) {
                     <Icon name="x" />
                   </button>
                 ) : <span />}
+                {conSucursal && (
+                  <select
+                    className="form-input schedule-franja-sucursal"
+                    aria-label="Sucursal"
+                    value={franja.branchId || sucursalPorDefecto || ''}
+                    onChange={(e) => editarFranja(dayIdx, franjaIdx, 'branchId', e.target.value)}
+                  >
+                    {sucursales.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                  </select>
+                )}
               </div>
             ))
           ) : (
             <div className="schedule-row">
               <label style={{ textTransform: 'capitalize' }}>{nombre(dayIdx)}</label>
-              <button type="button" className="schedule-toggle" onClick={() => toggleDia(dayIdx)} />
+              <button type="button" className="schedule-toggle" onClick={() => prenderDia(dayIdx)} />
               <span className="text-muted text-sm">—</span>
               <span className="text-muted text-sm">—</span>
               <span />

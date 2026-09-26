@@ -110,7 +110,7 @@ Deno.serve(async (req) => {
 
     const { data: candidatos, error } = await admin
       .from('appointments')
-      .select('id, business_id, professional_id, appointment_date, start_time, client_name, client_email, service_name')
+      .select('id, business_id, professional_id, branch_id, appointment_date, start_time, client_name, client_email, service_name')
       .eq('appointment_date', hoy)
       .in('status', ['pendiente', 'confirmada'])
       .is('reminder_sent_at', null)
@@ -125,6 +125,8 @@ Deno.serve(async (req) => {
     // Una sola lectura por negocio/profesional aunque varios turnos los compartan.
     const negocios = new Map<string, { name: string; address: string | null; phone: string | null } | null>();
     const profesionales = new Map<string, string | null>();
+    // Sucursal del turno: su dirección/teléfono pisan los del negocio si los tiene.
+    const sucursales = new Map<string, { address: string | null; phone: string | null } | null>();
 
     let enviados = 0, fallidos = 0;
     for (const apt of enVentana) {
@@ -142,8 +144,16 @@ Deno.serve(async (req) => {
           profesionales.set(profKey, prof?.name ?? null);
         }
 
+        if (apt.branch_id && !sucursales.has(apt.branch_id)) {
+          const { data: suc } = await admin.from('branches').select('address, phone').eq('id', apt.branch_id).maybeSingle();
+          sucursales.set(apt.branch_id, suc);
+        }
+        const suc = apt.branch_id ? sucursales.get(apt.branch_id) : null;
+
         const { asunto, texto, html } = textoRecordatorio({
-          negocioNombre: negocio.name, negocioDireccion: negocio.address, negocioTelefono: negocio.phone,
+          negocioNombre: negocio.name,
+          negocioDireccion: suc?.address || negocio.address,
+          negocioTelefono: suc?.phone || negocio.phone,
           apt, profesionalNombre: profesionales.get(profKey) ?? null,
         });
 

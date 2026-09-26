@@ -4363,3 +4363,14 @@ select.form-input {
   .guia-paso.actual { flex-wrap: wrap; }
   .guia-paso.actual .btn { width: 100%; }
 }
+
+/* Sucursal de cada franja (HorarioSemanal), cuando el negocio tiene varias. */
+.schedule-row .schedule-franja-sucursal { grid-column: 3 / 5; font-size: 0.8125rem; padding-top: 6px; padding-bottom: 6px; }
+@media (max-width: 840px) {
+  .schedule-row .schedule-franja-sucursal { grid-column: 1 / -1; }
+}
+
+/* Reserva: elegir sucursal (BookingPage) */
+.sucursal-opcion { display: flex; align-items: center; gap: var(--space-sm); width: 100%; padding: var(--space-md); font: inherit; color: inherit; cursor: pointer; border: 1px solid var(--border); background: var(--surface, #fff); }
+.sucursal-opcion:hover { border-color: var(--primary); }
+.sucursal-elegida { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); flex-wrap: wrap; padding: 8px 12px; margin-bottom: var(--space-md); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-secondary); font-size: 0.875rem; }

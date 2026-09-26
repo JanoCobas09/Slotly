@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../hooks/useTenantData';
 import { createAppointment, updateAppointment } from '../../lib/repository';
-import { calculateAvailableSlots } from '../../utils/availabilityEngine';
+import { horariosLibresPorSucursal, profesionalesDeSucursal, hayVariasSucursales, nombreSucursal, precioEn } from '../../utils/sucursales';
 import { formatPrice, toDateString } from '../../utils/dateUtils';
 import Icon from '../Icon';
 import { esReservaDelCliente } from '../../utils/turnos';
@@ -35,9 +35,13 @@ import { turnoBloqueado, diaEnteroBloqueado } from '../../utils/bloqueos';
 export default function NuevoTurnoModal({ onClose, turno = null }) {
   const editando = Boolean(turno);
   const { user } = useAuth();
-  const { appointments, professionals, services, professionalServices, schedules, business, businessId, blockedDays } = useTenant();
+  const { appointments, professionals: todosLosProfesionales, services, professionalServices, schedules, business, businessId, blockedDays, branches, branchServicePrices } = useTenant();
 
   const esStaffAsignado = user?.role === 'admin' && Boolean(user?.professionalId);
+  // Administrador de sucursal: solo su equipo y los horarios de su sucursal.
+  const soloSucursal = user?.role === 'manager' ? user.branchId : null;
+  const professionals = soloSucursal ? profesionalesDeSucursal(todosLosProfesionales, schedules, soloSucursal) : todosLosProfesionales;
+  const varias = hayVariasSucursales(branches);
   const hoy = toDateString(new Date());
 
   const [form, setForm] = useState(() => editando
@@ -90,7 +94,11 @@ export default function NuevoTurnoModal({ onClose, turno = null }) {
 
   const slots = useMemo(() => {
     if (!form.professionalId || !form.serviceId || !form.date) return [];
-    const libres = calculateAvailableSlots({
+    // Cada franja con el horario de SU sucursal; cada horario libre sale con su branchId.
+    const libres = horariosLibresPorSucursal({
+      branches,
+      business,
+      soloSucursal,
       professionalId: form.professionalId,
       serviceId: form.serviceId,
       date: form.date,
@@ -101,7 +109,6 @@ export default function NuevoTurnoModal({ onClose, turno = null }) {
       services,
       professionalServices,
       slotInterval: business.slotInterval,
-      businessHours: business.businessHours,
     });
     // Mismo profesional, servicio y día que ya tenía: su horario original
     // se ofrece siempre, aunque el negocio haya cambiado el horario de
@@ -112,17 +119,20 @@ export default function NuevoTurnoModal({ onClose, turno = null }) {
       && form.serviceId === turno.serviceId
       && form.date === turno.appointmentDate;
     if (mismoLugar && !libres.some((s) => s.startTime === turno.startTime)) {
-      return [{ startTime: turno.startTime, endTime: turno.endTime }, ...libres]
+      return [{ startTime: turno.startTime, endTime: turno.endTime, branchId: turno.branchId }, ...libres]
         .sort((a, b) => a.startTime.localeCompare(b.startTime));
     }
     return libres;
-  }, [form.professionalId, form.serviceId, form.date, schedules, appointments, services, professionalServices, business, editando, turno]);
+  }, [form.professionalId, form.serviceId, form.date, schedules, appointments, services, professionalServices, business, branches, soloSucursal, editando, turno]);
 
   const slot = slots.find((s) => s.startTime === form.startTime);
+  // Precio: el de la sucursal donde cae el horario, si tiene uno propio.
+  const precioFinal = slot?.branchId && servicio && !ps?.customPrice ? precioEn(servicio, slot.branchId, branchServicePrices) : precio;
+  const bloqueosDelTurno = slot?.branchId ? blockedDays.filter((b) => !b.branchId || b.branchId === slot.branchId) : blockedDays;
   // Se permite igual (el dueño decide), pero se avisa: ese día lo marcó como
   // no laborable y online nadie puede reservar.
   const diaBloqueado = slot
-    ? turnoBloqueado(blockedDays, form.date, slot.startTime, slot.endTime)
+    ? turnoBloqueado(bloqueosDelTurno, form.date, slot.startTime, slot.endTime)
     : diaEnteroBloqueado(blockedDays, form.date);
   const digitos = form.clientPhone.replace(/\D/g, '');
   const telefonoOk = digitos.length === 0 || (digitos.length >= 10 && digitos.length <= 13 && esTelefono(form.clientPhone));
@@ -141,7 +151,8 @@ export default function NuevoTurnoModal({ onClose, turno = null }) {
           appointmentDate: form.date,
           startTime: slot.startTime,
           endTime: slot.endTime,
-          price: precio,
+          price: precioFinal,
+          branchId: slot.branchId || undefined,
           durationMinutes: duracion,
           serviceName: servicio?.name || '',
           clientName: form.clientName.trim().slice(0, 120),
@@ -160,7 +171,8 @@ export default function NuevoTurnoModal({ onClose, turno = null }) {
         appointmentDate: form.date,
         startTime: slot.startTime,
         endTime: slot.endTime,
-        price: precio,
+        price: precioFinal,
+        branchId: slot.branchId || undefined,
         durationMinutes: duracion,
         serviceName: servicio?.name || '',
         clientName: form.clientName.trim().slice(0, 120),
@@ -251,7 +263,9 @@ export default function NuevoTurnoModal({ onClose, turno = null }) {
               >
                 <option value="">{!form.serviceId ? 'Primero el servicio' : slots.length === 0 ? 'Sin horarios libres' : 'Elegí un horario'}</option>
                 {slots.map((s) => (
-                  <option key={s.startTime} value={s.startTime}>{s.startTime} — {s.endTime}</option>
+                  <option key={s.startTime} value={s.startTime}>
+                    {s.startTime} — {s.endTime}{varias && s.branchId ? ` · ${nombreSucursal(branches, s.branchId)}` : ''}
+                  </option>
                 ))}
               </select>
             </div>

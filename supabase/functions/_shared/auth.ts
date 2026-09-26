@@ -98,6 +98,7 @@ export interface Caller {
   businessId: string | null;
   role: string | null;
   professionalId: string | null;
+  branchId: string | null;
   platform: boolean | 'moderator' | null;
 }
 
@@ -126,6 +127,7 @@ export async function getCaller(req: Request): Promise<Caller> {
     businessId: meta.business_id ?? null,
     role: meta.role ?? null,
     professionalId: meta.professional_id ?? null,
+    branchId: meta.branch_id ?? null,
     platform: meta.platform ?? null,
   };
 }
@@ -215,7 +217,7 @@ export function generarPassword(largo = 12): string {
  */
 export async function clearClaims(admin: SupabaseClient, userId: string) {
   const { error } = await admin.auth.admin.updateUserById(userId, {
-    app_metadata: { business_id: null, role: null, professional_id: null, platform: null },
+    app_metadata: { business_id: null, role: null, professional_id: null, branch_id: null, platform: null },
   });
   if (error) throw error;
 }

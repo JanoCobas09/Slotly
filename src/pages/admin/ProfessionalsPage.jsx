@@ -21,13 +21,14 @@ import { validarProfesional, validarFranjas, LIMITES } from '../../utils/validac
 import HorarioSemanal from '../../components/admin/HorarioSemanal';
 import { diasDesdeSchedules, schedulesDesdeDias } from '../../utils/horarioSemanal';
 import PrimerosPasos from '../../components/admin/PrimerosPasos';
+import { sucursalesActivas, sucursalPrincipal, hayVariasSucursales, sucursalesDeProfesional } from '../../utils/sucursales';
 
 // Mismo número que la landing y el resto del panel.
 const LINK_AMPLIAR = 'https://wa.me/5492257660073?text=' +
   encodeURIComponent('Hola! Necesito sumar más profesionales a mi cuenta.');
 
 export default function ProfessionalsPage() {
-  const { professionals, schedules, professionalServices, services, businessId, business } = useTenant();
+  const { professionals, schedules, professionalServices, services, businessId, business, branches } = useTenant();
   const { terminology } = useBusinessContext();
   const profesionalPlural = `${terminology.professionalNoun}s`;
 
@@ -338,7 +339,14 @@ export default function ProfessionalsPage() {
                       )}
                     </span>
                   </td>
-                  <td className="oculta-mobile"><span className="text-sm">{days}</span></td>
+                  <td className="oculta-mobile">
+                    <span className="text-sm">{days}</span>
+                    {hayVariasSucursales(branches) && (
+                      <div className="text-xs text-muted">
+                        {sucursalesDeProfesional(branches, schedules, prof.id).map((b) => b.name).join(' · ')}
+                      </div>
+                    )}
+                  </td>
                   <td>
                     <span className={`badge ${prof.isActive ? 'badge-success' : 'badge-neutral'}`}>
                       {prof.isActive ? 'Activo' : 'Inactivo'}
@@ -505,7 +513,13 @@ export default function ProfessionalsPage() {
                   <p className="text-xs text-muted" style={{ marginBottom: 'var(--space-sm)' }}>
                     Para horario cortado, agregá más de una franja el mismo día — ej. de 9 a 13 y de nuevo de 17 a 21.
                   </p>
-                  <HorarioSemanal dias={editSchedules} onChange={setEditSchedules} diaCorto />
+                  <HorarioSemanal
+                    dias={editSchedules}
+                    onChange={setEditSchedules}
+                    diaCorto
+                    sucursales={sucursalesActivas(branches)}
+                    sucursalPorDefecto={sucursalPrincipal(branches)?.id || null}
+                  />
                 </div>
 
               </div>

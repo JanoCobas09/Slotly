@@ -14,6 +14,7 @@ import ActivarNotificaciones from '../admin/ActivarNotificaciones';
 const ownerNavItems = [
   { to: '/admin',               icon: 'home',      label: 'Inicio',           end: true },
   { to: '/admin/dashboard',     icon: 'dashboard', label: 'Dashboard' },
+  { to: '/admin/sucursales',    icon: 'building',   label: 'Sucursales' },
   { to: '/admin/profesionales', icon: 'users',      label: 'Profesionales' },
   { to: '/admin/servicios',     icon: 'services',   label: 'Servicios' },
   { to: '/admin/promociones',   icon: 'tag',        label: 'Promociones' },
@@ -34,9 +35,19 @@ const adminNavItems = [
   { to: '/admin/soporte', icon: 'chat',     label: 'Soporte' },
 ];
 
+// Administrador de UNA sucursal: su agenda, su equipo, sus días y su horario.
+const managerNavItems = [
+  { to: '/admin',                 icon: 'home',     label: 'Inicio', end: true },
+  { to: '/admin/citas',           icon: 'calendar', label: 'Citas' },
+  { to: '/admin/equipo',          icon: 'users',    label: 'Equipo' },
+  { to: '/admin/dias-bloqueados', icon: 'lock',     label: 'Días bloqueados' },
+  { to: '/admin/mi-sucursal',     icon: 'building', label: 'Mi sucursal' },
+];
+
 const ROLE_COLORS = {
   owner: 'var(--primary)',
   admin: 'var(--success)',
+  manager: 'var(--accent)',
 };
 
 // Mismo número que la landing y el widget flotante. Si cambia, cambia en los tres.
@@ -71,10 +82,11 @@ export default function AdminLayout() {
   const { instalable, conPromptNativo, esIOS, instalar } = useInstallPrompt();
 
   const isOwner = user?.role === 'owner';
-  const navItems = isOwner ? ownerNavItems : adminNavItems;
+  const navItems = isOwner ? ownerNavItems : user?.role === 'manager' ? managerNavItems : adminNavItems;
   const roleLabels = {
     owner: 'Dueño/a',
     admin: capitalize(terminology.professionalNoun),
+    manager: 'Admin. de sucursal',
   };
   const roleInfo = {
     text: roleLabels[user?.role] || roleLabels.admin,

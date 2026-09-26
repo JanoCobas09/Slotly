@@ -43,6 +43,10 @@ const SettingsPage        = lazy(() => import('./pages/admin/SettingsPage'));
 const AdminsPage          = lazy(() => import('./pages/admin/AdminsPage'));
 const ProfileSettingsPage = lazy(() => import('./pages/admin/ProfileSettingsPage'));
 const SupportPage         = lazy(() => import('./pages/admin/SupportPage'));
+const SucursalesPage      = lazy(() => import('./pages/admin/SucursalesPage'));
+// Administrador de sucursal
+const EquipoSucursalPage  = lazy(() => import('./pages/admin/EquipoSucursalPage'));
+const MiSucursalPage      = lazy(() => import('./pages/admin/MiSucursalPage'));
 
 // Panel global
 const SuperAdminDashboard = lazy(() => import('./pages/super-admin/SuperAdminDashboard'));
@@ -74,7 +78,7 @@ function ProtectedRoute({ children, adminOnly = false, superAdminOnly = false })
     return <Navigate to="/" replace />;
   }
 
-  if (adminOnly && user?.role !== 'admin' && user?.role !== 'owner' && !platformOwner) {
+  if (adminOnly && !['admin', 'owner', 'manager'].includes(user?.role) && !platformOwner) {
     return <Navigate to="/" replace />;
   }
 
@@ -116,7 +120,7 @@ function PublicOnlyRoute({ children }) {
     if (user?.isPlatformTeam || isPlatformOwner(user?.email)) {
       return <Navigate to="/super-admin" replace />;
     }
-    if (user?.role === 'owner' || user?.role === 'admin') {
+    if (['owner', 'admin', 'manager'].includes(user?.role)) {
       return <Navigate to="/admin" replace />;
     }
   }
@@ -139,7 +143,7 @@ function EntryRoute() {
   if (isAuthenticated && (user?.isPlatformTeam || isPlatformOwner(user?.email))) {
     return <Navigate to="/super-admin" replace />;
   }
-  if (isAuthenticated && (user?.role === 'owner' || user?.role === 'admin')) {
+  if (isAuthenticated && ['owner', 'admin', 'manager'].includes(user?.role)) {
     return <Navigate to="/admin" replace />;
   }
   return <LandingPage />;
@@ -152,7 +156,26 @@ function EntryRoute() {
  */
 function AdminHome() {
   const { user } = useAuth();
-  return user?.role === 'owner' ? <InicioPage /> : <DashboardPage />;
+  // El administrador de sucursal ve la misma agenda que el dueño, de su sucursal.
+  return user?.role === 'owner' || user?.role === 'manager' ? <InicioPage /> : <DashboardPage />;
+}
+
+/**
+ * Pantallas de gestión del negocio: solo el dueño (y la plataforma). El
+ * menú ya no se las ofrece a los demás roles, pero entrando por la URL se
+ * veían — sin poder guardar nada (RLS), pero se veían.
+ */
+function SoloDueno({ children }) {
+  const { user } = useAuth();
+  if (user?.role !== 'owner' && !user?.isPlatformOwner) return <Navigate to="/admin" replace />;
+  return children;
+}
+
+/** Pantallas del administrador de sucursal. */
+function SoloManager({ children }) {
+  const { user } = useAuth();
+  if (user?.role !== 'manager') return <Navigate to="/admin" replace />;
+  return children;
 }
 
 function ClientLayout({ children }) {
@@ -210,16 +233,19 @@ export default function App() {
           </ProtectedRoute>
         }>
           <Route index element={<AdminHome />} />
-          <Route path="dashboard" element={<DashboardPage />} />
-          <Route path="profesionales" element={<ProfessionalsPage />} />
-          <Route path="servicios" element={<ServicesPage />} />
-          <Route path="promociones" element={<PromotionsPage />} />
+          <Route path="dashboard" element={<SoloDueno><DashboardPage /></SoloDueno>} />
+          <Route path="profesionales" element={<SoloDueno><ProfessionalsPage /></SoloDueno>} />
+          <Route path="servicios" element={<SoloDueno><ServicesPage /></SoloDueno>} />
+          <Route path="promociones" element={<SoloDueno><PromotionsPage /></SoloDueno>} />
           <Route path="dias-bloqueados" element={<BlockedDaysPage />} />
           <Route path="citas" element={<AppointmentsPage />} />
           <Route path="admins" element={<AdminsPage />} />
-          <Route path="configuracion" element={<SettingsPage />} />
+          <Route path="configuracion" element={<SoloDueno><SettingsPage /></SoloDueno>} />
           <Route path="ajustes" element={<ProfileSettingsPage />} />
           <Route path="soporte" element={<SupportPage />} />
+          <Route path="sucursales" element={<SoloDueno><SucursalesPage /></SoloDueno>} />
+          <Route path="equipo" element={<SoloManager><EquipoSucursalPage /></SoloManager>} />
+          <Route path="mi-sucursal" element={<SoloManager><MiSucursalPage /></SoloManager>} />
         </Route>
 
         {/* ── Rutas de super-admin ────────────────────────────────── */}

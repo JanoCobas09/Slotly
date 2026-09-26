@@ -22,18 +22,21 @@ Deno.serve(async (req) => {
       throw unauthenticated('Esto solo lo puede llamar el propio proyecto.');
     }
 
-    const { businessId, professionalId = null, title, body, url } = await req.json();
+    const { businessId, professionalId = null, branchId = null, title, body, url } = await req.json();
     if (!businessId || !title || !body) throw invalidArgument('Faltan businessId, title o body.');
 
     const admin = supabaseAdmin();
     const { data: subs, error } = await admin
       .from('push_subscriptions')
-      .select('endpoint, p256dh, auth_key, role, professional_id')
+      .select('endpoint, p256dh, auth_key, role, professional_id, branch_id')
       .eq('business_id', businessId);
     if (error) throw error;
 
+    // Dueño: todo. Profesional: lo suyo. Administrador de sucursal: lo de su sucursal.
     const destinatarios = (subs || []).filter(
-      (s) => s.role === 'owner' || (s.role === 'admin' && s.professional_id === professionalId),
+      (s) => s.role === 'owner'
+        || (s.role === 'admin' && s.professional_id === professionalId)
+        || (s.role === 'manager' && branchId && s.branch_id === branchId),
     );
     if (destinatarios.length === 0) return jsonResponse({ status: 'sin-destinatarios', enviados: 0 }, corsHeaders);
 

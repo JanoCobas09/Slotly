@@ -31,7 +31,7 @@ export default function ActivarNotificaciones() {
   const [estado, setEstado] = useState('oculto'); // oculto | visible | activando | listo | error
   const [error, setError] = useState('');
 
-  const esStaff = user?.role === 'owner' || user?.role === 'admin';
+  const esStaff = user?.role === 'owner' || user?.role === 'admin' || user?.role === 'manager';
 
   useEffect(() => {
     if (!esStaff || !businessId) return;
@@ -53,6 +53,7 @@ export default function ActivarNotificaciones() {
       uid: user.id,
       role: user.role,
       professionalId: user.professionalId || null,
+      branchId: user.branchId || null,
     });
     if (res.ok) {
       window.dispatchEvent(new Event(EVENTO_PUSH_ACTIVADO));

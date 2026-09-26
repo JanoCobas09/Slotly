@@ -57,7 +57,7 @@ export async function registerServiceWorker() {
  * @param {{businessId: string, uid: string, role: string, professionalId?: string|null, onForegroundMessage?: (payload: any) => void}} args
  * @returns {Promise<{ok: true, endpoint: string} | {ok: false, error: string}>}
  */
-export async function enablePushNotifications({ businessId, uid, role, professionalId = null }) {
+export async function enablePushNotifications({ businessId, uid, role, professionalId = null, branchId = null }) {
   if (!VAPID_PUBLIC_KEY) {
     return { ok: false, error: 'Falta configurar la clave VAPID (VITE_VAPID_PUBLIC_KEY).' };
   }
@@ -89,7 +89,7 @@ export async function enablePushNotifications({ businessId, uid, role, professio
   }
 
   const json = suscripcion.toJSON();
-  await savePushToken(businessId, json, { uid, role, professionalId });
+  await savePushToken(businessId, json, { uid, role, professionalId, branchId });
 
   return { ok: true, endpoint: json.endpoint };
 }

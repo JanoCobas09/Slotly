@@ -18,6 +18,7 @@ export interface TurnoParaMail {
   business_id: string; professional_id: string; client_email: string | null; client_name: string | null;
   service_name: string | null; appointment_date: string; start_time: string; end_time: string | null; price: number | null;
   deposit_amount?: number | null; deposit_status?: string | null;
+  branch_id?: string | null;
 }
 
 /**
@@ -29,9 +30,16 @@ export interface TurnoParaMail {
 export async function mandarConfirmacion(admin: SupabaseClient, turno: TurnoParaMail) {
   if (!turno.client_email) return;
   try {
-    const { data: negocio } = await admin.from('businesses').select('name, address, phone').eq('id', turno.business_id).maybeSingle();
+    const { data: negocioBase } = await admin.from('businesses').select('name, address, phone').eq('id', turno.business_id).maybeSingle();
     const { data: profesional } = await admin.from('professionals').select('name').eq('id', turno.professional_id).maybeSingle();
-    if (!negocio) return; // no debería pasar (el turno ya se creó contra este negocio), pero sin nombre no hay mail que armar
+    if (!negocioBase) return; // no debería pasar (el turno ya se creó contra este negocio), pero sin nombre no hay mail que armar
+
+    // Sucursal: su dirección y teléfono pisan los del negocio, y si el
+    // negocio tiene más de una se aclara en cuál es el turno.
+    const { data: sucursales } = await admin.from('branches').select('id, name, address, phone').eq('business_id', turno.business_id).eq('is_active', true);
+    const suc = (sucursales || []).find((b) => b.id === turno.branch_id) || null;
+    const nombreSucursal = (sucursales || []).length > 1 && suc ? suc.name : null;
+    const negocio = { name: negocioBase.name, address: suc?.address || negocioBase.address, phone: suc?.phone || negocioBase.phone };
 
     const senaPagada = turno.deposit_status === 'pagada' && turno.deposit_amount != null;
     const conProfesional = profesional?.name ? ` con ${profesional.name}` : '';
@@ -42,6 +50,7 @@ export async function mandarConfirmacion(admin: SupabaseClient, turno: TurnoPara
       `Tu turno${conProfesional} en ${negocio.name} quedó confirmado.\n\n` +
       `Fecha: ${fechaLinda(turno.appointment_date)}\n` +
       `Horario: ${turno.start_time}${turno.end_time ? ` a ${turno.end_time}` : ''}\n` +
+      (nombreSucursal ? `Sucursal: ${nombreSucursal}\n` : '') +
       (turno.service_name ? `Servicio: ${turno.service_name}\n` : '') +
       (turno.price != null ? `Precio: $${turno.price}\n` : '') +
       (senaPagada ? `Seña pagada: $${turno.deposit_amount}\n` : '') +
@@ -52,6 +61,7 @@ export async function mandarConfirmacion(admin: SupabaseClient, turno: TurnoPara
     const filas = [
       { label: 'Fecha', value: fechaLinda(turno.appointment_date) },
       { label: 'Horario', value: turno.end_time ? `${turno.start_time} a ${turno.end_time}` : turno.start_time },
+      ...(nombreSucursal ? [{ label: 'Sucursal', value: nombreSucursal }] : []),
       ...(turno.service_name ? [{ label: 'Servicio', value: turno.service_name }] : []),
       ...(profesional?.name ? [{ label: 'Con', value: profesional.name }] : []),
       ...(turno.price != null ? [{ label: 'Precio', value: `$${turno.price}` }] : []),

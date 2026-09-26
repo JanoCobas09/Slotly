@@ -9,6 +9,7 @@ import { formatDate, toDateString, getMonthName } from '../../utils/dateUtils';
 import { diaEnteroBloqueado, rangosDelDia } from '../../utils/bloqueos';
 import Icon from '../../components/Icon';
 import PrimerosPasos from '../../components/admin/PrimerosPasos';
+import { hayVariasSucursales, sucursalesActivas, profesionalesDeSucursal, horarioDe } from '../../utils/sucursales';
 
 /**
  * Inicio del dueño: el tablero para VER los turnos, en tres escalas.
@@ -61,9 +62,21 @@ const diaNum = (iso) => Number(iso.slice(8, 10));
 
 export default function InicioPage() {
   const { user } = useAuth();
-  const { appointments, professionals, services, business, blockedDays } = useTenant();
+  const { appointments, professionals: todosLosProfesionales, services, business, blockedDays, branches, schedules } = useTenant();
   const { terminology } = useBusinessContext();
   const isOwner = user?.role === 'owner';
+  // El administrador de sucursal: la agenda de SU sucursal (ya le llega
+  // filtrada), con las mismas acciones que el dueño.
+  const esManager = user?.role === 'manager';
+  const puedeEditar = isOwner || esManager;
+  const variasParaFiltrar = isOwner && hayVariasSucursales(branches);
+  const [filtroSucursal, setFiltroSucursal] = useState('');
+  const sucursalActiva = esManager ? user.branchId : filtroSucursal;
+  const professionals = sucursalActiva ? profesionalesDeSucursal(todosLosProfesionales, schedules, sucursalActiva) : todosLosProfesionales;
+  // La grilla del día se arma con el horario de la sucursal que se está mirando.
+  const negocioVisto = sucursalActiva
+    ? { ...business, businessHours: horarioDe((branches || []).find((b) => b.id === sucursalActiva), business) }
+    : business;
   const hoy = toDateString(new Date());
 
   const [vista, setVista] = useState('dia');
@@ -80,7 +93,8 @@ export default function InicioPage() {
   const visibles = useMemo(() => appointments
     .filter((a) => a.status !== 'cancelada')
     .filter((a) => !filtroProf || a.professionalId === filtroProf)
-    .sort((a, b) => a.startTime.localeCompare(b.startTime)), [appointments, filtroProf]);
+    .filter((a) => !filtroSucursal || a.branchId === filtroSucursal)
+    .sort((a, b) => a.startTime.localeCompare(b.startTime)), [appointments, filtroProf, filtroSucursal]);
 
   const porDia = useMemo(() => {
     const m = {};
@@ -186,6 +200,13 @@ export default function InicioPage() {
             </span>
           </div>
 
+          {variasParaFiltrar && (
+            <select className="form-input agenda-filtro" value={filtroSucursal} onChange={(e) => { setFiltroSucursal(e.target.value); setFiltroProf(''); }}>
+              <option value="">Todas las sucursales</option>
+              {sucursalesActivas(branches).map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
+          )}
+
           {varios && (
             <select className="form-input agenda-filtro" value={filtroProf} onChange={(e) => setFiltroProf(e.target.value)}>
               <option value="">Todos los {terminology.professionalNoun}s</option>
@@ -197,16 +218,16 @@ export default function InicioPage() {
         {/* ── Día ── */}
         {vista === 'dia' && (
           <AgendaDelDia
-            appointments={appointments}
+            appointments={filtroSucursal ? appointments.filter((a) => a.branchId === filtroSucursal) : appointments}
             professionals={professionals}
             services={services}
-            business={business}
+            business={negocioVisto}
             fecha={fecha}
             onFechaChange={setFecha}
             filtroProfesional={filtroProf}
             sinCabecera
             blockedDays={blockedDays}
-            renderAcciones={(apt) => <AccionesTurno apt={apt} isOwner={isOwner} onEditar={setEditando} />}
+            renderAcciones={(apt) => <AccionesTurno apt={apt} isOwner={puedeEditar} onEditar={setEditando} />}
           />
         )}
 

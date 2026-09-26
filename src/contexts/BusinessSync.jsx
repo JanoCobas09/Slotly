@@ -8,6 +8,7 @@ import {
   subscribeAllBilling,
   subscribeSubcollection,
   subscribeAppointmentsDeProfesional,
+  subscribeAppointmentsDeSucursal,
   subscribeMyAppointments,
   subscribeNotifications,
   getBusinessIdBySlug,
@@ -21,13 +22,15 @@ const COLECCIONES = [
   'professionalServices',
   'promotions',
   'blockedDays',
+  'branches',
+  'branchServicePrices',
   'appointments',
   'admins',
 ];
 
 // Lo que puede leer cualquiera sin estar logueado: lo que la página de reservas
 // necesita para armar la grilla.
-const PUBLICAS = ['professionals', 'services', 'schedules', 'professionalServices', 'promotions', 'blockedDays'];
+const PUBLICAS = ['professionals', 'services', 'schedules', 'professionalServices', 'promotions', 'blockedDays', 'branches', 'branchServicePrices'];
 
 const VACIO = { ...Object.fromEntries(COLECCIONES.map((c) => [c, []])), notifications: [] };
 
@@ -180,6 +183,7 @@ export default function BusinessSync() {
   const uid = user?.id ?? null;
   const rol = user?.role ?? null;
   const profId = user?.professionalId ?? null;
+  const branchId = user?.branchId ?? null;
   const esBypass = Boolean(user?.isBypass);
 
   useEffect(() => {
@@ -207,13 +211,16 @@ export default function BusinessSync() {
     // existía en el repositorio y nadie la llamaba.
     const esStaffCompleto = esPlataforma || rol === 'owner';
     const esStaffAsignado = rol === 'admin' && Boolean(profId);
-    const esCliente = Boolean(uid) && !esStaffCompleto && !esStaffAsignado;
+    // Administrador de sucursal: todo lo del negocio que es público, más la
+    // agenda y los avisos de SU sucursal (RLS no le deja ver más).
+    const esManager = rol === 'manager' && Boolean(branchId);
+    const esCliente = Boolean(uid) && !esStaffCompleto && !esStaffAsignado && !esManager;
 
     const cb = (col) => (filas) => dispatch({ type: 'SET_TENANT_DATA', payload: { [col]: filas } });
 
     const colecciones = esStaffCompleto ? COLECCIONES
       : esStaffAsignado ? COLECCIONES.filter((c) => c !== 'appointments')
-      : PUBLICAS;
+      : PUBLICAS; // manager, cliente y anónimo (la agenda del manager va aparte, filtrada)
 
     const offs = colecciones.map((col) =>
       subscribeSubcollection(businessId, col, cb(col), onError(col), { enVivo })
@@ -224,9 +231,13 @@ export default function BusinessSync() {
       offs.push(subscribeNotifications(businessId, {}, cb('notifications'), onError('notifications')));
     } else if (esStaffAsignado) {
       offs.push(subscribeNotifications(businessId, { professionalId: profId }, cb('notifications'), onError('notifications')));
+    } else if (esManager) {
+      offs.push(subscribeNotifications(businessId, { branchId }, cb('notifications'), onError('notifications')));
     }
 
-    if (esStaffAsignado) {
+    if (esManager) {
+      offs.push(subscribeAppointmentsDeSucursal(businessId, branchId, cb('appointments'), onError('appointments')));
+    } else if (esStaffAsignado) {
       offs.push(subscribeAppointmentsDeProfesional(businessId, profId, cb('appointments'), onError('appointments')));
     } else if (esCliente) {
       offs.push(subscribeMyAppointments(businessId, uid, cb('appointments'), onError('appointments')));
@@ -237,7 +248,7 @@ export default function BusinessSync() {
     dispatch({ type: 'SET_TENANT_DATA', payload: VACIO });
 
     return () => offs.forEach((off) => off());
-  }, [businessId, esBypass, uid, rol, profId, esPlataforma, enVivo, dispatch]);
+  }, [businessId, esBypass, uid, rol, profId, branchId, esPlataforma, enVivo, dispatch]);
 
   return null;
 }

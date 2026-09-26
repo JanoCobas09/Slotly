@@ -119,6 +119,7 @@ export default function CampanaNotificaciones() {
       uid,
       role: user.role,
       professionalId: user.professionalId || null,
+      branchId: user.branchId || null,
     });
     if (res.ok) {
       setPushEstado('activo');

@@ -14,10 +14,11 @@ import Icon from '../../components/Icon';
 import { validarProfesional, validarFranjas, LIMITES } from '../../utils/validaciones';
 import HorarioSemanal from '../../components/admin/HorarioSemanal';
 import { diasDesdeSchedules, schedulesDesdeDias } from '../../utils/horarioSemanal';
+import { sucursalesActivas, sucursalPrincipal } from '../../utils/sucursales';
 
 export default function ProfileSettingsPage() {
   const { user } = useAuth();
-  const { professionals, schedules, businessId } = useTenant();
+  const { professionals, schedules, businessId, branches } = useTenant();
   const { terminology } = useBusinessContext();
   const [guardando, setGuardando] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -206,7 +207,12 @@ export default function ProfileSettingsPage() {
             <p className="text-secondary text-sm mb-md">
               Los días de la semana y las horas en las que atendés. Para horario cortado, agregá más de una franja el mismo día — ej. de 9 a 13 y de 17 a 20.
             </p>
-            <HorarioSemanal dias={dias} onChange={setHorarioEditado} />
+            <HorarioSemanal
+              dias={dias}
+              onChange={setHorarioEditado}
+              sucursales={sucursalesActivas(branches)}
+              sucursalPorDefecto={sucursalPrincipal(branches)?.id || null}
+            />
           </div>
 
           <div className="flex gap-sm mt-lg justify-end">
