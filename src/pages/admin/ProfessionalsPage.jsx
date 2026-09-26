@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useTenant } from '../../hooks/useTenantData';
 import {
   addToSubcollection,
@@ -19,6 +20,7 @@ import Icon from '../../components/Icon';
 import { validarProfesional, validarFranjas, LIMITES } from '../../utils/validaciones';
 import HorarioSemanal from '../../components/admin/HorarioSemanal';
 import { diasDesdeSchedules, schedulesDesdeDias } from '../../utils/horarioSemanal';
+import PrimerosPasos from '../../components/admin/PrimerosPasos';
 
 // Mismo número que la landing y el resto del panel.
 const LINK_AMPLIAR = 'https://wa.me/5492257660073?text=' +
@@ -120,6 +122,16 @@ export default function ProfessionalsPage() {
     setEditServices(activeServices.map(s => s.id));
     setShowModal(true);
   };
+
+  // Llegó desde "Primeros pasos" (?nuevo=1): el alta abierta, apenas estén
+  // los servicios (el alta los necesita para "Servicios que ofrece").
+  const [params, setParams] = useSearchParams();
+  useEffect(() => {
+    if (params.get('nuevo') !== '1' || sinServicios) return;
+    setParams({}, { replace: true });
+    openAdd();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sinServicios]);
 
   // ── Abrir modal EDITAR ─────────────────────────────────────────────────────
   const openEdit = (prof) => {
@@ -263,6 +275,8 @@ export default function ProfessionalsPage() {
           + Agregar Profesional
         </button>
       </div>
+
+      <PrimerosPasos variante="pagina" />
 
       {llegoAlTope && (
         <div className="notice notice-info" style={{ marginBottom: 'var(--space-md)' }}>

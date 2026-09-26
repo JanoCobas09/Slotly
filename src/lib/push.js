@@ -105,6 +105,13 @@ export async function disablePushNotifications({ businessId }) {
   await removePushToken(businessId, endpoint);
 }
 
+/**
+ * Se dispara en `window` cuando se activó el push desde otro lugar que la
+ * campanita (ActivarNotificaciones, al abrir la app instalada): así la
+ * campanita deja de ofrecer "Activar" sin tener que recargar.
+ */
+export const EVENTO_PUSH_ACTIVADO = 'slotly:push-activado';
+
 export function pushSupported() {
   return 'serviceWorker' in navigator && 'Notification' in window && 'PushManager' in window;
 }

@@ -4339,3 +4339,27 @@ select.form-input {
   .mes-celda-lista { display: none; }
   .mes-celda-cuenta { display: inline-block; }
 }
+
+/* ── Primeros pasos (PrimerosPasos.jsx) ─────────────────────────────────── */
+.guia { margin-bottom: var(--space-md); }
+.guia-cabecera { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-sm); }
+.guia-cabecera h3 { margin-bottom: 2px; }
+.guia-progreso { height: 6px; background: var(--bg-secondary); border-radius: 999px; margin: var(--space-md) 0; overflow: hidden; }
+.guia-progreso > div { height: 100%; background: var(--primary); border-radius: 999px; transition: width var(--transition); }
+.guia-pasos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.guia-paso { display: flex; align-items: center; gap: var(--space-sm); padding: 10px 12px; border-radius: var(--radius-md); border: 1px solid transparent; }
+.guia-paso.actual { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 7%, var(--surface, #fff)); }
+.guia-paso.hecho .guia-cuerpo strong { color: var(--text-muted); text-decoration: line-through; font-weight: 500; }
+.guia-numero { flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; background: var(--bg-secondary); color: var(--text-secondary); }
+.guia-paso.actual .guia-numero { background: var(--primary); color: var(--on-primary, #fff); }
+.guia-paso.hecho .guia-numero { background: var(--success-light); color: var(--success); }
+.guia-cuerpo { flex: 1; min-width: 0; }
+.guia-cuerpo p { margin-top: 2px; }
+.guia-link { font-family: var(--font-mono); word-break: break-all; color: var(--text); }
+.guia-linea { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-sm); padding: 10px 14px; margin-bottom: var(--space-md); border-radius: var(--radius-md); border: 1px solid var(--primary); background: color-mix(in srgb, var(--primary) 7%, var(--surface, #fff)); font-size: 0.85rem; }
+.guia-linea-paso { font-weight: 700; color: var(--primary); }
+.guia-linea-texto { flex: 1; min-width: 180px; }
+@media (max-width: 560px) {
+  .guia-paso.actual { flex-wrap: wrap; }
+  .guia-paso.actual .btn { width: 100%; }
+}

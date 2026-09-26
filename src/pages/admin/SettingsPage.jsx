@@ -8,6 +8,7 @@ import { applyTheme } from '../../config/theme';
 import Icon from '../../components/Icon';
 import SenaMercadoPagoCard from '../../components/admin/SenaMercadoPagoCard';
 import { validarNegocio, normalizarInstagram, LIMITES } from '../../utils/validaciones';
+import PrimerosPasos from '../../components/admin/PrimerosPasos';
 
 const defaultHours = [
   { dayOfWeek: 0, startTime: '09:00', endTime: '20:00', isActive: true },
@@ -174,6 +175,8 @@ export default function SettingsPage() {
         <h1>Configuración</h1>
         {saved && <span className="badge badge-success"><Icon name="check-circle" /> Guardado</span>}
       </div>
+
+      <PrimerosPasos variante="pagina" />
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-lg)' }}>
         {/* Left: Form */}

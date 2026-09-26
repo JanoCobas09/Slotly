@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useTenant } from '../../hooks/useTenantData';
 import {
   addToSubcollection,
@@ -10,6 +11,7 @@ import { validarServicio, LIMITES } from '../../utils/validaciones';
 import { formatPrice } from '../../utils/dateUtils';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
 import Icon from '../../components/Icon';
+import PrimerosPasos from '../../components/admin/PrimerosPasos';
 
 export default function ServicesPage() {
   const { services, professionals, professionalServices, business, businessId } = useTenant();
@@ -18,19 +20,31 @@ export default function ServicesPage() {
   const [cargandoSugeridos, setCargandoSugeridos] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ name: '', description: '', durationMinutes: 30, price: 0, category: '' });
+  // Duración y precio se editan como TEXTO y se pasan a número recién al
+  // guardar: con `parseFloat(valor) || 0` en cada tecla, borrar el campo lo
+  // volvía a 0 al instante y lo que se tipeaba quedaba "01500".
+  const [form, setForm] = useState({ name: '', description: '', durationMinutes: '30', price: '', category: '' });
   const [assignedProfs, setAssignedProfs] = useState([]);
 
   const openAdd = () => {
     setEditing(null);
-    setForm({ name: '', description: '', durationMinutes: 30, price: 0, category: '' });
+    setForm({ name: '', description: '', durationMinutes: '30', price: '', category: '' });
     setAssignedProfs([]);
     setShowModal(true);
   };
 
+  // Llegó desde "Primeros pasos" (?nuevo=1): el formulario de alta abierto.
+  const [params, setParams] = useSearchParams();
+  useEffect(() => {
+    if (params.get('nuevo') !== '1') return;
+    setParams({}, { replace: true });
+    openAdd();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const openEdit = (srv) => {
     setEditing(srv);
-    setForm({ name: srv.name, description: srv.description || '', durationMinutes: srv.durationMinutes, price: srv.price, category: srv.category || '' });
+    setForm({ name: srv.name, description: srv.description || '', durationMinutes: String(srv.durationMinutes ?? ''), price: String(srv.price ?? ''), category: srv.category || '' });
     const assigned = professionalServices.filter(ps => ps.serviceId === srv.id).map(ps => ps.professionalId);
     setAssignedProfs(assigned);
     setShowModal(true);
@@ -44,23 +58,28 @@ export default function ServicesPage() {
     if (!businessId) return;
     // Antes: `!form.price` cortaba en silencio un servicio de precio 0 (una
     // consulta gratis es válida) y no validaba nada más.
+    if (String(form.price).trim() === '') {
+      alert('Poné el precio del servicio (0 si es gratis).');
+      return;
+    }
     const errorDatos = validarServicio(form);
     if (errorDatos) {
       alert(errorDatos);
       return;
     }
+    const datos = { ...form, durationMinutes: Number(form.durationMinutes), price: Number(form.price) };
 
     setGuardando(true);
     try {
       const serviceId = editing
         ? editing.id
         : await addToSubcollection(businessId, 'services', {
-            ...form,
+            ...datos,
             isActive: true,
           });
 
       if (editing) {
-        await updateInSubcollection(businessId, 'services', serviceId, { ...form });
+        await updateInSubcollection(businessId, 'services', serviceId, datos);
       }
 
       // Reasigna qué profesionales prestan este servicio (reemplaza los anteriores).
@@ -134,6 +153,8 @@ export default function ServicesPage() {
         <h1>Servicios</h1>
         <button className="btn btn-primary" onClick={openAdd}>+ Agregar Servicio</button>
       </div>
+
+      <PrimerosPasos variante="pagina" />
 
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         <table className="data-table">
@@ -222,11 +243,11 @@ export default function ServicesPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
                   <div className="form-group">
                     <label className="form-label">Duración (min) <span className="required">*</span></label>
-                    <input className="form-input" type="number" min={5} max={720} step={5} value={form.durationMinutes} onChange={e => setForm({ ...form, durationMinutes: parseInt(e.target.value) || 0 })} />
+                    <input className="form-input" type="number" min={5} max={720} step={5} inputMode="numeric" value={form.durationMinutes} onChange={e => setForm({ ...form, durationMinutes: e.target.value })} />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Precio <span className="required">*</span></label>
-                    <input className="form-input" type="number" min={0} value={form.price} onChange={e => setForm({ ...form, price: parseFloat(e.target.value) || 0 })} />
+                    <input className="form-input" type="number" min={0} inputMode="decimal" placeholder="Ej: 12000" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} />
                   </div>
                 </div>
                 <div className="form-group">

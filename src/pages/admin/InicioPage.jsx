@@ -8,6 +8,7 @@ import NuevoTurnoModal from '../../components/admin/NuevoTurnoModal';
 import { formatDate, toDateString, getMonthName } from '../../utils/dateUtils';
 import { diaEnteroBloqueado, rangosDelDia } from '../../utils/bloqueos';
 import Icon from '../../components/Icon';
+import PrimerosPasos from '../../components/admin/PrimerosPasos';
 
 /**
  * Inicio del dueño: el tablero para VER los turnos, en tres escalas.
@@ -148,6 +149,8 @@ export default function InicioPage() {
         <h1>Inicio</h1>
         <button className="btn btn-primary" onClick={() => setAgendando(true)}>+ Agendar {terminology.appointmentNoun}</button>
       </div>
+
+      <PrimerosPasos />
 
       {agendando && <NuevoTurnoModal onClose={() => setAgendando(false)} />}
       {editando && <NuevoTurnoModal turno={editando} onClose={() => setEditando(null)} />}

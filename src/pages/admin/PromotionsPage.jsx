@@ -43,8 +43,9 @@ export default function PromotionsPage() {
   const handleSave = async () => {
     if (!form.serviceId) return setError('Elegí un servicio.');
     if (form.startTime >= form.endTime) return setError('El horario "hasta" tiene que ser después del "desde".');
-    if (!(form.discountValue > 0)) return setError('El descuento tiene que ser mayor a cero.');
-    if (form.discountType === 'percentage' && form.discountValue >= 100) {
+    const valor = Number(form.discountValue);
+    if (!(valor > 0)) return setError('El descuento tiene que ser mayor a cero.');
+    if (form.discountType === 'percentage' && valor >= 100) {
       return setError('El porcentaje tiene que ser menor a 100.');
     }
 
@@ -52,9 +53,9 @@ export default function PromotionsPage() {
     setError('');
     try {
       if (editing) {
-        await updateInSubcollection(businessId, 'promotions', editing.id, { ...form });
+        await updateInSubcollection(businessId, 'promotions', editing.id, { ...form, discountValue: valor });
       } else {
-        await addToSubcollection(businessId, 'promotions', { ...form });
+        await addToSubcollection(businessId, 'promotions', { ...form, discountValue: valor });
       }
       setShowModal(false);
     } catch (err) {
@@ -235,7 +236,10 @@ export default function PromotionsPage() {
                   <input
                     className="form-input" type="number" min="0" max={form.discountType === 'percentage' ? 99 : undefined}
                     value={form.discountValue}
-                    onChange={(e) => setForm((f) => ({ ...f, discountValue: Number(e.target.value) || 0 }))}
+                    inputMode="decimal"
+                    // Como texto mientras se tipea (ver ServicesPage): con
+                    // `Number(valor) || 0` el campo nunca se podía vaciar.
+                    onChange={(e) => setForm((f) => ({ ...f, discountValue: e.target.value }))}
                     style={{ maxWidth: 160 }}
                   />
                   <span className="text-sm text-muted">{form.discountType === 'fixed' ? (business?.currency || 'ARS') : '%'}</span>

@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../hooks/useTenantData';
 import { useCurrentBusiness } from '../../hooks/useCurrentBusiness';
 import { markNotificationRead } from '../../lib/repository';
-import { enablePushNotifications } from '../../lib/push';
+import { enablePushNotifications, EVENTO_PUSH_ACTIVADO } from '../../lib/push';
 import { enviarPushDePrueba } from '../../lib/functions';
 import Icon from '../Icon';
 import Toast from '../Toast';
@@ -60,6 +60,13 @@ export default function CampanaNotificaciones() {
     const t = setTimeout(() => setToast(null), 3000);
     return () => clearTimeout(t);
   }, [toast]);
+
+  // Si se activó desde la ventana de la app instalada (ActivarNotificaciones).
+  useEffect(() => {
+    const alActivar = () => { setPermiso('granted'); setPushEstado('activo'); };
+    window.addEventListener(EVENTO_PUSH_ACTIVADO, alActivar);
+    return () => window.removeEventListener(EVENTO_PUSH_ACTIVADO, alActivar);
+  }, []);
 
   const uid = user?.id;
   const noLeidas = notificaciones.filter((n) => !n.leidaPor?.[uid]);

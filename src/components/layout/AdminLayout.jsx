@@ -8,6 +8,7 @@ import { useBusinessContext } from '../../hooks/useBusinessContext';
 import { useInstallPrompt } from '../../hooks/useInstallPrompt';
 import { capitalize } from '../../utils/text';
 import Icon from '../Icon';
+import ActivarNotificaciones from '../admin/ActivarNotificaciones';
 
 // Items visibles solo para el dueño (owner)
 const ownerNavItems = [
@@ -186,6 +187,7 @@ export default function AdminLayout() {
       {/* Main Content */}
       <main className="admin-main">
         {isOwner && <InstalarAppBanner />}
+        <ActivarNotificaciones />
 
         {/* Prueba gratis: los días que quedan, y qué hacer cuando se termina. */}
         {(() => {
