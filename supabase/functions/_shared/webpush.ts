@@ -20,6 +20,18 @@ export interface PushPayload {
   title: string;
   body: string;
   url?: string;
+  /** Imagen grande de la notificación (la cuadrada de la derecha en Android): la foto del negocio. */
+  icon?: string | null;
+}
+
+/**
+ * La foto de perfil del negocio, para usarla como ícono de la notificación.
+ * Es pública (bucket business-logos, la misma que ve el cliente en el link).
+ * Sin foto, null: el service worker usa el ícono de Slotly.
+ */
+export async function fotoDelNegocio(admin: SupabaseClient, businessId: string): Promise<string | null> {
+  const { data } = await admin.from('businesses').select('logo_url').eq('id', businessId).maybeSingle();
+  return data?.logo_url || null;
 }
 
 function vapidListo(): boolean {
@@ -44,7 +56,7 @@ export async function enviarWebPush(admin: SupabaseClient, destinatarios: PushRo
 
   let enviados = 0;
   let fallidos = 0;
-  const cuerpo = JSON.stringify({ title: payload.title, body: payload.body, url: payload.url || '/admin/citas' });
+  const cuerpo = JSON.stringify({ title: payload.title, body: payload.body, url: payload.url || '/admin/citas', icon: payload.icon || null });
 
   await Promise.all(destinatarios.map(async (d) => {
     try {

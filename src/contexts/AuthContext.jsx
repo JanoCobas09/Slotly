@@ -91,6 +91,13 @@ async function reclamarPendientes(supabaseUser) {
 async function limpiarSiHuerfano(supabaseUser) {
   const meta = supabaseUser.app_metadata || {};
   if (meta.platform || !meta.business_id) return supabaseUser;
+  // Nunca puede trabar el ingreso: si no contesta en 5 segundos, se sigue
+  // con la cuenta como está (el próximo ingreso lo vuelve a intentar).
+  const tope = new Promise((resolve) => setTimeout(() => resolve(supabaseUser), 5000));
+  return Promise.race([revisarHuerfano(supabaseUser, meta), tope]);
+}
+
+async function revisarHuerfano(supabaseUser, meta) {
   try {
     const consultas = [supabase.from('businesses').select('id').eq('id', meta.business_id).maybeSingle()];
     if (meta.role === 'manager' && meta.branch_id) {

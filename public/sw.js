@@ -18,13 +18,18 @@ self.addEventListener('push', (event) => {
     datos = { title: 'Nuevo turno', body: event.data ? event.data.text() : '' };
   }
 
-  const { title = 'Slotly', body = '', url = '/admin/citas' } = datos;
+  const { title = 'Slotly', body = '', url = '/admin/citas', icon = null } = datos;
 
   event.waitUntil(
     self.registration.showNotification(title, {
       body,
-      icon: '/icons/icon-192.png',
-      badge: '/icons/icon-192.png',
+      // La imagen grande (a la derecha en Android): la foto del negocio si
+      // cargó una; si no, el ícono de Slotly.
+      icon: icon || '/icons/icon-192.png',
+      // El circulito chico: Android lo pinta de un color usando solo la
+      // transparencia, por eso es el glifo blanco sobre fondo transparente
+      // (con el ícono común salía un cuadrado blanco lleno).
+      badge: '/icons/badge-96.png',
       data: { url },
     })
   );

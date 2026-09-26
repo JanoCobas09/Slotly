@@ -43,6 +43,18 @@ const svgFullBleed = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 5
   ${BARRAS}
 </svg>`;
 
+// Insignia de las notificaciones push (el circulito chico de la izquierda en
+// Android): el sistema la pinta de un solo color usando SOLO el canal alfa,
+// así que tiene que ser el glifo en blanco sobre fondo TRANSPARENTE. Con el
+// ícono común (fondo negro opaco) Android dibujaba un cuadrado blanco lleno.
+// Las barras con algo de transparencia para que se siga leyendo el
+// decrecimiento; el glifo ocupa casi todo el lienzo (no lo recorta nadie).
+const svgBadge = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="10 10 44 44">
+  <rect x="15" y="17" width="34" height="8" rx="4" fill="#ffffff" />
+  <rect x="15" y="28" width="26" height="8" rx="4" fill="#ffffff" fill-opacity="0.8" />
+  <rect x="15" y="39" width="18" height="8" rx="4" fill="#ffffff" fill-opacity="0.6" />
+</svg>`;
+
 await mkdir('public/icons', { recursive: true });
 
 const trabajos = [
@@ -51,6 +63,7 @@ const trabajos = [
   { svg: svgFullBleed, size: 192, out: 'public/icons/maskable-192.png' },
   { svg: svgFullBleed, size: 512, out: 'public/icons/maskable-512.png' },
   { svg: svgFullBleed, size: 180, out: 'public/icons/apple-touch-icon.png' },
+  { svg: svgBadge, size: 96, out: 'public/icons/badge-96.png' },
 ];
 
 for (const { svg, size, out } of trabajos) {

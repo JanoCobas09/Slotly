@@ -10,7 +10,7 @@
 // todo, el staff asignado a un profesional solo lo suyo.
 import { corsHeaders } from '../_shared/cors.ts';
 import { supabaseAdmin, errorResponse, jsonResponse, unauthenticated, invalidArgument } from '../_shared/auth.ts';
-import { enviarWebPush } from '../_shared/webpush.ts';
+import { enviarWebPush, fotoDelNegocio } from '../_shared/webpush.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -40,7 +40,8 @@ Deno.serve(async (req) => {
     );
     if (destinatarios.length === 0) return jsonResponse({ status: 'sin-destinatarios', enviados: 0 }, corsHeaders);
 
-    const { enviados, fallidos } = await enviarWebPush(admin, destinatarios, { title, body, url });
+    const icon = await fotoDelNegocio(admin, businessId);
+    const { enviados, fallidos } = await enviarWebPush(admin, destinatarios, { title, body, url, icon });
     return jsonResponse({ status: 'processed', enviados, fallidos }, corsHeaders);
   } catch (err) {
     return errorResponse(err, corsHeaders);

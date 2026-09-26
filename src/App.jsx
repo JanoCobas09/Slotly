@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import { useBusiness } from './contexts/BusinessContext';
@@ -109,12 +109,31 @@ function TenantRoute({ children }) {
   return children;
 }
 
-/** Rueda de carga mientras se busca el negocio del link. */
+/**
+ * Rueda de carga mientras se busca el negocio del link. Si tarda de más
+ * (sin conexión, algo que no contestó), no se queda girando para siempre:
+ * avisa y ofrece recargar.
+ */
 function CargandoNegocio() {
+  const [demora, setDemora] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setDemora(true), 10000);
+    return () => clearTimeout(t);
+  }, []);
   return (
     <div className="cargando-negocio" role="status" aria-live="polite">
-      <div className="spinner" aria-hidden="true" />
-      <span className="sr-only">Buscando el negocio…</span>
+      {demora ? (
+        <div className="empty-state" style={{ maxWidth: 420 }}>
+          <h2>Está tardando más de lo normal</h2>
+          <p>Revisá tu conexión y volvé a intentar.</p>
+          <button type="button" className="btn btn-primary" onClick={() => window.location.reload()}>Recargar</button>
+        </div>
+      ) : (
+        <>
+          <div className="spinner" aria-hidden="true" />
+          <span className="sr-only">Buscando el negocio…</span>
+        </>
+      )}
     </div>
   );
 }

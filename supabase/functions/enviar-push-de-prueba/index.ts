@@ -10,7 +10,7 @@
 // nadie más.
 import { corsHeaders } from '../_shared/cors.ts';
 import { getCaller, supabaseAdmin, errorResponse, jsonResponse, permissionDenied, failedPrecondition } from '../_shared/auth.ts';
-import { enviarWebPush } from '../_shared/webpush.ts';
+import { enviarWebPush, fotoDelNegocio } from '../_shared/webpush.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -35,6 +35,7 @@ Deno.serve(async (req) => {
       title: 'Notificación de prueba',
       body: 'Si ves esto, el push está funcionando en este dispositivo.',
       url: '/admin/citas',
+      icon: await fotoDelNegocio(admin, caller.businessId),
     });
     if (enviados === 0) {
       return jsonResponse({ status: 'failed', message: 'No se pudo enviar a ningún dispositivo registrado.' }, corsHeaders, 500);
