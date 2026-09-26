@@ -69,6 +69,8 @@ export default function SuperAdminDashboard() {
   const [selectedPlan, setSelectedPlan] = useState('basico');
   const [upgradeQuota, setUpgradeQuota] = useState('');
   const [upgradeFee, setUpgradeFee] = useState('');
+  // Plan gratis: la cuenta tiene el plan elegido pero no se le cobra (ver cambiar_plan en la base).
+  const [upgradeGratis, setUpgradeGratis] = useState(false);
 
   // WhatsApp Form
   const [waForm, setWaForm] = useState({
@@ -186,6 +188,7 @@ export default function SuperAdminDashboard() {
       setUpgradeQuota(String(biz.whatsappQuota ?? ''));
       setUpgradeFee(String(biz.monthlyFee ?? ''));
     }
+    setUpgradeGratis(Boolean(biz.planGratis));
     setModalType('upgrade');
   };
 
@@ -251,6 +254,7 @@ export default function SuperAdminDashboard() {
         planId: plan ? plan.id : 'personalizado',
         whatsappQuota: quota,
         monthlyFee: fee,
+        gratis: upgradeGratis,
       });
     } catch (err) {
       console.error('[super-admin] No se pudo cambiar el plan:', err);
@@ -269,7 +273,9 @@ export default function SuperAdminDashboard() {
         type: 'Plan Actualizado',
         status: 'sent',
         sentAt: new Date().toISOString(),
-        message: `Hola ${selectedBusiness.name}, tu plan ha sido actualizado a ${planLabel}. Nueva cuota: ${quota} mensajes/mes, abono mensual: ${formatPrice(fee)}.`
+        message: upgradeGratis
+          ? `Hola ${selectedBusiness.name}, te activamos el ${planLabel} sin cargo. Cuota: ${quota} mensajes/mes, sin abono mensual.`
+          : `Hola ${selectedBusiness.name}, tu plan ha sido actualizado a ${planLabel}. Nueva cuota: ${quota} mensajes/mes, abono mensual: ${formatPrice(fee)}.`
       }
     });
 
@@ -701,8 +707,11 @@ export default function SuperAdminDashboard() {
                         </div>
                       </div>
                     </div>
-                    <span className={`badge ${b.isFrozen ? 'badge-danger' : 'badge-success'}`} style={{ fontSize: 11 }}>
-                      {b.isFrozen ? 'Suspendido' : 'Activo'}
+                    <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                      {b.planGratis && <span className="badge badge-primary" style={{ fontSize: 11 }}>Plan gratis</span>}
+                      <span className={`badge ${b.isFrozen ? 'badge-danger' : 'badge-success'}`} style={{ fontSize: 11 }}>
+                        {b.isFrozen ? 'Suspendido' : 'Activo'}
+                      </span>
                     </span>
                   </div>
 
@@ -1407,6 +1416,21 @@ export default function SuperAdminDashboard() {
                   </div>
                 </div>
               )}
+
+              <label
+                className="card"
+                style={{ marginTop: 'var(--space-md)', padding: '10px 14px', display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', border: upgradeGratis ? '2px solid var(--primary)' : '1px solid var(--border-color)' }}
+              >
+                <input type="checkbox" checked={upgradeGratis} onChange={(e) => setUpgradeGratis(e.target.checked)} style={{ marginTop: 3 }} />
+                <span>
+                  <strong style={{ fontSize: 13 }}>Darlo gratis</strong>
+                  <span style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
+                    Tiene todo lo del plan elegido, pero no se le cobra nunca: abono $0, se le perdona la deuda que tenga,
+                    termina la prueba y no se suspende por falta de pago. Destildalo para volver a cobrarle: el primer
+                    cobro es dentro de un mes.
+                  </span>
+                </span>
+              </label>
 
               <div style={{ marginTop: 'var(--space-md)', padding: 10, borderRadius: 8, background: 'var(--primary-light)', border: '1px solid var(--border-accent)', fontSize: 12, color: '#7a2400' }}>
                 <strong>Consumo Excedente:</strong> Cada mensaje enviado por encima del cupo de su plan tendrá un costo de <strong>USD {OVERAGE_COST_USD.toFixed(2)}</strong> (con un margen del 50% sobre el costo real de envío).

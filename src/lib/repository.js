@@ -332,7 +332,7 @@ export function subscribeAllBusinesses(cb, onError) {
  * se filtran acá antes de mandar para no gastar un viaje al servidor en un
  * update que va a rebotar.
  */
-const CAMPOS_SOLO_PLATAFORMA = ['isFrozen', 'planId', 'whatsappQuota', 'slug', 'id', 'trialEndsAt', 'signupSource', 'frozenAt'];
+const CAMPOS_SOLO_PLATAFORMA = ['isFrozen', 'planId', 'whatsappQuota', 'slug', 'id', 'trialEndsAt', 'signupSource', 'frozenAt', 'planGratis'];
 
 export async function updateBusiness(businessId, cambios, { esPlataforma = false } = {}) {
   const payload = { ...cambios };
@@ -490,28 +490,22 @@ export async function recordPayment(businessId, monto, fecha) {
   return nuevaDeuda;
 }
 
-export async function upgradePlan(businessId, { planId, whatsappQuota, monthlyFee }) {
-  // La cuota vive en la tabla pública porque la UI del negocio la muestra;
-  // el abono en la privada porque es plata. Dos updates, no una transacción:
-  // si el segundo fallara, quedaría un estado raro pero no roto (se puede
-  // reintentar) — mismo riesgo que ya aceptaba el batch de Firestore, que
-  // tampoco era atómico entre colecciones con reglas distintas.
-  //
-  // El plan va SOLO en `businesses.plan_id`: `billing` no tiene esa columna
-  // (tiene el abono, la deuda y las fechas). Mandarlo acá hacía fallar el
-  // upsert con "Could not find the 'plan_id' column of 'billing'", con el plan
-  // ya cambiado pero el abono sin actualizar.
-  const { data, error: err1 } = await supabase
-    .from('businesses')
-    .update({ plan_id: planId, whatsapp_quota: whatsappQuota })
-    .eq('id', businessId)
-    .select('id');
-  if (err1) throw traducirError(err1);
-  if (!data?.length) throw new Error('No se cambió el plan: tu sesión no tiene permiso sobre este negocio.');
-  const { error: err2 } = await supabase
-    .from('billing')
-    .upsert({ business_id: businessId, monthly_fee: monthlyFee }, { onConflict: 'business_id' });
-  if (err2) throw traducirError(err2);
+/**
+ * Cambia el plan de un negocio y, si `gratis`, se lo da sin cargo (abono 0,
+ * deuda perdonada, sin prueba pendiente, descongelado; el cobro diario lo
+ * saltea). Todo en una sola transacción del lado de la base (cambiar_plan):
+ * antes eran dos updates sueltos, y el segundo mandaba una columna que
+ * `billing` no tiene. Solo el dueño de la plataforma.
+ */
+export async function upgradePlan(businessId, { planId, whatsappQuota, monthlyFee, gratis = false }) {
+  const { error } = await supabase.rpc('cambiar_plan', {
+    p_business_id: businessId,
+    p_plan_id: planId,
+    p_whatsapp_quota: whatsappQuota,
+    p_monthly_fee: monthlyFee,
+    p_gratis: gratis,
+  });
+  if (error) throw traducirError(error);
 }
 
 // ============================================================================

@@ -212,7 +212,8 @@ export default function AdminLayout() {
         {/* Prueba gratis: los días que quedan, y qué hacer cuando se termina. */}
         {(() => {
           // Solo al dueño: el barbero no decide si se paga ni a quién escribir.
-          if (!isOwner) return null;
+          // Con plan gratis no hay prueba que se termine ni nada que pagar.
+          if (!isOwner || business?.planGratis) return null;
           const dias = diasDePruebaRestantes(business?.trialEndsAt);
           if (dias === null) return null;
           const vencida = dias < 0;

@@ -1025,6 +1025,15 @@ dominio de más autorizado no es un agujero de seguridad, solo ruido).
    negocio / la sucursal / el perfil de profesional de los claims ya no
    existe, y la cuenta sigue como usuario sin negocio (→ /onboarding).
    `supabase/tests/test-privacidad.mjs` 19/19 (necesita `functions serve`).
+5i. **Plan gratis (26/09/2026).** Migración `20261013000000_plan_gratis.sql`:
+   `businesses.plan_gratis` (protegido: solo la plataforma). `process_billing`
+   saltea esos negocios (no suma deuda, no congela, no borra). Todo cambio de
+   plan pasa ahora por `cambiar_plan()` (una transacción; antes eran dos
+   updates y el segundo mandaba `plan_id` a `billing`, que no lo tiene):
+   gratis → abono 0, deuda perdonada, sin prueba, descongelado; al sacarlo, el
+   primer cobro es a un mes. En el panel global es la casilla "Darlo gratis"
+   de Cambiar plan y la tarjeta muestra "Plan gratis"; el dueño no ve avisos
+   de prueba. `supabase/tests/test-plan-gratis.mjs` 14/14.
 6. **Abuso de reservas.** Hecho: un turno por día y tope de 3 a futuro por
    cuenta. Falta, por orden: bloquear cliente desde el panel (para la cuenta que
    se porta mal), y App Check con reCAPTCHA v3 sobre los callables para frenar
