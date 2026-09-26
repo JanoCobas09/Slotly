@@ -6,7 +6,8 @@ import TeamPanel from './TeamPanel';
 import { PLANS, OVERAGE_COST_USD, findPlanByQuota } from '../../config/plans';
 import { formatPrice, formatDate } from '../../utils/dateUtils';
 import {
-  setBusinessFrozen,
+  habilitarCuenta,
+  suspenderCuenta,
   recordPayment,
   updateBilling,
   upgradePlan,
@@ -125,7 +126,8 @@ export default function SuperAdminDashboard() {
   const handleToggleFreeze = async (id) => {
     const biz = businesses.find((b) => b.id === id);
     try {
-      await setBusinessFrozen(id, !biz?.isFrozen);
+      if (biz?.isFrozen) await habilitarCuenta(id);
+      else await suspenderCuenta(id);
     } catch (err) {
       console.error('[super-admin] No se pudo cambiar el estado:', err);
       alert('No se pudo cambiar el estado de la cuenta: ' + err.message);

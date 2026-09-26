@@ -1034,6 +1034,17 @@ dominio de más autorizado no es un agujero de seguridad, solo ruido).
    primer cobro es a un mes. En el panel global es la casilla "Darlo gratis"
    de Cambiar plan y la tarjeta muestra "Plan gratis"; el dueño no ve avisos
    de prueba. `supabase/tests/test-plan-gratis.mjs` 14/14.
+5j. **Habilitar una cuenta (26/09/2026).** Migración
+   `20261014000000_habilitar_cuenta.sql`. El botón "Habilitar" del panel
+   global llama a `habilitar_cuenta()`: descongela, termina la prueba, pasa el
+   próximo cobro a un mes y le da gracia hasta ese vencimiento
+   (`billing.habilitada_hasta`: el cobro diario no la re-suspende aunque tenga
+   deuda; si al vencimiento sigue debiendo, sí). `billing.habilitada_el` la
+   saca para siempre del borrado automático de self-service sin pago. Antes
+   solo ponía `is_frozen = false` y el cobro de esa noche la volvía a
+   suspender. "Suspender" usa `suspender_cuenta()` (corta la gracia). Ojo, sin
+   resolver: una suspensión a mano SIN deuda la levanta el cobro diario.
+   `supabase/tests/test-habilitar.mjs` 14/14.
 6. **Abuso de reservas.** Hecho: un turno por día y tope de 3 a futuro por
    cuenta. Falta, por orden: bloquear cliente desde el panel (para la cuenta que
    se porta mal), y App Check con reCAPTCHA v3 sobre los callables para frenar

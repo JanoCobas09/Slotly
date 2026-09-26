@@ -374,6 +374,23 @@ export async function getMpConnectionStatus(businessId) {
   return fila ? fromRow('mp_connections', fila) : null;
 }
 
+/**
+ * "Habilitar" del panel global: descongela, termina la prueba, pasa el
+ * próximo cobro a un mes y no la vuelve a suspender hasta ese vencimiento
+ * aunque tenga deuda (habilitar_cuenta en la base). Antes solo ponía
+ * is_frozen = false y el cobro de esa noche la volvía a suspender.
+ */
+export async function habilitarCuenta(businessId) {
+  const { error } = await supabase.rpc('habilitar_cuenta', { p_business_id: businessId });
+  if (error) throw traducirError(error);
+}
+
+/** "Suspender" del panel global (corta la gracia de un "Habilitar" anterior). */
+export async function suspenderCuenta(businessId) {
+  const { error } = await supabase.rpc('suspender_cuenta', { p_business_id: businessId });
+  if (error) throw traducirError(error);
+}
+
 export async function setBusinessFrozen(businessId, isFrozen) {
   const { error } = await supabase.from('businesses').update({ is_frozen: isFrozen }).eq('id', businessId);
   if (error) throw traducirError(error);
