@@ -496,11 +496,21 @@ export async function upgradePlan(businessId, { planId, whatsappQuota, monthlyFe
   // si el segundo fallara, quedaría un estado raro pero no roto (se puede
   // reintentar) — mismo riesgo que ya aceptaba el batch de Firestore, que
   // tampoco era atómico entre colecciones con reglas distintas.
-  const { error: err1 } = await supabase.from('businesses').update({ plan_id: planId, whatsapp_quota: whatsappQuota }).eq('id', businessId);
+  //
+  // El plan va SOLO en `businesses.plan_id`: `billing` no tiene esa columna
+  // (tiene el abono, la deuda y las fechas). Mandarlo acá hacía fallar el
+  // upsert con "Could not find the 'plan_id' column of 'billing'", con el plan
+  // ya cambiado pero el abono sin actualizar.
+  const { data, error: err1 } = await supabase
+    .from('businesses')
+    .update({ plan_id: planId, whatsapp_quota: whatsappQuota })
+    .eq('id', businessId)
+    .select('id');
   if (err1) throw traducirError(err1);
+  if (!data?.length) throw new Error('No se cambió el plan: tu sesión no tiene permiso sobre este negocio.');
   const { error: err2 } = await supabase
     .from('billing')
-    .upsert({ business_id: businessId, monthly_fee: monthlyFee, plan_id: planId }, { onConflict: 'business_id' });
+    .upsert({ business_id: businessId, monthly_fee: monthlyFee }, { onConflict: 'business_id' });
   if (err2) throw traducirError(err2);
 }
 
