@@ -16,8 +16,8 @@ export default function NoBusinessPage({ reason = 'not-found' }) {
   const messages = {
     'not-found': {
       icon: 'search',
-      title: 'No encontramos este negocio',
-      text: 'Revisá el link que te compartieron. Cada negocio tiene su propia dirección.',
+      title: 'No encontramos ese negocio',
+      text: 'Revisá que esté bien tu link: que esté completo y sin letras de más o de menos. Cada negocio tiene su propia dirección.',
     },
     frozen: {
       icon: 'pause',

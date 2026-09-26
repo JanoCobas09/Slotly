@@ -56,6 +56,8 @@ function loadData() {
 const NO_PERSISTIR = [
   'business',
   'businesses',
+  // Hasta qué link ya se buscó: al recargar se vuelve a buscar.
+  'slugResuelto',
   'professionals',
   'services',
   'schedules',
@@ -250,6 +252,11 @@ function businessReducer(state, action) {
       const aplicar = (b) => (b?.id === id ? { ...b, ...cambios } : b);
       return { ...state, business: aplicar(state.business), businesses: state.businesses.map(aplicar) };
     }
+    // BusinessSync terminó de buscar el negocio del link `/:slug` (lo haya
+    // encontrado o no). Hasta entonces la reserva muestra "cargando" y no
+    // "No encontramos este negocio".
+    case 'SLUG_RESUELTO':
+      return state.slugResuelto === action.payload ? state : { ...state, slugResuelto: action.payload };
     case 'SET_BUSINESSES': {
       const activeBusiness = state.business
         ? action.payload.find((b) => b.id === state.business.id) || state.business

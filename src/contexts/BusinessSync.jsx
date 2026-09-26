@@ -84,8 +84,12 @@ export default function BusinessSync() {
         'Los datos ya viven en Firestore — entrá con "Continuar con Google".'
       );
       dispatch({ type: 'SET_BUSINESSES', payload: [] });
+      dispatch({ type: 'SLUG_RESUELTO', payload: slug });
       return;
     }
+
+    // La búsqueda del link terminó (se encontró o no): ver TenantRoute.
+    const resuelto = () => dispatch({ type: 'SLUG_RESUELTO', payload: slug });
 
     const onError = (err) => {
       console.error('[BusinessSync] Firestore rechazó la lectura:', err.code, err.message);
@@ -109,7 +113,8 @@ export default function BusinessSync() {
       const desuscribirLista = subscribeAllBusinesses((lista) => {
         negocios = lista;
         emitir();
-      }, onError);
+        resuelto();
+      }, (err) => { onError(err); resuelto(); });
 
       // Toda la facturación en UNA suscripción. Antes se abría un canal de
       // Realtime por negocio (con 100 negocios, 100 canales); el resultado
@@ -129,8 +134,11 @@ export default function BusinessSync() {
     if (businessIdPropio) {
       return subscribeBusiness(
         businessIdPropio,
-        (negocio) => dispatch({ type: 'SET_BUSINESSES', payload: negocio ? [negocio] : [] }),
-        onError
+        (negocio) => {
+          dispatch({ type: 'SET_BUSINESSES', payload: negocio ? [negocio] : [] });
+          resuelto();
+        },
+        (err) => { onError(err); resuelto(); }
       );
     }
 
@@ -150,16 +158,21 @@ export default function BusinessSync() {
           if (cancelado) return;
           if (!businessId) {
             dispatch({ type: 'SET_BUSINESSES', payload: [] });
+            resuelto();
             return;
           }
           desuscribir = subscribeBusiness(
             businessId,
-            (negocio) => dispatch({ type: 'SET_BUSINESSES', payload: negocio ? [negocio] : [] }),
-            onError,
+            (negocio) => {
+              dispatch({ type: 'SET_BUSINESSES', payload: negocio ? [negocio] : [] });
+              resuelto();
+            },
+            (err) => { onError(err); resuelto(); },
             { enVivo }
           );
         } catch (err) {
           onError(err);
+          if (!cancelado) resuelto();
         }
       })();
 

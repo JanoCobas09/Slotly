@@ -4516,3 +4516,9 @@ button.mapa-celda:hover, button.mapa-celda:focus-visible { outline: 2px solid va
 .plan-bloqueado-icono { flex-shrink: 0; width: 40px; height: 40px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: var(--bg-secondary); color: var(--text-secondary); font-size: 18px; }
 .plan-bloqueado h3 { margin-bottom: 4px; }
 .nav-candado { margin-left: auto; opacity: 0.6; font-size: 0.8em; }
+
+/* Buscando el negocio del link (TenantRoute en App.jsx). */
+.cargando-negocio { display: flex; align-items: center; justify-content: center; min-height: 50vh; }
+.spinner { width: 40px; height: 40px; border-radius: 50%; border: 3px solid var(--border); border-top-color: var(--primary); animation: spinner-giro 0.8s linear infinite; }
+@keyframes spinner-giro { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.4s; } }

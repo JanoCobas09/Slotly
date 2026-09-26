@@ -95,12 +95,28 @@ function TenantRoute({ children }) {
   const { state } = useBusiness();
   const business = (state.businesses || []).find((b) => b.slug === businessSlug);
 
-  if (!business) return <NoBusinessPage reason="not-found" />;
+  if (!business) {
+    // Mientras se busca el negocio del link (al entrar o al recargar), una
+    // rueda de carga: antes se veía "No encontramos este negocio" durante
+    // la búsqueda, aunque el link estuviera bien.
+    if (state.slugResuelto !== businessSlug) return <CargandoNegocio />;
+    return <NoBusinessPage reason="not-found" />;
+  }
   if (business.isFrozen || business.onlineBookingEnabled === false) {
     return <NoBusinessPage reason="frozen" />;
   }
 
   return children;
+}
+
+/** Rueda de carga mientras se busca el negocio del link. */
+function CargandoNegocio() {
+  return (
+    <div className="cargando-negocio" role="status" aria-live="polite">
+      <div className="spinner" aria-hidden="true" />
+      <span className="sr-only">Buscando el negocio…</span>
+    </div>
+  );
 }
 
 /** Placeholder mientras Firebase resuelve si hay sesión abierta. */
