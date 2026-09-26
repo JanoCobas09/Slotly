@@ -984,6 +984,19 @@ dominio de más autorizado no es un agujero de seguridad, solo ruido).
    Reserva: con >1 sucursal (con profesionales) el cliente elige primero
    (no es un paso numerado del stepper) o llega con `?sucursal=<id>`; con una
    sola no se filtra nada. `supabase/tests/test-sucursales.mjs` 25/25.
+5f. **Dashboard y planes (26/09/2026).** Dashboard del dueño rehecho
+   (`components/admin/EstadisticasDueno.jsx` + `Graficos.jsx`, cálculo puro en
+   `utils/estadisticas.js`; `statsCalculator.js` quedó sin uso pero no se
+   tocó): filtros de período/sucursal/profesional arriba, indicadores contra
+   el período anterior, ingresos y turnos por día, rankings, mapa de calor día
+   × hora, horarios flojos, ocupación por profesional, clientes (nuevos,
+   vuelven, perdidos hace +60 días), cancelaciones/ausencias/señas. Ingresos =
+   completados; "a cobrar" = confirmados por venir. Planes (`config/plans.js`):
+   profesionales 1/3/∞ y sucursales 1/3/∞ (Básico/Pro/Business); seña,
+   promociones y estadísticas en todos. Lo que un plan no incluye se ve con
+   candado + link para pasarse; al bajar de plan se conserva lo cargado pero no
+   se suma. Tope de sucursales también en la base
+   (`20261010000000_limite_sucursales.sql`, cuenta las activas).
 6. **Abuso de reservas.** Hecho: un turno por día y tope de 3 a futuro por
    cuenta. Falta, por orden: bloquear cliente desde el panel (para la cuenta que
    se porta mal), y App Check con reCAPTCHA v3 sobre los callables para frenar

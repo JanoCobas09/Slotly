@@ -8,6 +8,7 @@ import { capitalize as cap } from '../../utils/text';
 import Icon from '../../components/Icon';
 import { validarEmailObligatorio, LIMITES } from '../../utils/validaciones';
 import { sucursalesActivas, nombreSucursal } from '../../utils/sucursales';
+import { limiteSucursales } from '../../config/plans';
 
 const ROLE_OWNER = { value: 'owner', label: 'Dueño/a — acceso total' };
 
@@ -16,7 +17,7 @@ const ROLE_MANAGER = { value: 'manager', label: 'Administrador de sucursal — l
 
 export default function AdminsPage() {
   const { user } = useAuth();
-  const { authorizedAdmins, professionals, businessId, branches } = useTenant();
+  const { authorizedAdmins, professionals, businessId, branches, business } = useTenant();
   const sucursales = sucursalesActivas(branches);
   const { terminology } = useBusinessContext();
   const roleAdmin = { value: 'admin', label: `${cap(terminology.professionalNoun)} — solo sus citas` };
@@ -31,7 +32,14 @@ export default function AdminsPage() {
   // Designar dueños es exclusivo de la plataforma: el dueño es quien paga la
   // cuenta, así que quién lo es no se delega al tenant. La Cloud Function
   // rechaza el intento; acá directamente no se ofrece la opción.
-  const roleOptions = user?.isPlatformOwner ? [ROLE_OWNER, roleAdmin, ROLE_MANAGER] : [roleAdmin, ROLE_MANAGER];
+  // Administrador de sucursal: solo con un plan que tenga sucursales (o si ya
+  // tiene varias de antes de bajar de plan: lo cargado se conserva).
+  const conSucursales = limiteSucursales(business?.planId) !== 1 || sucursales.length > 1;
+  const roleOptions = [
+    ...(user?.isPlatformOwner ? [ROLE_OWNER] : []),
+    roleAdmin,
+    ...(conSucursales ? [ROLE_MANAGER] : []),
+  ];
 
   // Solo el dueño entra acá. El corte va DESPUÉS de los hooks: si va antes,
   // React ve una cantidad distinta de hooks entre renders y explota cuando el

@@ -8,6 +8,7 @@ import { validarHorarioNegocio, esTelefono, esUrl, LIMITES } from '../../utils/v
 import { formatPrice, toDateString } from '../../utils/dateUtils';
 import HorarioAtencion from '../../components/admin/HorarioAtencion';
 import Icon from '../../components/Icon';
+import { getPlan, limiteSucursales, planConSucursales, linkAmpliarPlan } from '../../config/plans';
 
 const VACIA = { name: '', address: '', phone: '', mapsUrl: '', horarioPropio: false, businessHours: HORARIO_INICIAL, precios: {} };
 
@@ -131,6 +132,15 @@ export default function SucursalesPage() {
 
   const variasActivas = sucursalesActivas(branches).length > 1;
 
+  // Plan: Básico tiene solo la principal; Pro hasta 3; Business sin límite.
+  // Lo que ya existe se conserva aunque baje de plan; lo que no se puede es
+  // sumar (la base lo frena igual: enforce_limite_sucursales).
+  const tope = limiteSucursales(business?.planId);
+  const activas = sucursalesActivas(branches).length;
+  const llegoAlTope = tope !== null && activas >= tope;
+  const bloqueadoPorPlan = tope === 1;
+  const planSiguiente = planConSucursales();
+
   return (
     <div>
       <div className="admin-page-header">
@@ -142,8 +152,33 @@ export default function SucursalesPage() {
               : 'Con una sola, tus clientes reservan como siempre; al sumar otra, eligen dónde.'}
           </p>
         </div>
-        <button className="btn btn-primary" onClick={() => abrir(null)}>+ Agregar sucursal</button>
+        <button className="btn btn-primary" onClick={() => abrir(null)} disabled={llegoAlTope}>
+          {llegoAlTope && <Icon name="lock" />} + Agregar sucursal
+        </button>
       </div>
+
+      {bloqueadoPorPlan && (
+        <div className="card plan-bloqueado">
+          <div className="plan-bloqueado-icono"><Icon name="lock" /></div>
+          <div>
+            <h3>Varias sucursales — disponible desde el {planSiguiente?.label}</h3>
+            <p className="text-sm text-secondary">
+              Sumá los otros lugares donde atendés, cada uno con su horario, su dirección, sus precios y su
+              administrador, que ve solo los {terminology.appointmentNoun}s de su sucursal. Tus clientes eligen dónde al reservar.
+              Tu plan actual ({getPlan(business?.planId)?.label || 'Básico'}) incluye una sucursal.
+            </p>
+            <a className="btn btn-primary btn-sm mt-sm" href={linkAmpliarPlan('quiero sumar sucursales')} target="_blank" rel="noreferrer">Quiero pasarme de plan</a>
+          </div>
+        </div>
+      )}
+
+      {!bloqueadoPorPlan && llegoAlTope && (
+        <div className="notice notice-info" style={{ marginBottom: 'var(--space-md)' }}>
+          <strong>Llegaste al tope de tu plan ({tope} sucursales activas).</strong> Para sumar más,{' '}
+          <a href={linkAmpliarPlan('quiero sumar más sucursales')} target="_blank" rel="noreferrer" style={{ fontWeight: 700 }}>pasate al plan Business</a>.
+          Si dejaste de usar alguna, desactivala y se libera el lugar.
+        </div>
+      )}
 
       <div className="flex flex-col gap-md">
         {lista.map((b) => {
@@ -171,7 +206,14 @@ export default function SucursalesPage() {
                   <button className="btn btn-outline btn-sm" onClick={() => abrir(b)}><Icon name="edit" /> Editar</button>
                   {!b.isMain && (
                     <>
-                      <button className="btn btn-ghost btn-sm" onClick={() => alternarActiva(b)}>{b.isActive === false ? 'Activar' : 'Desactivar'}</button>
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => alternarActiva(b)}
+                        disabled={b.isActive === false && llegoAlTope}
+                        title={b.isActive === false && llegoAlTope ? 'Llegaste al tope de sucursales de tu plan' : undefined}
+                      >
+                        {b.isActive === false ? 'Activar' : 'Desactivar'}
+                      </button>
                       <button className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }} onClick={() => eliminar(b)} title="Eliminar"><Icon name="trash" /></button>
                     </>
                   )}
@@ -183,11 +225,11 @@ export default function SucursalesPage() {
                     ? profs.map((p) => p.name).join(', ')
                     : <span className="text-muted">Sin {terminology.professionalNoun}s todavía — asignalos desde el horario de cada uno en <Link to="/admin/profesionales">Profesionales</Link>.</span>}
                 </span>
-                <span>
+                {(!bloqueadoPorPlan || admins.length > 0) && <span>
                   <Icon name="shield" /> {admins.length
                     ? admins.map((a) => a.name || a.email).join(', ')
                     : <span className="text-muted">Sin administrador — <Link to="/admin/admins">asignar uno</Link>.</span>}
-                </span>
+                </span>}
               </div>
             </div>
           );

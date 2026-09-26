@@ -32,7 +32,9 @@
 export const FEATURES_COMUNES = [
   'Turnos e historial sin límite',
   'Tu link público con tu marca',
-  'Estadísticas de facturación',
+  'Seña con Mercado Pago',
+  'Promociones por día y horario',
+  'Estadísticas completas',
   'Servicios sin turno en vivo (walk-in)',
   'Cada profesional ve solo su agenda',
 ];
@@ -45,8 +47,11 @@ export const PLANS = [
     monthlyFee: 12000,
     description: 'Ideal para un profesional independiente',
     maxProfessionals: 1,
+    // Sucursales (y con ellas, administradores de sucursal). null = sin límite.
+    maxBranches: 1,
     features: [
       'Hasta 1 profesional',
+      'Una sucursal',
       'Soporte por WhatsApp',
     ],
   },
@@ -57,8 +62,10 @@ export const PLANS = [
     monthlyFee: 22000,
     description: 'El más elegido para negocios en crecimiento',
     maxProfessionals: 3,
+    maxBranches: 3,
     features: [
       'Hasta 3 profesionales',
+      'Hasta 3 sucursales, con administrador por sucursal',
       'Soporte prioritario por WhatsApp',
     ],
   },
@@ -69,8 +76,9 @@ export const PLANS = [
     monthlyFee: 35000,
     description: 'Para negocios grandes o con varios locales',
     maxProfessionals: null,
+    maxBranches: null,
     features: [
-      'Profesionales sin límite',
+      'Profesionales y sucursales sin límite',
       'Configuración inicial asistida',
       'Soporte prioritario por WhatsApp',
     ],
@@ -84,6 +92,25 @@ export const OVERAGE_COST_USD = 0.06;
 
 export function getPlan(planId) {
   return PLANS.find((p) => p.id === planId) || null;
+}
+
+/**
+ * Tope de sucursales del plan (null = sin límite). Un plan desconocido no
+ * limita, igual que `maxProfessionals`. La base lo hace cumplir también
+ * (limite_sucursales en 20261010000000_limite_sucursales.sql): si cambiás un
+ * número acá, cambialo allá.
+ */
+export function limiteSucursales(planId) {
+  const plan = getPlan(planId);
+  return plan ? plan.maxBranches ?? null : null;
+}
+
+/** El primer plan que permite más de una sucursal (para el "disponible desde…"). */
+export const planConSucursales = () => PLANS.find((p) => p.maxBranches === null || p.maxBranches > 1);
+
+/** Link a WhatsApp para pedir el cambio de plan, con el motivo ya escrito. */
+export function linkAmpliarPlan(motivo) {
+  return 'https://wa.me/5492257660073?text=' + encodeURIComponent(`Hola! Quiero pasarme de plan en Slotly: ${motivo}.`);
 }
 
 /** Dada una cuota, devuelve el plan que la usa (o null si es personalizado). */

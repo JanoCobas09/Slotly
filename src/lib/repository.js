@@ -133,7 +133,10 @@ const MENSAJES_VALIDACION = {
 
 function traducirError(error) {
   const restriccion = /constraint "([^"]+)"/.exec(error?.message || '')?.[1];
-  const mensaje = restriccion && MENSAJES_VALIDACION[restriccion];
+  // Los triggers escriben sus errores como 'codigo: mensaje para la persona'
+  // (mismo formato que create_appointment): se muestra solo el mensaje.
+  const deTrigger = /^(invalid-argument|failed-precondition|not-found|already-exists|resource-exhausted): (.+)$/s.exec(error?.message || '')?.[2];
+  const mensaje = (restriccion && MENSAJES_VALIDACION[restriccion]) || deTrigger;
   if (!mensaje) return error;
   const traducido = new Error(mensaje);
   traducido.code = 'invalid-argument';

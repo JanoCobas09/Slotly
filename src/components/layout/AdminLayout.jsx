@@ -9,6 +9,7 @@ import { useInstallPrompt } from '../../hooks/useInstallPrompt';
 import { capitalize } from '../../utils/text';
 import Icon from '../Icon';
 import ActivarNotificaciones from '../admin/ActivarNotificaciones';
+import { limiteSucursales } from '../../config/plans';
 
 // Items visibles solo para el dueño (owner)
 const ownerNavItems = [
@@ -153,6 +154,10 @@ export default function AdminLayout() {
             >
               <span className="nav-icon"><Icon name={item.icon} /></span>
               {item.label}
+              {/* No incluida en su plan: se ve con candado (la página explica cómo pasarse). */}
+              {item.to === '/admin/sucursales' && limiteSucursales(business?.planId) === 1 && (
+                <Icon name="lock" className="nav-candado" aria-label="No incluido en tu plan" />
+              )}
             </NavLink>
           ))}
         </nav>

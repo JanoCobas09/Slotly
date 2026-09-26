@@ -55,7 +55,8 @@ async function main() {
   const srvId = crypto.randomUUID();
   const todos = [0, 1, 2, 3, 4, 5, 6].map((d) => ({ dayOfWeek: d, startTime: '09:00', endTime: '20:00', isActive: true }));
 
-  await admin.from('businesses').insert({ id: bizId, name: 'Negocio Sucursales', slug: `negocio-suc-${suffix}`, business_hours: todos });
+  // Plan Pro: permite hasta 3 sucursales (ver el bloque "Tope por plan" al final).
+  await admin.from('businesses').insert({ id: bizId, name: 'Negocio Sucursales', slug: `negocio-suc-${suffix}`, business_hours: todos, plan_id: 'pro' });
 
   console.log('Sucursal principal automática:');
   const { data: principal } = await admin.from('branches').select('*').eq('business_id', bizId).eq('is_main', true).single();
@@ -153,6 +154,30 @@ async function main() {
   ok(Boolean(eBorrar), 'la principal no se puede borrar');
   const { data: mover } = await dueno.db.from('appointments').update({ start_time: '16:00', end_time: '16:30' }).eq('id', t11.data.id).select('branch_id').single();
   ok(mover?.branch_id === norte.id, 'el dueño mueve un turno a las 16:00 → pasa solo a Norte');
+
+  console.log('Tope de sucursales por plan:');
+  {
+    // Pro: Principal + Norte = 2 activas; entra una tercera, la cuarta no.
+    const { error: e3 } = await dueno.db.from('branches').insert({ business_id: bizId, name: 'Sur' });
+    ok(!e3, `Pro: la tercera sucursal entra — ${e3?.message || 'ok'}`);
+    const { error: e4 } = await dueno.db.from('branches').insert({ business_id: bizId, name: 'Oeste' });
+    ok(Boolean(e4) && /hasta 3 sucursales/.test(e4.message), `Pro: la cuarta no — ${e4?.message}`);
+    // Desactivar una libera el lugar; reactivarla con el cupo lleno no se puede.
+    const { data: sur } = await admin.from('branches').select('id').eq('business_id', bizId).eq('name', 'Sur').single();
+    await dueno.db.from('branches').update({ is_active: false }).eq('id', sur.id);
+    const { error: e5 } = await dueno.db.from('branches').insert({ business_id: bizId, name: 'Este' });
+    ok(!e5, `desactivar una libera el lugar — ${e5?.message || 'ok'}`);
+    const { error: e6 } = await dueno.db.from('branches').update({ is_active: true }).eq('id', sur.id);
+    ok(Boolean(e6), 'reactivar con el cupo lleno no se puede');
+    // Baja a Básico: lo que tiene se conserva y se puede editar, pero no suma.
+    await admin.from('businesses').update({ plan_id: 'basico' }).eq('id', bizId);
+    const { data: siguen } = await admin.from('branches').select('id').eq('business_id', bizId).eq('is_active', true);
+    ok((siguen || []).length === 3, `al bajar a Básico conserva sus 3 sucursales activas — ${siguen?.length}`);
+    const { error: eEdit } = await dueno.db.from('branches').update({ address: 'Nueva dirección 1' }).eq('id', norte.id);
+    ok(!eEdit, `y las puede editar — ${eEdit?.message || 'ok'}`);
+    const { error: eNueva } = await dueno.db.from('branches').insert({ business_id: bizId, name: 'Otra' });
+    ok(Boolean(eNueva) && /hasta 1 sucursal/.test(eNueva.message), `pero no sumar — ${eNueva?.message}`);
+  }
 
   console.log(`\n${pasaron} pasaron, ${fallaron} fallaron`);
   process.exit(fallaron ? 1 : 0);
