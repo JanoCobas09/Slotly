@@ -9,6 +9,7 @@ import { useInstallPrompt } from '../../hooks/useInstallPrompt';
 import { capitalize } from '../../utils/text';
 import Icon from '../Icon';
 import ActivarNotificaciones from '../admin/ActivarNotificaciones';
+import FlujoPrimerosPasos from '../admin/FlujoPrimerosPasos';
 import { limiteSucursales } from '../../config/plans';
 
 // Items visibles solo para el dueño (owner)
@@ -204,6 +205,7 @@ export default function AdminLayout() {
       {/* Main Content */}
       <main className="admin-main">
         {isOwner && <InstalarAppBanner />}
+        {isOwner && <FlujoPrimerosPasos />}
         <ActivarNotificaciones />
 
         {/* Prueba gratis: los días que quedan, y qué hacer cuando se termina. */}

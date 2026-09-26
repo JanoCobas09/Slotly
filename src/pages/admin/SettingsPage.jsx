@@ -12,6 +12,7 @@ import HorarioAtencion from '../../components/admin/HorarioAtencion';
 import ErrorDeCampo from '../../components/ErrorDeCampo';
 import { useErrorDeCampo } from '../../hooks/useErrorDeCampo';
 import { useBusiness } from '../../contexts/BusinessContext';
+import { tieneDatosDeContacto, guiaOculta, FALTA_CONTACTO } from '../../utils/primerosPasos';
 
 const defaultHours = [
   { dayOfWeek: 0, startTime: '09:00', endTime: '20:00', isActive: true },
@@ -76,6 +77,20 @@ export default function SettingsPage() {
     }
     errorCampo.limpiar();
 
+    // Todo es opcional para guardar, pero sin ningún dato de contacto el paso
+    // 4 de Primeros pasos no se termina: se marca el teléfono (el primero de
+    // esos casilleros) diciendo qué falta, en vez de guardar y no avanzar.
+    const faltaContacto = user?.role === 'owner' && !guiaOculta(businessId) && !tieneDatosDeContacto(final);
+    const avisarContacto = () => errorCampo.marcar(problema('phone', FALTA_CONTACTO));
+
+    // Sin cambios no hay nada que mandar (un UPDATE vacío no toca ninguna fila).
+    if (Object.keys(aGuardar).length === 0) {
+      if (faltaContacto) return avisarContacto();
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+      return;
+    }
+
     setGuardando(true);
     try {
       // Las Rules no dejan que el dueño toque su facturación ni se descongele
@@ -84,7 +99,7 @@ export default function SettingsPage() {
       // Al estado ya, sin esperar a Realtime: sin esto, si el canal estaba
       // caído el formulario volvía a mostrar lo viejo y la guía de Primeros
       // pasos no avanzaba hasta recargar.
-      dispatch({ type: 'PATCH_BUSINESS', payload: { id: businessId, cambios: guardado } });
+      if (guardado) dispatch({ type: 'PATCH_BUSINESS', payload: { id: businessId, cambios: guardado } });
     } catch (err) {
       console.error('[SettingsPage] No se pudo guardar:', err);
       setError('No se pudieron guardar los cambios: ' + err.message);
@@ -114,6 +129,7 @@ export default function SettingsPage() {
     });
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
+    if (faltaContacto) avisarContacto();
   };
 
   // La foto se sube y se guarda al toque, aparte del resto del formulario:

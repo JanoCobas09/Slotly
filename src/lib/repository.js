@@ -340,6 +340,10 @@ export async function updateBusiness(businessId, cambios, { esPlataforma = false
     for (const campo of CAMPOS_SOLO_PLATAFORMA) delete payload[campo];
   }
   delete payload.createdAt;
+  // Sin nada para cambiar no se manda nada: un UPDATE vacío no toca ninguna
+  // fila y se confundía con "sin permiso" (el chequeo de abajo).
+  const fila = toRow('businesses', payload);
+  if (Object.keys(fila).length === 0) return null;
   // Con `.select()` vuelve la fila como quedó: quien guarda la aplica al
   // estado en el acto, sin esperar a que llegue el evento de Realtime (si el
   // canal estaba caído, el formulario volvía a los datos viejos y parecía que
@@ -347,7 +351,7 @@ export async function updateBusiness(businessId, cambios, { esPlataforma = false
   // error: afecta 0 filas en silencio. Sin este chequeo decía "Guardado".
   const { data, error } = await supabase
     .from('businesses')
-    .update(toRow('businesses', payload))
+    .update(fila)
     .eq('id', businessId)
     .select();
   if (error) throw traducirError(error);

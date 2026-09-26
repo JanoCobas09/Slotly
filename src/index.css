@@ -4412,6 +4412,8 @@ select.form-input {
 .guia-linea { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-sm); padding: 10px 14px; margin-bottom: var(--space-md); border-radius: var(--radius-md); border: 1px solid var(--primary); background: color-mix(in srgb, var(--primary) 7%, var(--surface, #fff)); font-size: 0.85rem; }
 .guia-linea-paso { font-weight: 700; color: var(--primary); }
 .guia-linea-texto { flex: 1; min-width: 180px; }
+.guia-linea-cerrar { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-muted); cursor: pointer; }
+.guia-linea-cerrar:hover { background: var(--surface-hover); color: var(--text); }
 @media (max-width: 560px) {
   .guia-paso.actual { flex-wrap: wrap; }
   .guia-paso.actual .btn { width: 100%; }

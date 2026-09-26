@@ -1,9 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
-import { useTenant } from '../../hooks/useTenantData';
-import { useBusinessContext } from '../../hooks/useBusinessContext';
-import { pasosDeConfiguracion, guiaOculta, ocultarGuia, marcarLinkCompartido } from '../../utils/primerosPasos';
+import { usePrimerosPasos } from '../../hooks/usePrimerosPasos';
+import { ocultarGuia, marcarLinkCompartido, retomarFlujo, rutaDelPaso } from '../../utils/primerosPasos';
 import Icon from '../Icon';
 
 /**
@@ -16,51 +14,37 @@ import Icon from '../Icon';
  *                        algo ahí se vea cuál sigue sin volver a Inicio.
  *
  * Solo para el dueño, y se va sola cuando todo está hecho (o si la oculta).
+ * Tocar un botón de acá retoma el flujo guiado si se había cortado (ver
+ * FlujoPrimerosPasos, que es el que pasa de un paso al siguiente).
  */
 export default function PrimerosPasos({ variante = 'inicio' }) {
-  const { user } = useAuth();
-  const tenant = useTenant();
-  const { terminology } = useBusinessContext();
+  const { aplica, pasos, actual, hechos, businessId, business, terminology } = usePrimerosPasos();
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const { businessId, business } = tenant;
-  const [, forzar] = useState(0);
   const [copiado, setCopiado] = useState(false);
 
-  // Los datos del negocio llegan un instante después de montar: sin esta
-  // espera, un negocio ya configurado veía la guía "incompleta" un segundo.
-  const [listo, setListo] = useState(false);
-  useEffect(() => {
-    const t = setTimeout(() => setListo(true), 1200);
-    return () => clearTimeout(t);
-  }, []);
-
-  if (user?.role !== 'owner' || !businessId || !listo || guiaOculta(businessId)) return null;
-
-  const pasos = pasosDeConfiguracion({ ...tenant, terminology });
-  const hechos = pasos.filter((p) => p.hecho).length;
-  if (hechos === pasos.length) return null;
-  const actual = pasos.find((p) => !p.hecho);
+  if (!aplica || !actual) return null;
   const linkPublico = `${window.location.origin}/${business?.slug || ''}`;
 
   const hacer = async (paso) => {
+    retomarFlujo(businessId);
     if (paso.accion === 'copiar') {
       try { await navigator.clipboard.writeText(linkPublico); } catch { /* sin portapapeles: el link está a la vista */ }
       marcarLinkCompartido(businessId);
       setCopiado(true);
-      forzar((n) => n + 1);
       return;
     }
     navigate(paso.ir);
   };
 
+  // Los pasos que falten quedan como estaban: esto solo deja de mostrar la guía.
   const ocultar = () => {
+    if (!window.confirm('¿Dejar de mostrar la guía de primeros pasos? Lo que falta lo podés completar igual desde el menú.')) return;
     ocultarGuia(businessId);
-    forzar((n) => n + 1);
   };
 
   if (variante === 'pagina') {
-    const aca = actual.ir && pathname === actual.ir.split('?')[0];
+    const aca = actual.ir && pathname === rutaDelPaso(actual);
     return (
       <div className="guia-linea">
         <span className="guia-linea-paso">Primeros pasos · {hechos + 1} de {pasos.length}</span>
@@ -72,6 +56,9 @@ export default function PrimerosPasos({ variante = 'inicio' }) {
             {actual.boton} →
           </button>
         )}
+        <button type="button" className="guia-linea-cerrar" onClick={ocultar} title="No mostrar más la guía" aria-label="No mostrar más la guía">
+          <Icon name="x" />
+        </button>
       </div>
     );
   }

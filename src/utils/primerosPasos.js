@@ -17,10 +17,51 @@ function guardar(clave) {
   try { localStorage.setItem(clave, '1'); } catch { /* sin storage: vuelve a aparecer, no rompe nada */ }
 }
 
+// Todas las guías abiertas (la de la página, la del layout) se enteran de
+// un cambio por este evento, sin contexto aparte.
+const EVENTO = 'slotly:guia';
+const avisar = () => { try { window.dispatchEvent(new Event(EVENTO)); } catch { /* sin window */ } };
+export function escucharGuia(fn) {
+  window.addEventListener(EVENTO, fn);
+  return () => window.removeEventListener(EVENTO, fn);
+}
+
 export const guiaOculta = (businessId) => leer(CLAVE_OCULTA(businessId));
-export const ocultarGuia = (businessId) => guardar(CLAVE_OCULTA(businessId));
+export const ocultarGuia = (businessId) => { guardar(CLAVE_OCULTA(businessId)); avisar(); };
 export const linkCompartido = (businessId) => leer(CLAVE_LINK(businessId));
-export const marcarLinkCompartido = (businessId) => guardar(CLAVE_LINK(businessId));
+export const marcarLinkCompartido = (businessId) => { guardar(CLAVE_LINK(businessId)); avisar(); };
+
+// ── Flujo guiado ────────────────────────────────────────────────────────────
+// Con pasos pendientes, terminar uno lleva solo al siguiente (FlujoPrimerosPasos).
+// Si la persona se va a otra sección, el flujo se corta por lo que queda de la
+// sesión del navegador: usa el sistema normal y los pasos quedan pendientes en
+// la guía. Tocar un botón de la guía lo retoma.
+const CLAVE_CORTADO = (id) => `slotly:guia-flujo-cortado:${id}`;
+export const flujoCortado = (businessId) => {
+  try { return sessionStorage.getItem(CLAVE_CORTADO(businessId)) === '1'; } catch { return false; }
+};
+export const cortarFlujo = (businessId) => {
+  try { sessionStorage.setItem(CLAVE_CORTADO(businessId), '1'); } catch { /* sin storage: sigue el flujo */ }
+  avisar();
+};
+export const retomarFlujo = (businessId) => {
+  try { sessionStorage.removeItem(CLAVE_CORTADO(businessId)); } catch { /* sin storage */ }
+  avisar();
+};
+
+/** Pantalla de un paso, sin el ?nuevo=1. El último (copiar el link) vive en Inicio. */
+export const rutaDelPaso = (paso) => (paso?.ir || '/admin').split('?')[0];
+
+/** Paso 4: algún dato de contacto o de marca (todos opcionales, con uno alcanza). */
+export function tieneDatosDeContacto(business) {
+  return Boolean(
+    business?.logoUrl || String(business?.phone || '').trim() || String(business?.address || '').trim()
+    || String(business?.mapsUrl || '').trim()
+    || String(business?.socialLinks?.instagram || '').trim() || String(business?.socialLinks?.whatsapp || '').trim()
+  );
+}
+
+export const FALTA_CONTACTO = 'Para terminar este paso cargá al menos un dato de contacto: teléfono, dirección, Instagram, link de Maps o la foto del negocio.';
 
 /**
  * Los pasos, en orden. `ir` es a dónde lleva el botón (con ?nuevo=1 la
@@ -67,10 +108,7 @@ export function pasosDeConfiguracion({ businessId, business, services, professio
       id: 'negocio',
       titulo: 'Completá los datos de tu negocio',
       detalle: 'Con un dato de contacto alcanza (teléfono, dirección, Instagram…). La foto, el link de Maps y lo demás son opcionales, pero es lo primero que ve quien entra a reservar.',
-      hecho: Boolean(
-        business?.logoUrl || business?.phone || business?.address || business?.mapsUrl
-        || business?.socialLinks?.instagram || business?.socialLinks?.whatsapp
-      ),
+      hecho: tieneDatosDeContacto(business),
       ir: '/admin/configuracion',
       boton: 'Ir a Configuración',
     },
