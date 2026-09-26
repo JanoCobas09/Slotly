@@ -4,6 +4,7 @@ import { getMpConnectionStatus } from '../../lib/repository';
 import { conectarMercadoPago, desconectarMercadoPago } from '../../lib/functions';
 import { formatPrice } from '../../utils/dateUtils';
 import Icon from '../Icon';
+import ErrorDeCampo from '../ErrorDeCampo';
 
 // Lo que se ve al volver de Mercado Pago (mp-oauth-callback redirige con ?mp=).
 const AVISO_VUELTA = {
@@ -20,7 +21,7 @@ const AVISO_VUELTA = {
  * Cambios": es un ida y vuelta con Mercado Pago). Activar la seña, el tipo y
  * el monto sí son campos del formulario y se guardan con el resto.
  */
-export default function SenaMercadoPagoCard({ form, editar, businessId, terminology }) {
+export default function SenaMercadoPagoCard({ form, editar, businessId, terminology, errorCampo }) {
   const [params, setParams] = useSearchParams();
   const [conexion, setConexion] = useState(undefined); // undefined = cargando
   const [trabajando, setTrabajando] = useState(false);
@@ -155,9 +156,11 @@ export default function SenaMercadoPagoCard({ form, editar, businessId, terminol
                   type="number"
                   min={1}
                   max={tipo === 'percent' ? 100 : undefined}
+                  {...errorCampo?.campo('depositValue')}
                   value={form.depositValue ?? ''}
                   onChange={(e) => editar({ depositValue: e.target.value === '' ? null : Number(e.target.value) })}
                 />
+                <ErrorDeCampo error={errorCampo} campo="depositValue" />
               </div>
             </div>
             {valor > 0 && (

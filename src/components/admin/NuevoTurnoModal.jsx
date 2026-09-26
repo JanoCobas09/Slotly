@@ -6,7 +6,9 @@ import { horariosLibresPorSucursal, profesionalesDeSucursal, hayVariasSucursales
 import { formatPrice, toDateString } from '../../utils/dateUtils';
 import Icon from '../Icon';
 import { esReservaDelCliente } from '../../utils/turnos';
-import { esTelefono } from '../../utils/validaciones';
+import { esTelefono, problema } from '../../utils/validaciones';
+import ErrorDeCampo from '../ErrorDeCampo';
+import { useErrorDeCampo } from '../../hooks/useErrorDeCampo';
 import { turnoBloqueado, diaEnteroBloqueado } from '../../utils/bloqueos';
 
 /**
@@ -65,6 +67,7 @@ export default function NuevoTurnoModal({ onClose, turno = null }) {
       });
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
+  const errorCampo = useErrorDeCampo();
 
   const set = (campo) => (ev) => {
     const valor = ev.target.value;
@@ -136,10 +139,15 @@ export default function NuevoTurnoModal({ onClose, turno = null }) {
     : diaEnteroBloqueado(blockedDays, form.date);
   const digitos = form.clientPhone.replace(/\D/g, '');
   const telefonoOk = digitos.length === 0 || (digitos.length >= 10 && digitos.length <= 13 && esTelefono(form.clientPhone));
-  const listo = Boolean(slot) && form.clientName.trim().length > 0 && telefonoOk && !guardando;
 
+  // El botón no se apaga cuando falta algo: al tocarlo se marca qué falta.
   const guardar = async () => {
-    if (!listo) return;
+    if (guardando) return;
+    const falla = (!form.serviceId && problema('serviceId', 'Elegí un servicio.'))
+      || (!slot && problema('startTime', slots.length === 0 ? 'Ese día no hay horarios libres: probá con otro.' : 'Elegí un horario.'))
+      || (!form.clientName.trim() && problema('clientName', 'Poné el nombre del cliente.'))
+      || (!telefonoOk && problema('clientPhone', 'Tiene que tener entre 10 y 13 dígitos, o dejalo vacío.'));
+    if (errorCampo.marcar(falla)) return;
     setGuardando(true);
     setError('');
     try {
@@ -233,7 +241,7 @@ export default function NuevoTurnoModal({ onClose, turno = null }) {
 
           <div className="form-group">
             <label className="form-label">Servicio</label>
-            <select className="form-input" value={form.serviceId} onChange={set('serviceId')}>
+            <select className="form-input" {...errorCampo.campo('serviceId')} value={form.serviceId} onChange={set('serviceId')}>
               <option value="">Elegí un servicio</option>
               {serviciosDelProfesional.map((s) => (
                 <option key={s.id} value={s.id}>
@@ -241,6 +249,7 @@ export default function NuevoTurnoModal({ onClose, turno = null }) {
                 </option>
               ))}
             </select>
+            <ErrorDeCampo error={errorCampo} campo="serviceId" />
             {form.professionalId && serviciosDelProfesional.length === 0 && (
               <p className="text-sm text-muted" style={{ marginTop: 6 }}>
                 Este profesional no tiene servicios asignados. Se asignan desde Profesionales.
@@ -257,6 +266,7 @@ export default function NuevoTurnoModal({ onClose, turno = null }) {
               <label className="form-label">Horario</label>
               <select
                 className="form-input"
+                {...errorCampo.campo('startTime')}
                 value={form.startTime}
                 onChange={set('startTime')}
                 disabled={!form.serviceId || slots.length === 0}
@@ -268,6 +278,7 @@ export default function NuevoTurnoModal({ onClose, turno = null }) {
                   </option>
                 ))}
               </select>
+              <ErrorDeCampo error={errorCampo} campo="startTime" />
             </div>
           </div>
 
@@ -279,7 +290,8 @@ export default function NuevoTurnoModal({ onClose, turno = null }) {
 
           <div className="form-group">
             <label className="form-label">Nombre del cliente</label>
-            <input className="form-input" value={form.clientName} onChange={set('clientName')} placeholder="Juan Pérez" maxLength={120} />
+            <input className="form-input" {...errorCampo.campo('clientName')} value={form.clientName} onChange={set('clientName')} placeholder="Juan Pérez" maxLength={120} />
+            <ErrorDeCampo error={errorCampo} campo="clientName" />
           </div>
 
           <div className="form-group">
@@ -287,16 +299,18 @@ export default function NuevoTurnoModal({ onClose, turno = null }) {
             <input
               className="form-input"
               type="tel"
+              {...errorCampo.campo('clientPhone')}
               value={form.clientPhone}
               onChange={set('clientPhone')}
               placeholder="11 1234-5678"
               style={!telefonoOk ? { borderColor: 'var(--danger)' } : undefined}
             />
-            {!telefonoOk && (
+            {!telefonoOk && errorCampo.problema?.campo !== 'clientPhone' && (
               <p className="text-sm" style={{ color: 'var(--danger)', marginTop: 6 }}>
                 Tiene que tener entre 10 y 13 dígitos, o dejalo vacío.
               </p>
             )}
+            <ErrorDeCampo error={errorCampo} campo="clientPhone" />
           </div>
 
           <div className="form-group">
@@ -306,7 +320,7 @@ export default function NuevoTurnoModal({ onClose, turno = null }) {
         </div>
         <div className="modal-footer">
           <button className="btn btn-outline" onClick={onClose} disabled={guardando}>Cancelar</button>
-          <button className="btn btn-primary" onClick={guardar} disabled={!listo}>
+          <button className="btn btn-primary" onClick={guardar} disabled={guardando}>
             {editando
               ? (guardando ? 'Guardando…' : 'Guardar cambios')
               : (guardando ? 'Agendando…' : slot ? `Agendar ${slot.startTime}` : 'Agendar')}

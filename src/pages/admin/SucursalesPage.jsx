@@ -4,10 +4,12 @@ import { useTenant } from '../../hooks/useTenantData';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
 import { addToSubcollection, updateInSubcollection, removeFromSubcollection } from '../../lib/repository';
 import { profesionalesDeSucursal, sucursalesActivas, HORARIO_INICIAL } from '../../utils/sucursales';
-import { validarHorarioNegocio, esTelefono, esUrl, LIMITES } from '../../utils/validaciones';
+import { validarHorarioNegocio, esTelefono, esUrl, problema, LIMITES } from '../../utils/validaciones';
 import { formatPrice, toDateString } from '../../utils/dateUtils';
 import HorarioAtencion from '../../components/admin/HorarioAtencion';
 import Icon from '../../components/Icon';
+import ErrorDeCampo from '../../components/ErrorDeCampo';
+import { useErrorDeCampo } from '../../hooks/useErrorDeCampo';
 import { getPlan, limiteSucursales, planConSucursales, linkAmpliarPlan } from '../../config/plans';
 
 const VACIA = { name: '', address: '', phone: '', mapsUrl: '', horarioPropio: false, businessHours: HORARIO_INICIAL, precios: {} };
@@ -27,6 +29,7 @@ export default function SucursalesPage() {
   const [error, setError] = useState('');
   const [guardando, setGuardando] = useState(false);
   const [copiado, setCopiado] = useState(null);
+  const errorCampo = useErrorDeCampo();
 
   const lista = [...(branches || [])].sort((a, b) => (a.isMain === b.isMain ? a.name.localeCompare(b.name) : a.isMain ? -1 : 1));
   const serviciosActivos = services.filter((s) => s.isActive !== false);
@@ -34,6 +37,7 @@ export default function SucursalesPage() {
 
   const abrir = (b) => {
     setError('');
+    errorCampo.limpiar();
     if (!b) {
       setForm(VACIA);
       setEditando('nueva');
@@ -49,23 +53,23 @@ export default function SucursalesPage() {
 
   const validar = () => {
     const nombre = form.name.trim();
-    if (nombre.length < 2 || nombre.length > 60) return 'El nombre de la sucursal tiene que tener entre 2 y 60 caracteres.';
-    if (form.address.trim().length > LIMITES.direccion) return `La dirección puede tener hasta ${LIMITES.direccion} caracteres.`;
-    if (!esTelefono(form.phone)) return 'El teléfono no es válido: usá solo números, con código de área.';
-    if (!esUrl(form.mapsUrl)) return 'El link de Google Maps tiene que empezar con https://';
+    if (!nombre) return problema('name', 'Poné el nombre de la sucursal.');
+    if (nombre.length < 2 || nombre.length > 60) return problema('name', 'El nombre de la sucursal tiene que tener entre 2 y 60 caracteres.');
+    if (form.address.trim().length > LIMITES.direccion) return problema('address', `La dirección puede tener hasta ${LIMITES.direccion} caracteres.`);
+    if (!esTelefono(form.phone)) return problema('phone', 'El teléfono no es válido: usá solo números, con código de área.');
+    if (!esUrl(form.mapsUrl)) return problema('mapsUrl', 'El link de Google Maps tiene que empezar con https://');
     if (form.horarioPropio) {
       const e = validarHorarioNegocio(form.businessHours);
       if (e) return e;
     }
-    for (const [, v] of Object.entries(form.precios)) {
-      if (String(v).trim() !== '' && !(Number(v) >= 0)) return 'Los precios no pueden ser negativos.';
+    for (const [serviceId, v] of Object.entries(form.precios)) {
+      if (String(v).trim() !== '' && !(Number(v) >= 0)) return problema(`precio-${serviceId}`, 'El precio no puede ser negativo.');
     }
-    return '';
+    return null;
   };
 
   const guardar = async () => {
-    const e = validar();
-    if (e) { setError(e); return; }
+    if (errorCampo.marcar(validar())) return;
     setGuardando(true);
     setError('');
     try {
@@ -246,21 +250,25 @@ export default function SucursalesPage() {
             <div className="modal-body flex flex-col gap-md">
               <div className="form-group">
                 <label className="form-label">Nombre <span className="required">*</span></label>
-                <input className="form-input" value={form.name} maxLength={60} placeholder="Ej: Centro, Norte, Local de Palermo" onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                <input className="form-input" {...errorCampo.campo('name')} value={form.name} maxLength={60} placeholder="Ej: Centro, Norte, Local de Palermo" onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                <ErrorDeCampo error={errorCampo} campo="name" />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
                 <div className="form-group">
                   <label className="form-label">Dirección</label>
-                  <input className="form-input" value={form.address} maxLength={LIMITES.direccion} placeholder={business?.address || 'Av. Siempre Viva 123'} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+                  <input className="form-input" {...errorCampo.campo('address')} value={form.address} maxLength={LIMITES.direccion} placeholder={business?.address || 'Av. Siempre Viva 123'} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+                  <ErrorDeCampo error={errorCampo} campo="address" />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Teléfono</label>
-                  <input className="form-input" type="tel" value={form.phone} maxLength={LIMITES.telefono} placeholder={business?.phone || ''} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+                  <input className="form-input" {...errorCampo.campo('phone')} type="tel" value={form.phone} maxLength={LIMITES.telefono} placeholder={business?.phone || ''} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+                  <ErrorDeCampo error={errorCampo} campo="phone" />
                 </div>
               </div>
               <div className="form-group">
                 <label className="form-label">Link de Google Maps</label>
-                <input className="form-input" value={form.mapsUrl} maxLength={LIMITES.url} placeholder="https://maps.app.goo.gl/..." onChange={(e) => setForm({ ...form, mapsUrl: e.target.value })} />
+                <input className="form-input" {...errorCampo.campo('mapsUrl')} value={form.mapsUrl} maxLength={LIMITES.url} placeholder="https://maps.app.goo.gl/..." onChange={(e) => setForm({ ...form, mapsUrl: e.target.value })} />
+                <ErrorDeCampo error={errorCampo} campo="mapsUrl" />
                 <p className="text-xs text-muted" style={{ marginTop: 4 }}>Lo que dejes vacío usa los datos generales del negocio (Configuración).</p>
               </div>
 
@@ -273,7 +281,8 @@ export default function SucursalesPage() {
                   {form.horarioPropio ? 'Esta sucursal abre en estos días y horarios.' : 'Usa el horario de atención general de Configuración.'}
                 </p>
               </div>
-              {form.horarioPropio && <HorarioAtencion dias={form.businessHours} onChange={(businessHours) => setForm({ ...form, businessHours })} />}
+              {form.horarioPropio && <HorarioAtencion dias={form.businessHours} onChange={(businessHours) => setForm({ ...form, businessHours })} errorCampo={errorCampo} />}
+              <ErrorDeCampo error={errorCampo} prefijo="horario-" />
 
               {serviciosActivos.length > 0 && (
                 <div>
@@ -285,6 +294,7 @@ export default function SucursalesPage() {
                         <span className="text-sm">{srv.name}</span>
                         <input
                           className="form-input" type="number" min={0} inputMode="decimal"
+                          {...errorCampo.campo(`precio-${srv.id}`)}
                           style={{ maxWidth: 160 }}
                           placeholder={formatPrice(srv.price, business?.currency)}
                           value={form.precios[srv.id] ?? ''}
@@ -293,6 +303,7 @@ export default function SucursalesPage() {
                       </div>
                     ))}
                   </div>
+                  <ErrorDeCampo error={errorCampo} prefijo="precio-" />
                 </div>
               )}
 

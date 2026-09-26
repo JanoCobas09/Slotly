@@ -5,8 +5,11 @@ import { getDayName } from '../../utils/dateUtils';
  * "Horarios de atención" de Configuración; controlado: `dias` + `onChange`.
  * Lo usan el horario propio de una sucursal (Sucursales) y el administrador
  * de sucursal (Mi sucursal).
+ *
+ * `errorCampo` (opcional, useErrorDeCampo): marca en rojo las horas del día
+ * que no deja guardar — campo `horario-<índice>`, como validarHorarioNegocio.
  */
-export default function HorarioAtencion({ dias, onChange }) {
+export default function HorarioAtencion({ dias, onChange, errorCampo }) {
   const cambiar = (idx, cambios) => onChange(dias.map((d, i) => (i === idx ? { ...d, ...cambios } : d)));
   return (
     <div className="schedule-grid">
@@ -22,8 +25,8 @@ export default function HorarioAtencion({ dias, onChange }) {
           />
           {d.isActive ? (
             <>
-              <input className="form-input" type="time" value={d.startTime || ''} onChange={(e) => cambiar(idx, { startTime: e.target.value })} />
-              <input className="form-input" type="time" value={d.endTime || ''} onChange={(e) => cambiar(idx, { endTime: e.target.value })} />
+              <input className="form-input" type="time" {...errorCampo?.campo(`horario-${idx}`)} value={d.startTime || ''} onChange={(e) => cambiar(idx, { startTime: e.target.value })} />
+              <input className="form-input" type="time" {...errorCampo?.campo(`horario-${idx}`)} value={d.endTime || ''} onChange={(e) => cambiar(idx, { endTime: e.target.value })} />
             </>
           ) : (
             <>

@@ -11,7 +11,9 @@ import { getDayName } from '../../utils/dateUtils';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
 import { capitalize } from '../../utils/text';
 import Icon from '../../components/Icon';
-import { validarProfesional, validarFranjas, LIMITES } from '../../utils/validaciones';
+import { validarProfesional, validarSemana, LIMITES } from '../../utils/validaciones';
+import ErrorDeCampo from '../../components/ErrorDeCampo';
+import { useErrorDeCampo } from '../../hooks/useErrorDeCampo';
 import HorarioSemanal from '../../components/admin/HorarioSemanal';
 import { diasDesdeSchedules, schedulesDesdeDias } from '../../utils/horarioSemanal';
 import { sucursalesActivas, sucursalPrincipal } from '../../utils/sucursales';
@@ -65,6 +67,7 @@ export default function ProfileSettingsPage() {
   // segunda franja de un horario cortado se perdía al guardar.
   const [horarioEditado, setHorarioEditado] = useState(null);
   const dias = horarioEditado ?? diasDesdeSchedules(schedules.filter(s => s.professionalId === profId));
+  const errorCampo = useErrorDeCampo();
 
   if (!profId || !professional) {
     return (
@@ -83,12 +86,7 @@ export default function ProfileSettingsPage() {
     if (!businessId || !profId) return;
     // Todo antes de escribir: se guarda en tres pasos (ficha, contacto,
     // horarios) y un rechazo a mitad de camino dejaba cambios a medias.
-    const errorDatos = validarProfesional(form)
-      || dias.filter((d) => d.isActive).map((d) => validarFranjas(d.franjas, getDayName(d.dayOfWeek))).find(Boolean);
-    if (errorDatos) {
-      alert(errorDatos);
-      return;
-    }
+    if (errorCampo.marcar(validarProfesional(form) || validarSemana(dias, getDayName))) return;
     setGuardando(true);
     try {
       // El contacto va aparte: el documento del profesional es público.
@@ -142,22 +140,26 @@ export default function ProfileSettingsPage() {
                 <label className="form-label">Nombre Completo <span className="required">*</span></label>
                 <input
                   className="form-input"
+                  {...errorCampo.campo('name')}
                   value={form.name}
                   maxLength={LIMITES.nombre}
                   onChange={e => editar({ name: e.target.value })}
                   placeholder="Tu nombre"
                 />
+                <ErrorDeCampo error={errorCampo} campo="name" />
               </div>
 
               <div className="form-group">
                 <label className="form-label">Especialidad</label>
                 <input
                   className="form-input"
+                  {...errorCampo.campo('specialty')}
                   value={form.specialty}
                   maxLength={LIMITES.especialidad}
                   onChange={e => editar({ specialty: e.target.value })}
                   placeholder={`Ej: ${capitalize(terminology.professionalNoun)} Senior`}
                 />
+                <ErrorDeCampo error={errorCampo} campo="specialty" />
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
@@ -165,23 +167,27 @@ export default function ProfileSettingsPage() {
                   <label className="form-label">Teléfono</label>
                   <input
                     className="form-input"
+                    {...errorCampo.campo('phone')}
                     type="tel"
                     value={form.phone}
                     maxLength={LIMITES.telefono}
                     onChange={e => editar({ phone: e.target.value })}
                     placeholder="+54 11 ..."
                   />
+                  <ErrorDeCampo error={errorCampo} campo="phone" />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Email de Contacto</label>
                   <input
                     className="form-input"
+                    {...errorCampo.campo('email')}
                     type="email"
                     value={form.email}
                     maxLength={LIMITES.email}
                     onChange={e => editar({ email: e.target.value })}
                     placeholder="email@correo.com"
                   />
+                  <ErrorDeCampo error={errorCampo} campo="email" />
                 </div>
               </div>
 
@@ -189,12 +195,14 @@ export default function ProfileSettingsPage() {
                 <label className="form-label">Biografía / Presentación</label>
                 <textarea
                   className="form-input"
+                  {...errorCampo.campo('bio')}
                   style={{ minHeight: 100, resize: 'vertical' }}
                   value={form.bio}
                   maxLength={LIMITES.textoLargo}
                   onChange={e => editar({ bio: e.target.value })}
                   placeholder="Contales a tus clientes sobre tu experiencia…"
                 />
+                <ErrorDeCampo error={errorCampo} campo="bio" />
               </div>
             </div>
           </div>
@@ -212,14 +220,16 @@ export default function ProfileSettingsPage() {
               onChange={setHorarioEditado}
               sucursales={sucursalesActivas(branches)}
               sucursalPorDefecto={sucursalPrincipal(branches)?.id || null}
+              errorCampo={errorCampo}
             />
+            <ErrorDeCampo error={errorCampo} prefijo="franja-" />
           </div>
 
           <div className="flex gap-sm mt-lg justify-end">
             <button 
               className="btn btn-primary btn-lg" 
               onClick={handleSave}
-              disabled={!form.name.trim() || guardando}
+              disabled={guardando}
             >
               <Icon name="save" /> Guardar Mi Configuración
             </button>

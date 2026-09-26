@@ -6,7 +6,9 @@ import { setBusinessAdmin, revokeBusinessAdmin } from '../../lib/functions';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
 import { capitalize as cap } from '../../utils/text';
 import Icon from '../../components/Icon';
-import { validarEmailObligatorio, LIMITES } from '../../utils/validaciones';
+import { validarEmailObligatorio, problema, LIMITES } from '../../utils/validaciones';
+import ErrorDeCampo from '../../components/ErrorDeCampo';
+import { useErrorDeCampo } from '../../hooks/useErrorDeCampo';
 import { sucursalesActivas, nombreSucursal } from '../../utils/sucursales';
 import { limiteSucursales } from '../../config/plans';
 
@@ -28,6 +30,7 @@ export default function AdminsPage() {
   const [error, setError] = useState('');
   const [aviso, setAviso] = useState('');
   const [guardando, setGuardando] = useState(false);
+  const errorCampo = useErrorDeCampo();
 
   // Designar dueños es exclusivo de la plataforma: el dueño es quien paga la
   // cuenta, así que quién lo es no se delega al tenant. La Cloud Function
@@ -50,6 +53,7 @@ export default function AdminsPage() {
     setForm(EMPTY_FORM);
     setEditTarget(null);
     setError('');
+    errorCampo.limpiar();
     setShowModal(true);
   };
 
@@ -57,6 +61,7 @@ export default function AdminsPage() {
     setForm({ email: admin.email, role: admin.role, professionalId: admin.professionalId || '', branchId: admin.branchId || '', name: admin.name || '' });
     setEditTarget(admin.id);
     setError('');
+    errorCampo.limpiar();
     setShowModal(true);
   };
 
@@ -66,19 +71,16 @@ export default function AdminsPage() {
   };
 
   const handleSave = async () => {
-    const errorEmail = validarEmailObligatorio(form.email);
-    if (errorEmail) return setError(errorEmail);
-    if (form.name.trim().length > LIMITES.nombre) return setError(`El nombre puede tener hasta ${LIMITES.nombre} caracteres.`);
-    if (form.role === 'admin' && !form.professionalId) return setError(`Los ${terminology.professionalNoun}s deben tener un profesional asignado.`);
-    if (form.role === 'manager' && !form.branchId) return setError('Elegí la sucursal que va a administrar.');
-
-    // Verificar duplicado de email (solo en creación nueva)
-    if (!editTarget) {
-      const exists = authorizedAdmins.some(
-        a => a.email.toLowerCase() === form.email.trim().toLowerCase()
-      );
-      if (exists) return setError('Ese email ya está registrado como administrador.');
-    }
+    setError('');
+    const falla = validarEmailObligatorio(form.email)
+      || (form.name.trim().length > LIMITES.nombre && problema('name', `El nombre puede tener hasta ${LIMITES.nombre} caracteres.`))
+      || (form.role === 'admin' && !form.professionalId && problema('professionalId', `Elegí a qué ${terminology.professionalNoun} corresponde esta cuenta.`))
+      || (form.role === 'manager' && !form.branchId && problema('branchId', 'Elegí la sucursal que va a administrar.'))
+      // Duplicado de email (solo en creación nueva)
+      || (!editTarget
+        && authorizedAdmins.some(a => a.email.toLowerCase() === form.email.trim().toLowerCase())
+        && problema('email', 'Ese email ya está registrado como administrador.'));
+    if (errorCampo.marcar(falla)) return;
 
     setGuardando(true);
     setError('');
@@ -236,6 +238,7 @@ export default function AdminsPage() {
                 <label className="form-label">Email <span className="required">*</span></label>
                 <input
                   className="form-input"
+                  {...errorCampo.campo('email')}
                   type="email"
                   placeholder="nombre@gmail.com"
                   value={form.email}
@@ -243,6 +246,7 @@ export default function AdminsPage() {
                   onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
                   autoFocus
                 />
+                <ErrorDeCampo error={errorCampo} campo="email" />
                 <p className="text-xs text-muted" style={{ marginTop: 4 }}>
                   Tiene que ser el email exacto con el que inicia sesión (su Gmail, o el usuario que le creamos).
                 </p>
@@ -252,12 +256,14 @@ export default function AdminsPage() {
                 <label className="form-label">Nombre (opcional)</label>
                 <input
                   className="form-input"
+                  {...errorCampo.campo('name')}
                   type="text"
                   placeholder="Carlos Gómez"
                   value={form.name}
                   maxLength={LIMITES.nombre}
                   onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                 />
+                <ErrorDeCampo error={errorCampo} campo="name" />
               </div>
 
               <div className="form-group">
@@ -284,12 +290,14 @@ export default function AdminsPage() {
                   <label className="form-label">Sucursal <span className="required">*</span></label>
                   <select
                     className="form-input"
+                    {...errorCampo.campo('branchId')}
                     value={form.branchId}
                     onChange={e => setForm(f => ({ ...f, branchId: e.target.value }))}
                   >
                     <option value="">— Seleccioná una sucursal —</option>
                     {sucursales.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                   </select>
+                  <ErrorDeCampo error={errorCampo} campo="branchId" />
                   <p className="text-xs text-muted" style={{ marginTop: 4 }}>
                     Solo va a ver los turnos y el equipo de esta sucursal.
                   </p>
@@ -301,6 +309,7 @@ export default function AdminsPage() {
                   <label className="form-label">Profesional vinculado <span className="required">*</span></label>
                   <select
                     className="form-input"
+                    {...errorCampo.campo('professionalId')}
                     value={form.professionalId}
                     onChange={e => setForm(f => ({ ...f, professionalId: e.target.value }))}
                   >
@@ -309,6 +318,7 @@ export default function AdminsPage() {
                       <option key={p.id} value={p.id}>{p.name} — {p.specialty}</option>
                     ))}
                   </select>
+                  <ErrorDeCampo error={errorCampo} campo="professionalId" />
                   <p className="text-xs text-muted" style={{ marginTop: 4 }}>
                     Solo va a ver las citas asignadas a este perfil.
                   </p>

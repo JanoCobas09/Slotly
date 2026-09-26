@@ -9,6 +9,8 @@ import { validarFranjas } from '../../utils/validaciones';
 import { getDayName } from '../../utils/dateUtils';
 import HorarioSemanal from '../../components/admin/HorarioSemanal';
 import Icon from '../../components/Icon';
+import ErrorDeCampo from '../../components/ErrorDeCampo';
+import { useErrorDeCampo } from '../../hooks/useErrorDeCampo';
 
 /**
  * El equipo de UNA sucursal, para su administrador (role 'manager'): quién
@@ -26,6 +28,7 @@ export default function EquipoSucursalPage() {
   const [error, setError] = useState('');
   const [guardando, setGuardando] = useState(false);
   const [sumar, setSumar] = useState('');
+  const errorCampo = useErrorDeCampo();
 
   const branchId = user?.branchId;
   const sucursal = (branches || []).find((b) => b.id === branchId);
@@ -37,6 +40,7 @@ export default function EquipoSucursalPage() {
 
   const abrir = (prof) => {
     setError('');
+    errorCampo.limpiar();
     setDias(diasDesdeSchedules(franjasEnSucursal(prof.id)));
     setEditando(prof);
   };
@@ -44,12 +48,15 @@ export default function EquipoSucursalPage() {
   const guardar = async () => {
     // Las franjas de este profesional en OTRAS sucursales, para no pisarlas.
     const enOtras = schedules.filter((s) => s.professionalId === editando.id && s.branchId !== branchId && s.isActive !== false);
+    // Las de otras sucursales van al final: los índices de las del editor no
+    // cambian, así validarFranjas marca la franja correcta.
     const err = dias.filter((d) => d.isActive).map((d) => validarFranjas(
       [...d.franjas, ...enOtras.filter((s) => s.dayOfWeek === d.dayOfWeek).map((s) => ({ startTime: s.startTime, endTime: s.endTime }))],
       getDayName(d.dayOfWeek),
+      d.dayOfWeek,
     )).find(Boolean);
     if (err) {
-      setError(err.includes('se pisan') ? `${err} (contando el horario que tiene en otra sucursal)` : err);
+      errorCampo.marcar(err.mensaje.includes('se pisan') ? { ...err, mensaje: `${err.mensaje} (contando el horario que tiene en otra sucursal)` } : err);
       return;
     }
     setGuardando(true);
@@ -127,7 +134,8 @@ export default function EquipoSucursalPage() {
               <p className="text-xs text-muted" style={{ marginBottom: 'var(--space-sm)' }}>
                 Solo el horario en esta sucursal. Para horario cortado, agregá más de una franja el mismo día.
               </p>
-              <HorarioSemanal dias={dias} onChange={setDias} diaCorto />
+              <HorarioSemanal dias={dias} onChange={setDias} diaCorto errorCampo={errorCampo} />
+              <ErrorDeCampo error={errorCampo} prefijo="franja-" />
               {error && <div className="notice notice-danger mt-md">{error}</div>}
             </div>
             <div className="modal-footer">

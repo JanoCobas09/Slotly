@@ -61,10 +61,16 @@ export function pasosDeConfiguracion({ businessId, business, services, professio
       boton: `Ver ${prof}s`,
     },
     {
+      // Cualquier dato de contacto o de marca cuenta. Antes solo la foto o el
+      // teléfono: quien completaba dirección, Maps o Instagram y guardaba
+      // se quedaba trabado en este paso sin saber por qué.
       id: 'negocio',
       titulo: 'Completá los datos de tu negocio',
-      detalle: 'Foto, teléfono y horario de atención: es lo primero que ve quien entra a reservar.',
-      hecho: Boolean(business?.logoUrl || business?.phone),
+      detalle: 'Con un dato de contacto alcanza (teléfono, dirección, Instagram…). La foto, el link de Maps y lo demás son opcionales, pero es lo primero que ve quien entra a reservar.',
+      hecho: Boolean(
+        business?.logoUrl || business?.phone || business?.address || business?.mapsUrl
+        || business?.socialLinks?.instagram || business?.socialLinks?.whatsapp
+      ),
       ir: '/admin/configuracion',
       boton: 'Ir a Configuración',
     },

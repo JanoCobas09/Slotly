@@ -7,6 +7,9 @@ import { blockDays, removeBlocks } from '../../lib/repository';
 import { formatDate, toDateString, getMonthName } from '../../utils/dateUtils';
 import { esDiaEntero, diaEnteroBloqueado, rangosDelDia } from '../../utils/bloqueos';
 import Icon from '../../components/Icon';
+import ErrorDeCampo from '../../components/ErrorDeCampo';
+import { useErrorDeCampo } from '../../hooks/useErrorDeCampo';
+import { problema } from '../../utils/validaciones';
 
 /**
  * Días bloqueados: el dueño marca en un calendario los días (o partes del
@@ -35,7 +38,7 @@ function fechasEntre(desde, hasta) {
 const ALCANCE_INICIAL = { modo: 'dia', desde: '09:00', hasta: '13:00' };
 
 /** "Todo el día" (por defecto) o "Solo un horario" con desde/hasta. */
-function SelectorAlcance({ alcance, onChange, nombre }) {
+function SelectorAlcance({ alcance, onChange, nombre, errorCampo }) {
   const set = (patch) => onChange({ ...alcance, ...patch });
   return (
     <div className="bloqueo-alcance">
@@ -49,12 +52,14 @@ function SelectorAlcance({ alcance, onChange, nombre }) {
       </label>
       {alcance.modo === 'horario' && (
         <div className="bloqueo-horas">
-          <input type="time" className="form-input" value={alcance.desde} onChange={(e) => set({ desde: e.target.value })} aria-label="Desde" />
+          <input type="time" className="form-input" {...errorCampo?.campo(`${nombre}-horas`)} value={alcance.desde} onChange={(e) => set({ desde: e.target.value })} aria-label="Desde" />
           <span className="text-muted">a</span>
-          <input type="time" className="form-input" value={alcance.hasta} onChange={(e) => set({ hasta: e.target.value })} aria-label="Hasta" />
+          <input type="time" className="form-input" {...errorCampo?.campo(`${nombre}-horas`)} value={alcance.hasta} onChange={(e) => set({ hasta: e.target.value })} aria-label="Hasta" />
         </div>
       )}
-      {alcance.modo === 'horario' && alcance.desde >= alcance.hasta && (
+      <ErrorDeCampo error={errorCampo} campo={`${nombre}-horas`} />
+      {alcance.modo === 'horario' && alcance.desde && alcance.hasta && alcance.desde >= alcance.hasta
+        && errorCampo?.problema?.campo !== `${nombre}-horas` && (
         <p className="text-xs" style={{ color: 'var(--danger)', marginTop: 6 }}>La hora de fin tiene que ser posterior a la de inicio.</p>
       )}
     </div>
@@ -62,6 +67,13 @@ function SelectorAlcance({ alcance, onChange, nombre }) {
 }
 
 const alcanceValido = (a) => a.modo === 'dia' || (a.desde && a.hasta && a.desde < a.hasta);
+/** Qué casillero del alcance falla, o null. `nombre` es el del SelectorAlcance. */
+const problemaAlcance = (a, nombre) => {
+  if (a.modo === 'dia') return null;
+  if (!a.desde || !a.hasta) return problema(`${nombre}-horas`, 'Completá desde y hasta qué hora.');
+  if (a.desde >= a.hasta) return problema(`${nombre}-horas`, 'La hora de fin tiene que ser posterior a la de inicio.');
+  return null;
+};
 const rangoDe = (a) => (a.modo === 'dia' ? null : { startTime: a.desde, endTime: a.hasta });
 const textoBloqueo = (b) => (esDiaEntero(b) ? 'Todo el día' : `${b.startTime} a ${b.endTime}`);
 
@@ -88,6 +100,7 @@ export default function BlockedDaysPage() {
   const [alcanceRango, setAlcanceRango] = useState(ALCANCE_INICIAL);
   const [ocupado, setOcupado] = useState(false);
   const [error, setError] = useState('');
+  const errorCampo = useErrorDeCampo();
 
   // Turnos vivos: bloquear NO cancela lo ya reservado — hay que avisarle al
   // dueño cuántos caen en cada bloqueo para que les escriba.
@@ -132,7 +145,12 @@ export default function BlockedDaysPage() {
 
   const rangoFechasValido = rango.desde && rango.hasta && rango.desde >= hoy && rango.hasta >= rango.desde;
   const bloquearRango = () => {
-    if (!rangoFechasValido || !alcanceValido(alcanceRango)) return;
+    const falla = (!rango.desde && problema('rango-desde', 'Elegí desde qué día.'))
+      || (rango.desde < hoy && problema('rango-desde', 'No puede ser un día que ya pasó.'))
+      || (!rango.hasta && problema('rango-hasta', 'Elegí hasta qué día.'))
+      || (rango.hasta < rango.desde && problema('rango-hasta', 'Tiene que ser el mismo día o uno posterior a "Desde".'))
+      || problemaAlcance(alcanceRango, 'alcance-rango');
+    if (errorCampo.marcar(falla)) return;
     bloquear(fechasEntre(rango.desde, rango.hasta), alcanceRango).then((ok) => ok && setRango({ desde: '', hasta: '' }));
   };
 
@@ -268,11 +286,11 @@ export default function BlockedDaysPage() {
 
               {!seleccionadoEntero && (
                 <>
-                  <SelectorAlcance alcance={alcanceDia} onChange={setAlcanceDia} nombre="alcance-dia" />
+                  <SelectorAlcance alcance={alcanceDia} onChange={setAlcanceDia} nombre="alcance-dia" errorCampo={errorCampo} />
                   <button
                     className="btn btn-primary btn-full"
-                    onClick={() => bloquear([seleccionado], alcanceDia)}
-                    disabled={ocupado || !alcanceValido(alcanceDia)}
+                    onClick={() => { if (!errorCampo.marcar(problemaAlcance(alcanceDia, 'alcance-dia'))) bloquear([seleccionado], alcanceDia); }}
+                    disabled={ocupado}
                   >
                     <Icon name="lock" /> {alcanceDia.modo === 'dia' ? 'Bloquear todo el día' : `Bloquear de ${alcanceDia.desde} a ${alcanceDia.hasta}`}
                   </button>
@@ -291,17 +309,20 @@ export default function BlockedDaysPage() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div className="form-group">
                 <label className="form-label">Desde</label>
-                <input type="date" className="form-input" min={hoy} value={rango.desde}
+                <input type="date" className="form-input" min={hoy} value={rango.desde} {...errorCampo.campo('rango-desde')}
                   onChange={(e) => setRango((r) => ({ ...r, desde: e.target.value }))} />
+                <ErrorDeCampo error={errorCampo} campo="rango-desde" />
               </div>
               <div className="form-group">
                 <label className="form-label">Hasta</label>
-                <input type="date" className="form-input" min={rango.desde || hoy} value={rango.hasta}
+                <input type="date" className="form-input" min={rango.desde || hoy} value={rango.hasta} {...errorCampo.campo('rango-hasta')}
                   onChange={(e) => setRango((r) => ({ ...r, hasta: e.target.value }))} />
+                <ErrorDeCampo error={errorCampo} campo="rango-hasta" />
               </div>
             </div>
-            <SelectorAlcance alcance={alcanceRango} onChange={setAlcanceRango} nombre="alcance-rango" />
-            <button className="btn btn-primary btn-full" onClick={bloquearRango} disabled={!rangoFechasValido || !alcanceValido(alcanceRango) || ocupado}>
+            <SelectorAlcance alcance={alcanceRango} onChange={setAlcanceRango} nombre="alcance-rango" errorCampo={errorCampo} />
+            {/* Sin apagarlo cuando falta algo: al tocarlo marca qué falta. */}
+            <button className="btn btn-primary btn-full" onClick={bloquearRango} disabled={ocupado}>
               <Icon name="lock" /> Bloquear {rangoFechasValido ? `${fechasEntre(rango.desde, rango.hasta).length} días` : 'días'}
               {alcanceRango.modo === 'horario' && alcanceValido(alcanceRango) ? ` (${alcanceRango.desde} a ${alcanceRango.hasta})` : ''}
             </button>

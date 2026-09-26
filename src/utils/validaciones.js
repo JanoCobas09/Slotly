@@ -8,7 +8,9 @@
 // varios pasos (profesional: ficha + contacto + horarios + servicios).
 // Si cambiás una regla allá, cambiala acá.
 //
-// Cada validar*() devuelve el primer problema como texto, o '' si está todo bien.
+// Cada validar*() devuelve el primer problema como `{ campo, mensaje }` (el
+// casillero a marcar y qué decirle a la persona, ver hooks/useErrorDeCampo),
+// o null si está todo bien.
 
 export const LIMITES = {
   nombre: 80,
@@ -30,6 +32,7 @@ const HORA = /^([01][0-9]|2[0-3]):[0-5][0-9]$/;
 const COLOR = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 const vacio = (t) => !String(t ?? '').trim();
 const largo = (t) => String(t ?? '').trim().length;
+export const problema = (campo, mensaje) => ({ campo, mensaje });
 
 /** Vacío vale (los teléfonos son opcionales salvo donde se pide aparte). */
 export function esTelefono(t) {
@@ -59,79 +62,100 @@ export function esInstagram(t) {
 export const esHora = (t) => HORA.test(String(t ?? ''));
 
 // ── Negocio (Configuración / alta) ─────────────────────────────────────────
+// `campo` es el nombre con el que cada pantalla engancha el casillero
+// (useErrorDeCampo): el de la propiedad del formulario, salvo los anidados.
 export function validarNegocio(f) {
-  if (largo(f.name) < 2 || largo(f.name) > LIMITES.nombre) return `El nombre del negocio tiene que tener entre 2 y ${LIMITES.nombre} caracteres.`;
-  if (largo(f.welcomeMessage) > LIMITES.textoLargo) return `El mensaje de bienvenida puede tener hasta ${LIMITES.textoLargo} caracteres.`;
-  if (!esTelefono(f.phone)) return 'El teléfono no es válido: usá solo números, con código de área.';
-  if (!esEmail(f.email)) return 'El email del negocio no es válido.';
-  if (largo(f.address) > LIMITES.direccion) return `La dirección puede tener hasta ${LIMITES.direccion} caracteres.`;
-  if (!esUrl(f.mapsUrl)) return 'El link de Google Maps tiene que empezar con https://';
-  if (!esInstagram(f.socialLinks?.instagram)) return 'El usuario de Instagram solo puede tener letras, números, puntos y guiones bajos (hasta 30).';
-  if (!esTelefono(f.socialLinks?.whatsapp)) return 'El WhatsApp no es válido: usá solo números, con código de área.';
+  if (vacio(f.name)) return problema('name', 'Poné el nombre del negocio.');
+  if (largo(f.name) < 2 || largo(f.name) > LIMITES.nombre) return problema('name', `El nombre del negocio tiene que tener entre 2 y ${LIMITES.nombre} caracteres.`);
+  if (largo(f.welcomeMessage) > LIMITES.textoLargo) return problema('welcomeMessage', `El mensaje de bienvenida puede tener hasta ${LIMITES.textoLargo} caracteres.`);
+  if (!esTelefono(f.phone)) return problema('phone', 'El teléfono no es válido: usá solo números, con código de área.');
+  if (!esEmail(f.email)) return problema('email', 'El email del negocio no es válido.');
+  if (largo(f.address) > LIMITES.direccion) return problema('address', `La dirección puede tener hasta ${LIMITES.direccion} caracteres.`);
+  if (!esUrl(f.mapsUrl)) return problema('mapsUrl', 'El link de Google Maps tiene que empezar con https://');
+  if (!esInstagram(f.socialLinks?.instagram)) return problema('instagram', 'El usuario de Instagram solo puede tener letras, números, puntos y guiones bajos (hasta 30).');
+  if (!esTelefono(f.socialLinks?.whatsapp)) return problema('whatsapp', 'El WhatsApp no es válido: usá solo números, con código de área.');
   for (const c of ['primaryColor', 'secondaryColor', 'accentColor']) {
-    if (f[c] && !COLOR.test(f[c])) return 'Los colores tienen que tener el formato #RRGGBB.';
+    if (f[c] && !COLOR.test(f[c])) return problema(c, 'El color tiene que tener el formato #RRGGBB.');
   }
-  if (largo(f.customProfession) > LIMITES.textoCorto) return `El rubro puede tener hasta ${LIMITES.textoCorto} caracteres.`;
-  const errHorario = validarHorarioNegocio(f.businessHours);
-  if (errHorario) return errHorario;
-  return '';
+  if (largo(f.customProfession) > LIMITES.textoCorto) return problema('customProfession', `El rubro puede tener hasta ${LIMITES.textoCorto} caracteres.`);
+  return validarHorarioNegocio(f.businessHours);
 }
 
+/** Campo de cada día: `horario-<índice en el array>` (las dos horas del día). */
 export function validarHorarioNegocio(dias) {
-  for (const d of dias || []) {
+  for (const [i, d] of (dias || []).entries()) {
     if (!d.isActive) continue;
-    if (!esHora(d.startTime) || !esHora(d.endTime)) return 'Cada día abierto necesita hora de apertura y de cierre.';
-    if (d.startTime >= d.endTime) return 'En los horarios de atención, el cierre tiene que ser después de la apertura.';
+    if (!esHora(d.startTime) || !esHora(d.endTime)) return problema(`horario-${i}`, 'Cada día abierto necesita hora de apertura y de cierre.');
+    if (d.startTime >= d.endTime) return problema(`horario-${i}`, 'El cierre tiene que ser después de la apertura.');
   }
-  return '';
+  return null;
 }
 
 // ── Servicio ───────────────────────────────────────────────────────────────
 export function validarServicio(f) {
-  if (largo(f.name) < 2 || largo(f.name) > LIMITES.nombre) return `El nombre del servicio tiene que tener entre 2 y ${LIMITES.nombre} caracteres.`;
-  if (largo(f.description) > LIMITES.textoLargo) return `La descripción puede tener hasta ${LIMITES.textoLargo} caracteres.`;
-  if (largo(f.category) > LIMITES.textoCorto) return `La categoría puede tener hasta ${LIMITES.textoCorto} caracteres.`;
+  if (vacio(f.name)) return problema('name', 'Poné el nombre del servicio.');
+  if (largo(f.name) < 2 || largo(f.name) > LIMITES.nombre) return problema('name', `El nombre del servicio tiene que tener entre 2 y ${LIMITES.nombre} caracteres.`);
+  if (largo(f.description) > LIMITES.textoLargo) return problema('description', `La descripción puede tener hasta ${LIMITES.textoLargo} caracteres.`);
+  if (largo(f.category) > LIMITES.textoCorto) return problema('category', `La categoría puede tener hasta ${LIMITES.textoCorto} caracteres.`);
   const dur = Number(f.durationMinutes);
-  if (!Number.isInteger(dur) || dur < 5 || dur > 720) return 'La duración tiene que ser de entre 5 y 720 minutos.';
+  if (vacio(f.durationMinutes) || !Number.isInteger(dur) || dur < 5 || dur > 720) return problema('durationMinutes', 'La duración tiene que ser de entre 5 y 720 minutos.');
+  if (vacio(f.price)) return problema('price', 'Poné el precio del servicio (0 si es gratis).');
   const precio = Number(f.price);
-  if (!Number.isFinite(precio) || precio < 0) return 'El precio no puede ser negativo.';
-  if (precio > 100000000) return 'El precio es demasiado alto.';
-  return '';
+  if (!Number.isFinite(precio) || precio < 0) return problema('price', 'El precio no puede ser negativo.');
+  if (precio > 100000000) return problema('price', 'El precio es demasiado alto.');
+  return null;
 }
 
 // ── Profesional (ficha + contacto personal) ────────────────────────────────
 export function validarProfesional(f) {
-  if (largo(f.name) < 2 || largo(f.name) > LIMITES.nombre) return `El nombre tiene que tener entre 2 y ${LIMITES.nombre} caracteres.`;
-  if (largo(f.specialty) > LIMITES.especialidad) return `La especialidad puede tener hasta ${LIMITES.especialidad} caracteres.`;
-  if (largo(f.bio) > LIMITES.textoLargo) return `La descripción puede tener hasta ${LIMITES.textoLargo} caracteres.`;
-  if (!esTelefono(f.phone)) return 'El teléfono no es válido: usá solo números, con código de área.';
-  if (!esEmail(f.email)) return 'El email no es válido.';
-  return '';
+  if (vacio(f.name)) return problema('name', 'Poné el nombre.');
+  if (largo(f.name) < 2 || largo(f.name) > LIMITES.nombre) return problema('name', `El nombre tiene que tener entre 2 y ${LIMITES.nombre} caracteres.`);
+  if (largo(f.specialty) > LIMITES.especialidad) return problema('specialty', `La especialidad puede tener hasta ${LIMITES.especialidad} caracteres.`);
+  if (largo(f.bio) > LIMITES.textoLargo) return problema('bio', `La descripción puede tener hasta ${LIMITES.textoLargo} caracteres.`);
+  if (!esTelefono(f.phone)) return problema('phone', 'El teléfono no es válido: usá solo números, con código de área.');
+  if (!esEmail(f.email)) return problema('email', 'El email no es válido.');
+  return null;
 }
 
 /**
  * Franjas de un mismo día ([{ startTime, endTime }]): cada una con el fin
  * después del inicio, y sin pisarse entre ellas. `dia` es para el mensaje.
+ * Campo: `franja-<dayOfWeek>-<índice de la franja>`. Las franjas que vienen de
+ * afuera del editor (las de otra sucursal, que no se ven) van al final y no
+ * tienen casillero: si la que choca es una de esas, se marca la otra.
  */
-export function validarFranjas(franjas, dia = '') {
-  const llenas = (franjas || []).filter((f) => f.startTime || f.endTime);
+export function validarFranjas(franjas, dia = '', dayOfWeek = 0) {
+  const llenas = (franjas || []).map((f, i) => ({ ...f, i })).filter((f) => f.startTime || f.endTime);
   const en = dia ? ` del ${dia}` : '';
+  const campo = (i) => `franja-${dayOfWeek}-${i}`;
   for (const f of llenas) {
-    if (!esHora(f.startTime) || !esHora(f.endTime)) return `Completá inicio y fin de cada franja${en}.`;
-    if (f.startTime >= f.endTime) return `En el horario${en}, el fin tiene que ser después del inicio.`;
+    if (!esHora(f.startTime) || !esHora(f.endTime)) return problema(campo(f.i), `Completá inicio y fin de cada franja${en}.`);
+    if (f.startTime >= f.endTime) return problema(campo(f.i), `En el horario${en}, el fin tiene que ser después del inicio.`);
   }
   const orden = [...llenas].sort((a, b) => a.startTime.localeCompare(b.startTime));
-  for (let i = 1; i < orden.length; i++) {
-    if (orden[i].startTime < orden[i - 1].endTime) return `Las franjas${en} se pisan entre sí.`;
+  for (let k = 1; k < orden.length; k++) {
+    if (orden[k].startTime < orden[k - 1].endTime) {
+      return problema(campo(Math.min(orden[k].i, orden[k - 1].i)), `Las franjas${en} se pisan entre sí.`);
+    }
   }
-  return '';
+  return null;
+}
+
+/** Todos los días activos de un editor HorarioSemanal; el primer problema o null. */
+export function validarSemana(dias, nombreDia) {
+  for (const d of dias || []) {
+    if (!d.isActive) continue;
+    const p = validarFranjas(d.franjas, nombreDia(d.dayOfWeek), d.dayOfWeek);
+    if (p) return p;
+  }
+  return null;
 }
 
 // ── Equipo ─────────────────────────────────────────────────────────────────
-export function validarEmailObligatorio(email) {
-  if (vacio(email)) return 'El email es obligatorio.';
-  if (!esEmail(email)) return 'Ingresá un email válido (ej: nombre@gmail.com).';
-  return '';
+export function validarEmailObligatorio(email, campo = 'email') {
+  if (vacio(email)) return problema(campo, 'El email es obligatorio.');
+  if (!esEmail(email)) return problema(campo, 'Ingresá un email válido (ej: nombre@gmail.com).');
+  return null;
 }
 
 /**

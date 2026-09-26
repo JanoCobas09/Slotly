@@ -242,6 +242,14 @@ function businessReducer(state, action) {
     }
 
     // ── Super-Admin Actions ────────────────────────────────────────────────
+    // Lo que devolvió un guardado, aplicado sin esperar a Realtime (que igual
+    // llega después con lo mismo). Mezcla sobre lo que ya había: el panel
+    // global tiene la facturación pegada a cada negocio y no hay que perderla.
+    case 'PATCH_BUSINESS': {
+      const { id, cambios } = action.payload;
+      const aplicar = (b) => (b?.id === id ? { ...b, ...cambios } : b);
+      return { ...state, business: aplicar(state.business), businesses: state.businesses.map(aplicar) };
+    }
     case 'SET_BUSINESSES': {
       const activeBusiness = state.business
         ? action.payload.find((b) => b.id === state.business.id) || state.business

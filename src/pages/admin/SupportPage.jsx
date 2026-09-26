@@ -4,7 +4,9 @@ import { useCurrentBusiness } from '../../hooks/useCurrentBusiness';
 import { subscribeBusinessTickets, createTicket, TICKET_ESTADOS } from '../../lib/repository';
 import TicketChat from '../../components/TicketChat';
 import Icon from '../../components/Icon';
-import { LIMITES } from '../../utils/validaciones';
+import { problema, LIMITES } from '../../utils/validaciones';
+import ErrorDeCampo from '../../components/ErrorDeCampo';
+import { useErrorDeCampo } from '../../hooks/useErrorDeCampo';
 
 const CATEGORIAS = [
   { value: 'consulta', label: 'Consulta — cómo hacer algo' },
@@ -39,6 +41,7 @@ export default function SupportPage() {
   const [creando, setCreando] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState('');
+  const errorCampo = useErrorDeCampo();
   const [form, setForm] = useState({ subject: '', category: 'consulta', message: '' });
 
   useEffect(() => {
@@ -58,7 +61,10 @@ export default function SupportPage() {
 
   const abrirTicket = async (e) => {
     e.preventDefault();
-    if (!form.subject.trim() || !form.message.trim() || enviando) return;
+    if (enviando) return;
+    const falla = (!form.subject.trim() && problema('subject', 'Poné un asunto.'))
+      || (!form.message.trim() && problema('message', 'Contanos qué pasa.'));
+    if (errorCampo.marcar(falla)) return;
 
     setEnviando(true);
     setError('');
@@ -110,12 +116,14 @@ export default function SupportPage() {
               <label className="form-label">Asunto <span className="required">*</span></label>
               <input
                 className="form-input"
+                {...errorCampo.campo('subject')}
                 value={form.subject}
                 maxLength={LIMITES.asunto}
                 onChange={(e) => setForm({ ...form, subject: e.target.value })}
                 placeholder="Ej: No me aparecen los turnos del sábado"
                 autoFocus
               />
+              <ErrorDeCampo error={errorCampo} campo="subject" />
             </div>
             <div className="form-group">
               <label className="form-label">Tipo</label>
@@ -136,12 +144,14 @@ export default function SupportPage() {
             <textarea
               className="form-input"
               rows={5}
+              {...errorCampo.campo('message')}
               value={form.message}
               maxLength={LIMITES.mensaje}
               onChange={(e) => setForm({ ...form, message: e.target.value })}
               placeholder="Cuanto más detalle, más rápido lo resolvemos. Si es un problema, contanos qué hiciste antes de que pasara."
               style={{ resize: 'vertical' }}
             />
+            <ErrorDeCampo error={errorCampo} campo="message" />
           </div>
 
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
@@ -151,7 +161,7 @@ export default function SupportPage() {
             <button
               type="submit"
               className="btn btn-primary"
-              disabled={!form.subject.trim() || !form.message.trim() || enviando}
+              disabled={enviando}
             >
               {enviando ? 'Enviando…' : 'Enviar consulta'}
             </button>

@@ -20,8 +20,11 @@ import { FRANJA_VACIA } from '../../utils/horarioSemanal';
  *
  * `sucursales`: con más de una, cada franja muestra en qué sucursal es. Una
  * franja nueva arranca en `sucursalPorDefecto` (o la de la franja anterior).
+ *
+ * `errorCampo` (opcional, useErrorDeCampo): marca en rojo la franja que no
+ * deja guardar — campo `franja-<dayOfWeek>-<índice>`, como validarFranjas.
  */
-export default function HorarioSemanal({ dias, onChange, diaCorto = false, sucursales = [], sucursalPorDefecto = null }) {
+export default function HorarioSemanal({ dias, onChange, diaCorto = false, sucursales = [], sucursalPorDefecto = null, errorCampo }) {
   const conSucursal = sucursales.length > 1;
   const cambiarDia = (dayIndex, fn) => onChange(dias.map((d, i) => (i === dayIndex ? fn(d) : d)));
 
@@ -73,10 +76,12 @@ export default function HorarioSemanal({ dias, onChange, diaCorto = false, sucur
                 )}
                 <input
                   className="form-input" type="time" value={franja.startTime}
+                  {...errorCampo?.campo(`franja-${dia.dayOfWeek ?? dayIdx}-${franjaIdx}`)}
                   onChange={(e) => editarFranja(dayIdx, franjaIdx, 'startTime', e.target.value)}
                 />
                 <input
                   className="form-input" type="time" value={franja.endTime}
+                  {...errorCampo?.campo(`franja-${dia.dayOfWeek ?? dayIdx}-${franjaIdx}`)}
                   onChange={(e) => editarFranja(dayIdx, franjaIdx, 'endTime', e.target.value)}
                 />
                 {dia.franjas.length > 1 ? (

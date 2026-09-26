@@ -32,7 +32,7 @@ export default function TeamPanel() {
     ev.preventDefault();
     const email = form.email.trim().toLowerCase();
     const errorEmail = validarEmailObligatorio(email);
-    if (errorEmail) return setError(errorEmail);
+    if (errorEmail) return setError(errorEmail.mensaje);
     if (email === user?.email?.toLowerCase()) return setError('Ese sos vos.');
 
     setGuardando(true);

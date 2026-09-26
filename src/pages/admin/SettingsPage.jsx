@@ -3,12 +3,15 @@ import { useAuth } from '../../contexts/AuthContext';
 import { updateBusiness, uploadBusinessLogo, removeBusinessLogo } from '../../lib/repository';
 import { useCurrentBusiness } from '../../hooks/useCurrentBusiness';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
-import { getDayName } from '../../utils/dateUtils';
 import { applyTheme } from '../../config/theme';
 import Icon from '../../components/Icon';
 import SenaMercadoPagoCard from '../../components/admin/SenaMercadoPagoCard';
-import { validarNegocio, normalizarInstagram, LIMITES } from '../../utils/validaciones';
+import { validarNegocio, normalizarInstagram, problema, LIMITES } from '../../utils/validaciones';
 import PrimerosPasos from '../../components/admin/PrimerosPasos';
+import HorarioAtencion from '../../components/admin/HorarioAtencion';
+import ErrorDeCampo from '../../components/ErrorDeCampo';
+import { useErrorDeCampo } from '../../hooks/useErrorDeCampo';
+import { useBusiness } from '../../contexts/BusinessContext';
 
 const defaultHours = [
   { dayOfWeek: 0, startTime: '09:00', endTime: '20:00', isActive: true },
@@ -24,6 +27,8 @@ export default function SettingsPage() {
   const { user } = useAuth();
   const { business, businessId } = useCurrentBusiness();
   const { terminology, theme: resolvedTheme } = useBusinessContext();
+  const { dispatch } = useBusiness();
+  const errorCampo = useErrorDeCampo();
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
@@ -50,31 +55,36 @@ export default function SettingsPage() {
 
   const handleSave = async () => {
     if (!businessId) return;
-    if (form.socialLinks?.instagram) {
-      form.socialLinks = { ...form.socialLinks, instagram: normalizarInstagram(form.socialLinks.instagram) };
-    }
-    const errorDatos = validarNegocio(form);
-    if (errorDatos) {
-      setError(errorDatos);
-      return;
-    }
-    if (form.depositEnabled) {
-      const valor = Number(form.depositValue);
-      if (!valor || valor <= 0) {
-        setError('Poné de cuánto es la seña, o desactivala.');
-        return;
-      }
-      if (form.depositType !== 'fixed' && valor > 100) {
-        setError('La seña no puede ser más del 100% del precio.');
-        return;
-      }
-    }
-    setGuardando(true);
     setError('');
+    // Solo se manda lo que la persona cambió (ver el comentario de `cambios`).
+    // Mandar el formulario entero pisaba lo que otro había cambiado mientras
+    // tanto y, desde el panel global, arrastraba la facturación que viene
+    // pegada al negocio (columnas que `businesses` no tiene).
+    const aGuardar = { ...cambios };
+    if (aGuardar.socialLinks) {
+      aGuardar.socialLinks = { ...aGuardar.socialLinks, instagram: normalizarInstagram(aGuardar.socialLinks.instagram) };
+    }
+    // Sin horario guardado todavía, el de pantalla es el de por defecto.
+    if (!business?.businessHours) aGuardar.businessHours = form.businessHours;
+
+    const final = { ...form, ...aGuardar };
+    if (errorCampo.marcar(validarNegocio(final))) return;
+    if (final.depositEnabled) {
+      const valor = Number(final.depositValue);
+      if (!valor || valor <= 0) return errorCampo.marcar(problema('depositValue', 'Poné de cuánto es la seña, o desactivala.'));
+      if (final.depositType !== 'fixed' && valor > 100) return errorCampo.marcar(problema('depositValue', 'La seña no puede ser más del 100% del precio.'));
+    }
+    errorCampo.limpiar();
+
+    setGuardando(true);
     try {
       // Las Rules no dejan que el dueño toque su facturación ni se descongele
       // solo; el repositorio filtra esos campos antes de mandar.
-      await updateBusiness(businessId, form, { esPlataforma: user?.isPlatformOwner });
+      const guardado = await updateBusiness(businessId, aGuardar, { esPlataforma: user?.isPlatformOwner });
+      // Al estado ya, sin esperar a Realtime: sin esto, si el canal estaba
+      // caído el formulario volvía a mostrar lo viejo y la guía de Primeros
+      // pasos no avanzaba hasta recargar.
+      dispatch({ type: 'PATCH_BUSINESS', payload: { id: businessId, cambios: guardado } });
     } catch (err) {
       console.error('[SettingsPage] No se pudo guardar:', err);
       setError('No se pudieron guardar los cambios: ' + err.message);
@@ -153,22 +163,6 @@ export default function SettingsPage() {
     }
   };
 
-  const toggleScheduleDay = (dayIndex) => {
-    const hours = form.businessHours || defaultHours;
-    const updatedHours = hours.map((h, i) =>
-      i === dayIndex ? { ...h, isActive: !h.isActive } : h
-    );
-    editar({ businessHours: updatedHours });
-  };
-
-  const updateSchedule = (dayIndex, field, value) => {
-    const hours = form.businessHours || defaultHours;
-    const updatedHours = hours.map((h, i) =>
-      i === dayIndex ? { ...h, [field]: value } : h
-    );
-    editar({ businessHours: updatedHours });
-  };
-
   return (
     <div>
       <div className="admin-page-header">
@@ -235,7 +229,8 @@ export default function SettingsPage() {
               </div>
               <div className="form-group">
                 <label className="form-label">Nombre del negocio</label>
-                <input className="form-input" value={form.name} maxLength={LIMITES.nombre} onChange={e => editar({ name: e.target.value })} />
+                <input className="form-input" {...errorCampo.campo('name')} value={form.name} maxLength={LIMITES.nombre} onChange={e => editar({ name: e.target.value })} />
+                <ErrorDeCampo error={errorCampo} campo="name" />
               </div>
               {/*
                 El slug NO es editable desde acá. `updateBusiness` lo filtra para
@@ -259,7 +254,8 @@ export default function SettingsPage() {
               </div>
               <div className="form-group">
                 <label className="form-label">Mensaje de bienvenida</label>
-                <textarea className="form-input" value={form.welcomeMessage || ''} maxLength={LIMITES.textoLargo} onChange={e => editar({ welcomeMessage: e.target.value })} />
+                <textarea className="form-input" {...errorCampo.campo('welcomeMessage')} value={form.welcomeMessage || ''} maxLength={LIMITES.textoLargo} onChange={e => editar({ welcomeMessage: e.target.value })} />
+                <ErrorDeCampo error={errorCampo} campo="welcomeMessage" />
               </div>
             </div>
           </div>
@@ -271,15 +267,17 @@ export default function SettingsPage() {
                 <label className="form-label">Color primario</label>
                 <div className="flex items-center gap-sm">
                   <input type="color" value={form.primaryColor} onChange={e => editar({ primaryColor: e.target.value })} style={{ width: 48, height: 40, border: 'none', cursor: 'pointer' }} />
-                  <input className="form-input" value={form.primaryColor} onChange={e => editar({ primaryColor: e.target.value })} style={{ maxWidth: 140 }} />
+                  <input className="form-input" {...errorCampo.campo('primaryColor')} value={form.primaryColor || ''} onChange={e => editar({ primaryColor: e.target.value })} style={{ maxWidth: 140 }} />
                 </div>
+                <ErrorDeCampo error={errorCampo} campo="primaryColor" />
               </div>
               <div className="form-group">
                 <label className="form-label">Color secundario</label>
                 <div className="flex items-center gap-sm">
                   <input type="color" value={form.secondaryColor} onChange={e => editar({ secondaryColor: e.target.value })} style={{ width: 48, height: 40, border: 'none', cursor: 'pointer' }} />
-                  <input className="form-input" value={form.secondaryColor} onChange={e => editar({ secondaryColor: e.target.value })} style={{ maxWidth: 140 }} />
+                  <input className="form-input" {...errorCampo.campo('secondaryColor')} value={form.secondaryColor || ''} onChange={e => editar({ secondaryColor: e.target.value })} style={{ maxWidth: 140 }} />
                 </div>
+                <ErrorDeCampo error={errorCampo} campo="secondaryColor" />
               </div>
             </div>
           </div>
@@ -374,31 +372,37 @@ export default function SettingsPage() {
               </div>
               <div className="form-group">
                 <label className="form-label">Teléfono</label>
-                <input className="form-input" type="tel" value={form.phone || ''} maxLength={LIMITES.telefono} onChange={e => editar({ phone: e.target.value })} />
+                <input className="form-input" type="tel" {...errorCampo.campo('phone')} value={form.phone || ''} maxLength={LIMITES.telefono} onChange={e => editar({ phone: e.target.value })} />
+                <ErrorDeCampo error={errorCampo} campo="phone" />
               </div>
               <div className="form-group">
                 <label className="form-label">Dirección</label>
-                <input className="form-input" value={form.address || ''} maxLength={LIMITES.direccion} onChange={e => editar({ address: e.target.value })} />
+                <input className="form-input" {...errorCampo.campo('address')} value={form.address || ''} maxLength={LIMITES.direccion} onChange={e => editar({ address: e.target.value })} />
+                <ErrorDeCampo error={errorCampo} campo="address" />
               </div>
               <div className="form-group">
                 <label className="form-label">Instagram</label>
                 <input
                   className="form-input"
                   placeholder="@mi_negocio"
+                  {...errorCampo.campo('instagram')}
                   value={form.socialLinks?.instagram || ''}
                   maxLength={LIMITES.instagram}
                   onChange={e => editar({ socialLinks: { ...form.socialLinks, instagram: e.target.value } })}
                 />
+                <ErrorDeCampo error={errorCampo} campo="instagram" />
               </div>
               <div className="form-group">
                 <label className="form-label">Link de Google Maps</label>
                 <input
                   className="form-input"
                   placeholder="https://maps.app.goo.gl/..."
+                  {...errorCampo.campo('mapsUrl')}
                   value={form.mapsUrl || ''}
                   maxLength={LIMITES.url}
                   onChange={e => editar({ mapsUrl: e.target.value })}
                 />
+                <ErrorDeCampo error={errorCampo} campo="mapsUrl" />
                 <p className="text-xs text-muted" style={{ marginTop: 4 }}>
                   Abrí tu negocio en Google Maps, tocá "Compartir" y pegá el link acá.
                 </p>
@@ -439,32 +443,17 @@ export default function SettingsPage() {
           <div className="card mt-md">
             <h3 className="mb-lg">Horarios de atención</h3>
             <p className="text-secondary text-sm mb-md">Configurá los días y horarios en los que tu negocio se encuentra abierto al público.</p>
-            <div className="schedule-grid">
-              {(form.businessHours || defaultHours).map((sch, idx) => (
-                <div key={idx} className="schedule-row">
-                  <label style={{ textTransform: 'capitalize' }}>{getDayName(idx)}</label>
-                  <button
-                    type="button"
-                    className={`schedule-toggle ${sch.isActive ? 'active' : ''}`}
-                    onClick={() => toggleScheduleDay(idx)}
-                  />
-                  {sch.isActive ? (
-                    <>
-                      <input className="form-input" type="time" value={sch.startTime || ''} onChange={e => updateSchedule(idx, 'startTime', e.target.value)} />
-                      <input className="form-input" type="time" value={sch.endTime || ''}   onChange={e => updateSchedule(idx, 'endTime',   e.target.value)} />
-                    </>
-                  ) : (
-                    <>
-                      <span className="text-muted text-sm">—</span>
-                      <span className="text-muted text-sm">—</span>
-                    </>
-                  )}
-                </div>
-              ))}
-            </div>
+            {/* El mismo editor que Sucursales: al prender un día le pone
+                horas, en vez de dejarlo vacío y que Guardar lo rechace. */}
+            <HorarioAtencion
+              dias={form.businessHours}
+              onChange={(businessHours) => editar({ businessHours })}
+              errorCampo={errorCampo}
+            />
+            <ErrorDeCampo error={errorCampo} prefijo="horario-" />
           </div>
 
-          <SenaMercadoPagoCard form={form} editar={editar} businessId={businessId} terminology={terminology} />
+          <SenaMercadoPagoCard form={form} editar={editar} businessId={businessId} terminology={terminology} errorCampo={errorCampo} />
         </div>
       </div>
 
@@ -473,10 +462,12 @@ export default function SettingsPage() {
       {error && (
         <div className="notice notice-danger mt-md">{error}</div>
       )}
-      <div className="flex gap-sm mt-lg">
+      <div className="flex items-center gap-sm mt-lg">
         <button className="btn btn-primary btn-lg" onClick={handleSave} disabled={guardando}>
           {guardando ? 'Guardando…' : <><Icon name="save" /> Guardar Cambios</>}
         </button>
+        {/* También acá: el de arriba de todo no se ve desde el botón. */}
+        {saved && <span className="badge badge-success"><Icon name="check-circle" /> Guardado</span>}
       </div>
     </div>
   );

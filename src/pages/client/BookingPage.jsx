@@ -10,7 +10,9 @@ import { formatDate, formatPrice, toDateString, getMonthName, getLocalDayOfWeek 
 import { useBusinessContext } from '../../hooks/useBusinessContext';
 import Icon from '../../components/Icon';
 import { esDiaEntero, rangosComoOcupados } from '../../utils/bloqueos';
-import { esTelefono, LIMITES } from '../../utils/validaciones';
+import { esTelefono, problema, LIMITES } from '../../utils/validaciones';
+import ErrorDeCampo from '../../components/ErrorDeCampo';
+import { useErrorDeCampo } from '../../hooks/useErrorDeCampo';
 import { sucursalesActivas, profesionalesDeSucursal, schedulesDeSucursal, precioEn, horarioDe, datosDe } from '../../utils/sucursales';
 
 // ---- STEPPER ----
@@ -505,10 +507,21 @@ function nombreValido(nombre) {
   return String(nombre || '').trim().length >= 2;
 }
 
-function PersonalInfoStep({ user, name, phone, onNameChange, onPhoneChange, customFields, customFieldValues, onCustomFieldChange }) {
-  const nombreTocado = name.length > 0;
+/** El primer dato que falta o está mal en "Tus datos", o null. */
+function problemaDatosPersonales(name, phone, customFields, customFieldValues) {
+  if (!nombreValido(name)) return problema('clientName', 'Ingresá el nombre de quien va a atenderse.');
+  if (!telefonoValido(phone)) return problema('clientPhone', 'Ingresá el número con código de área, por ejemplo 11 1234-5678.');
+  const falta = customFields.find((f) => f.required && !String(customFieldValues[f.key] || '').trim());
+  if (falta) return problema(`extra-${falta.key}`, `Completá "${falta.label}".`);
+  return null;
+}
+
+function PersonalInfoStep({ user, name, phone, onNameChange, onPhoneChange, customFields, customFieldValues, onCustomFieldChange, errorCampo }) {
+  // El aviso en vivo (mientras tipea) se calla si ya está el de Siguiente, para no repetirlo.
+  const marcado = errorCampo.problema?.campo;
+  const nombreTocado = name.length > 0 && marcado !== 'clientName';
   const nombreOk = nombreValido(name);
-  const tocado = phone.length > 0;
+  const tocado = phone.length > 0 && marcado !== 'clientPhone';
   const valido = telefonoValido(phone);
   return (
     <div>
@@ -533,6 +546,7 @@ function PersonalInfoStep({ user, name, phone, onNameChange, onPhoneChange, cust
           <input
             className="form-input"
             type="text"
+            {...errorCampo.campo('clientName')}
             value={name}
             maxLength={LIMITES.nombre}
             onChange={e => onNameChange(e.target.value)}
@@ -545,6 +559,7 @@ function PersonalInfoStep({ user, name, phone, onNameChange, onPhoneChange, cust
               Ingresá el nombre de quien va a atenderse.
             </p>
           )}
+          <ErrorDeCampo error={errorCampo} campo="clientName" />
         </div>
 
         <div className="form-group">
@@ -553,6 +568,7 @@ function PersonalInfoStep({ user, name, phone, onNameChange, onPhoneChange, cust
             className="form-input"
             type="tel"
             inputMode="tel"
+            {...errorCampo.campo('clientPhone')}
             value={phone}
             maxLength={LIMITES.telefono}
             onChange={e => onPhoneChange(e.target.value)}
@@ -564,6 +580,7 @@ function PersonalInfoStep({ user, name, phone, onNameChange, onPhoneChange, cust
               Ingresá el número con código de área, por ejemplo 11 1234-5678.
             </p>
           )}
+          <ErrorDeCampo error={errorCampo} campo="clientPhone" />
           <p className="text-xs text-muted" style={{ marginTop: 4 }}>
             Es por donde te va a contactar el negocio si hace falta.
           </p>
@@ -580,10 +597,12 @@ function PersonalInfoStep({ user, name, phone, onNameChange, onPhoneChange, cust
             <input
               className="form-input"
               type="text"
+              {...errorCampo.campo(`extra-${field.key}`)}
               value={customFieldValues[field.key] || ''}
               maxLength={150}
               onChange={(e) => onCustomFieldChange(field.key, e.target.value)}
             />
+            <ErrorDeCampo error={errorCampo} campo={`extra-${field.key}`} />
           </div>
         ))}
       </div>
@@ -734,6 +753,7 @@ export default function BookingPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [error, setError] = useState('');
+  const errorCampo = useErrorDeCampo();
   const [reservando, setReservando] = useState(false);
 
   // Datos ya filtrados por el negocio del slug de la URL.
@@ -974,6 +994,10 @@ export default function BookingPage() {
   };
 
   const handleNext = () => {
+    // En "Tus datos" el botón no se apaga: al tocarlo marca qué falta.
+    if (step === 3 && errorCampo.marcar(problemaDatosPersonales(personalInfo.name, personalInfo.phone, customerFields, customFieldValues))) {
+      return;
+    }
     if (step === 4 && hasAppointmentToday) {
       setError('Ya tenés un turno reservado para este día.');
       return;
@@ -1150,6 +1174,7 @@ export default function BookingPage() {
           customFields={customerFields}
           customFieldValues={customFieldValues}
           onCustomFieldChange={(key, value) => dispatch({ type: 'SET_CUSTOM_FIELD', payload: { key, value } })}
+          errorCampo={errorCampo}
         />
       )}
 
@@ -1202,7 +1227,7 @@ export default function BookingPage() {
             <button className="btn btn-outline" onClick={handleBack}>← Atrás</button>
           ) : <div />}
 
-          <button className="btn btn-primary" disabled={!canGoNext()} onClick={handleNext}>
+          <button className="btn btn-primary" disabled={step !== 3 && !canGoNext()} onClick={handleNext}>
             Siguiente →
           </button>
         </div>

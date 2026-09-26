@@ -17,7 +17,9 @@ import { getPlan } from '../../config/plans';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
 import { capitalize } from '../../utils/text';
 import Icon from '../../components/Icon';
-import { validarProfesional, validarFranjas, LIMITES } from '../../utils/validaciones';
+import { validarProfesional, validarSemana, LIMITES } from '../../utils/validaciones';
+import ErrorDeCampo from '../../components/ErrorDeCampo';
+import { useErrorDeCampo } from '../../hooks/useErrorDeCampo';
 import HorarioSemanal from '../../components/admin/HorarioSemanal';
 import { diasDesdeSchedules, schedulesDesdeDias } from '../../utils/horarioSemanal';
 import PrimerosPasos from '../../components/admin/PrimerosPasos';
@@ -57,6 +59,7 @@ export default function ProfessionalsPage() {
   const [form, setForm]               = useState({ name: '', specialty: '', phone: '', email: '', bio: '' });
   const [editSchedules, setEditSchedules] = useState([]);
   const [editServices, setEditServices]   = useState([]); // serviceIds seleccionados
+  const errorCampo = useErrorDeCampo();
 
   // Foto de perfil. Se elige en el modal pero se sube recién al Guardar: un
   // profesional nuevo todavía no tiene id (y el path del archivo lo usa), y
@@ -121,6 +124,7 @@ export default function ProfessionalsPage() {
     })));
     // Por defecto seleccionar TODOS los servicios activos
     setEditServices(activeServices.map(s => s.id));
+    errorCampo.limpiar();
     setShowModal(true);
   };
 
@@ -147,6 +151,7 @@ export default function ProfessionalsPage() {
       .filter(ps => ps.professionalId === prof.id)
       .map(ps => ps.serviceId);
     setEditServices(assigned);
+    errorCampo.limpiar();
     setShowModal(true);
   };
 
@@ -159,16 +164,11 @@ export default function ProfessionalsPage() {
 
   // ── Guardar ────────────────────────────────────────────────────────────────
   const handleSave = async () => {
-    if (!form.name.trim() || !businessId) return;
+    if (!businessId) return;
     // Se valida TODO antes de escribir nada: el guardado son varios pasos
     // (ficha, contacto, horarios, servicios) y un rechazo de la base a mitad
     // de camino dejaba al profesional guardado a medias.
-    const errorDatos = validarProfesional(form)
-      || editSchedules.filter((d) => d.isActive).map((d) => validarFranjas(d.franjas, getDayName(d.dayOfWeek))).find(Boolean);
-    if (errorDatos) {
-      alert(errorDatos);
-      return;
-    }
+    if (errorCampo.marcar(validarProfesional(form) || validarSemana(editSchedules, getDayName))) return;
 
     setGuardando(true);
     try {
@@ -425,30 +425,36 @@ export default function ProfessionalsPage() {
                   <label className="form-label">Nombre <span className="required">*</span></label>
                   <input
                     className="form-input"
+                    {...errorCampo.campo('name')}
                     value={form.name}
                     maxLength={LIMITES.nombre}
                     onChange={e => setForm({ ...form, name: e.target.value })}
                     placeholder="Nombre completo"
                   />
+                  <ErrorDeCampo error={errorCampo} campo="name" />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Especialidad</label>
                   <input
                     className="form-input"
+                    {...errorCampo.campo('specialty')}
                     value={form.specialty}
                     maxLength={LIMITES.especialidad}
                     onChange={e => setForm({ ...form, specialty: e.target.value })}
                     placeholder={`Ej: ${capitalize(terminology.professionalNoun)} Senior`}
                   />
+                  <ErrorDeCampo error={errorCampo} campo="specialty" />
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
                   <div className="form-group">
                     <label className="form-label">Teléfono</label>
-                    <input className="form-input" type="tel" value={form.phone} maxLength={LIMITES.telefono} onChange={e => setForm({ ...form, phone: e.target.value })} />
+                    <input className="form-input" type="tel" {...errorCampo.campo('phone')} value={form.phone} maxLength={LIMITES.telefono} onChange={e => setForm({ ...form, phone: e.target.value })} />
+                    <ErrorDeCampo error={errorCampo} campo="phone" />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Email</label>
-                    <input className="form-input" type="email" value={form.email} maxLength={LIMITES.email} onChange={e => setForm({ ...form, email: e.target.value })} />
+                    <input className="form-input" type="email" {...errorCampo.campo('email')} value={form.email} maxLength={LIMITES.email} onChange={e => setForm({ ...form, email: e.target.value })} />
+                    <ErrorDeCampo error={errorCampo} campo="email" />
                   </div>
                 </div>
 
@@ -519,7 +525,9 @@ export default function ProfessionalsPage() {
                     diaCorto
                     sucursales={sucursalesActivas(branches)}
                     sucursalPorDefecto={sucursalPrincipal(branches)?.id || null}
+                    errorCampo={errorCampo}
                   />
+                  <ErrorDeCampo error={errorCampo} prefijo="franja-" />
                 </div>
 
               </div>
@@ -530,7 +538,7 @@ export default function ProfessionalsPage() {
               <button
                 className="btn btn-primary"
                 onClick={handleSave}
-                disabled={!form.name.trim() || guardando}
+                disabled={guardando}
               >
                 {guardando ? 'Guardando…' : <><Icon name="save" /> Guardar</>}
               </button>

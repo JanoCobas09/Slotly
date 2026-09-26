@@ -137,7 +137,12 @@ export default function NewBusinessModal({ onClose, onCreated }) {
       socialLinks: { instagram: normalizarInstagram(form.instagram), whatsapp: form.whatsapp },
       primaryColor: form.primaryColor, secondaryColor: form.secondaryColor, accentColor: form.accentColor,
     });
-    if (errorLocal && !e.name) e.general = errorLocal;
+    // Los casilleros de contacto muestran su error abajo; el resto (colores,
+    // rubro) no tiene lugar propio y va al cartel de arriba.
+    if (errorLocal && !e.name) {
+      const conCasillero = ['phone', 'email', 'address', 'instagram', 'whatsapp', 'welcomeMessage'];
+      e[conCasillero.includes(errorLocal.campo) ? errorLocal.campo : 'general'] = errorLocal.mensaje;
+    }
 
     if (!form.professionOption) {
       e.professionOption = 'Elegí qué tipo de negocio es.';
@@ -604,55 +609,60 @@ export default function NewBusinessModal({ onClose, onCreated }) {
             <div className="form-group">
               <label className="form-label">Teléfono</label>
               <input
-                className="form-input"
+                className={`form-input ${errors.phone ? 'error' : ''}`}
                 type="tel"
                 value={form.phone}
                 maxLength={LIMITES.telefono}
                 onChange={(e) => set({ phone: e.target.value })}
                 placeholder="+54 11 1234-5678"
               />
+              {errors.phone && <div className="form-error">{errors.phone}</div>}
             </div>
             <div className="form-group">
               <label className="form-label">Email de contacto</label>
               <input
-                className="form-input"
+                className={`form-input ${errors.email ? 'error' : ''}`}
                 type="email"
                 value={form.email}
                 maxLength={LIMITES.email}
                 onChange={(e) => set({ email: e.target.value })}
                 placeholder="hola@minegocio.com"
               />
+              {errors.email && <div className="form-error">{errors.email}</div>}
             </div>
             <div className="form-group">
               <label className="form-label">Dirección</label>
               <input
-                className="form-input"
+                className={`form-input ${errors.address ? 'error' : ''}`}
                 value={form.address}
                 maxLength={LIMITES.direccion}
                 onChange={(e) => set({ address: e.target.value })}
                 placeholder="Av. Corrientes 1234"
               />
+              {errors.address && <div className="form-error">{errors.address}</div>}
             </div>
             <div className="form-group">
               <label className="form-label">Instagram</label>
               <input
-                className="form-input"
+                className={`form-input ${errors.instagram ? 'error' : ''}`}
                 value={form.instagram}
                 maxLength={100}
                 onChange={(e) => set({ instagram: e.target.value })}
                 placeholder="@mi_negocio"
               />
+              {errors.instagram && <div className="form-error">{errors.instagram}</div>}
             </div>
             <div className="form-group">
               <label className="form-label">WhatsApp</label>
               <input
-                className="form-input"
+                className={`form-input ${errors.whatsapp ? 'error' : ''}`}
                 type="tel"
                 value={form.whatsapp}
                 maxLength={LIMITES.telefono}
                 onChange={(e) => set({ whatsapp: e.target.value })}
                 placeholder="+5411..."
               />
+              {errors.whatsapp && <div className="form-error">{errors.whatsapp}</div>}
             </div>
           </div>
 
@@ -689,11 +699,12 @@ export default function NewBusinessModal({ onClose, onCreated }) {
           <div className="form-group">
             <label className="form-label">Mensaje de bienvenida</label>
             <input
-              className="form-input"
+              className={`form-input ${errors.welcomeMessage ? 'error' : ''}`}
               value={form.welcomeMessage}
               maxLength={LIMITES.textoLargo}
               onChange={(e) => set({ welcomeMessage: e.target.value, welcomeMessageEdited: true })}
             />
+            {errors.welcomeMessage && <div className="form-error">{errors.welcomeMessage}</div>}
           </div>
 
           <div className="form-group">

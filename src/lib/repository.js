@@ -340,8 +340,21 @@ export async function updateBusiness(businessId, cambios, { esPlataforma = false
     for (const campo of CAMPOS_SOLO_PLATAFORMA) delete payload[campo];
   }
   delete payload.createdAt;
-  const { error } = await supabase.from('businesses').update(toRow('businesses', payload)).eq('id', businessId);
+  // Con `.select()` vuelve la fila como quedó: quien guarda la aplica al
+  // estado en el acto, sin esperar a que llegue el evento de Realtime (si el
+  // canal estaba caído, el formulario volvía a los datos viejos y parecía que
+  // no se había guardado nada). Y un UPDATE que RLS no deja pasar no tira
+  // error: afecta 0 filas en silencio. Sin este chequeo decía "Guardado".
+  const { data, error } = await supabase
+    .from('businesses')
+    .update(toRow('businesses', payload))
+    .eq('id', businessId)
+    .select();
   if (error) throw traducirError(error);
+  if (!data?.length) {
+    throw new Error('No se guardó: tu sesión no tiene permiso sobre este negocio. Cerrá sesión y volvé a entrar.');
+  }
+  return fromRow('businesses', data[0]);
 }
 
 /**

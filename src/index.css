@@ -404,8 +404,16 @@ h4 {
   color: var(--text-muted);
 }
 
-.form-input.error {
+.form-input.error,
+.form-input[aria-invalid="true"] {
   border-color: var(--danger);
+}
+
+/* El casillero que no dejó guardar (useErrorDeCampo): además del borde, un
+   halo para que se vea de lejos en un formulario largo. */
+.form-input[aria-invalid="true"],
+.form-input[aria-invalid="true"]:focus {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 18%, transparent);
 }
 
 .form-error {

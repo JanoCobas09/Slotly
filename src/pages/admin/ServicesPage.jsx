@@ -12,6 +12,8 @@ import { formatPrice } from '../../utils/dateUtils';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
 import Icon from '../../components/Icon';
 import PrimerosPasos from '../../components/admin/PrimerosPasos';
+import ErrorDeCampo from '../../components/ErrorDeCampo';
+import { useErrorDeCampo } from '../../hooks/useErrorDeCampo';
 
 export default function ServicesPage() {
   const { services, professionals, professionalServices, business, businessId } = useTenant();
@@ -25,11 +27,13 @@ export default function ServicesPage() {
   // volvía a 0 al instante y lo que se tipeaba quedaba "01500".
   const [form, setForm] = useState({ name: '', description: '', durationMinutes: '30', price: '', category: '' });
   const [assignedProfs, setAssignedProfs] = useState([]);
+  const errorCampo = useErrorDeCampo();
 
   const openAdd = () => {
     setEditing(null);
     setForm({ name: '', description: '', durationMinutes: '30', price: '', category: '' });
     setAssignedProfs([]);
+    errorCampo.limpiar();
     setShowModal(true);
   };
 
@@ -47,6 +51,7 @@ export default function ServicesPage() {
     setForm({ name: srv.name, description: srv.description || '', durationMinutes: String(srv.durationMinutes ?? ''), price: String(srv.price ?? ''), category: srv.category || '' });
     const assigned = professionalServices.filter(ps => ps.serviceId === srv.id).map(ps => ps.professionalId);
     setAssignedProfs(assigned);
+    errorCampo.limpiar();
     setShowModal(true);
   };
 
@@ -56,17 +61,8 @@ export default function ServicesPage() {
 
   const handleSave = async () => {
     if (!businessId) return;
-    // Antes: `!form.price` cortaba en silencio un servicio de precio 0 (una
-    // consulta gratis es válida) y no validaba nada más.
-    if (String(form.price).trim() === '') {
-      alert('Poné el precio del servicio (0 si es gratis).');
-      return;
-    }
-    const errorDatos = validarServicio(form);
-    if (errorDatos) {
-      alert(errorDatos);
-      return;
-    }
+    // Precio vacío no es 0: se pide (0 vale, una consulta gratis es real).
+    if (errorCampo.marcar(validarServicio(form))) return;
     const datos = { ...form, durationMinutes: Number(form.durationMinutes), price: Number(form.price) };
 
     setGuardando(true);
@@ -234,25 +230,30 @@ export default function ServicesPage() {
               <div className="flex flex-col gap-md">
                 <div className="form-group">
                   <label className="form-label">Nombre <span className="required">*</span></label>
-                  <input className="form-input" value={form.name} maxLength={LIMITES.nombre} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Nombre del servicio" />
+                  <input className="form-input" {...errorCampo.campo('name')} value={form.name} maxLength={LIMITES.nombre} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Nombre del servicio" />
+                  <ErrorDeCampo error={errorCampo} campo="name" />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Descripción</label>
-                  <textarea className="form-input" value={form.description} maxLength={LIMITES.textoLargo} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Descripción del servicio" />
+                  <textarea className="form-input" {...errorCampo.campo('description')} value={form.description} maxLength={LIMITES.textoLargo} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Descripción del servicio" />
+                  <ErrorDeCampo error={errorCampo} campo="description" />
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
                   <div className="form-group">
                     <label className="form-label">Duración (min) <span className="required">*</span></label>
-                    <input className="form-input" type="number" min={5} max={720} step={5} inputMode="numeric" value={form.durationMinutes} onChange={e => setForm({ ...form, durationMinutes: e.target.value })} />
+                    <input className="form-input" {...errorCampo.campo('durationMinutes')} type="number" min={5} max={720} step={5} inputMode="numeric" value={form.durationMinutes} onChange={e => setForm({ ...form, durationMinutes: e.target.value })} />
+                    <ErrorDeCampo error={errorCampo} campo="durationMinutes" />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Precio <span className="required">*</span></label>
-                    <input className="form-input" type="number" min={0} inputMode="decimal" placeholder="Ej: 12000" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} />
+                    <input className="form-input" {...errorCampo.campo('price')} type="number" min={0} inputMode="decimal" placeholder="Ej: 12000" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} />
+                    <ErrorDeCampo error={errorCampo} campo="price" />
                   </div>
                 </div>
                 <div className="form-group">
                   <label className="form-label">Categoría</label>
-                  <input className="form-input" value={form.category} maxLength={LIMITES.textoCorto} onChange={e => setForm({ ...form, category: e.target.value })} placeholder="Ej: Consultas, Mantenimiento, Tratamientos" />
+                  <input className="form-input" {...errorCampo.campo('category')} value={form.category} maxLength={LIMITES.textoCorto} onChange={e => setForm({ ...form, category: e.target.value })} placeholder="Ej: Consultas, Mantenimiento, Tratamientos" />
+                  <ErrorDeCampo error={errorCampo} campo="category" />
                 </div>
 
                 <h3 style={{ marginTop: 'var(--space-sm)' }}>Asignar a Profesionales</h3>

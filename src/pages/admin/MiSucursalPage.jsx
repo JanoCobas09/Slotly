@@ -6,6 +6,8 @@ import { datosDe, HORARIO_INICIAL } from '../../utils/sucursales';
 import { validarHorarioNegocio } from '../../utils/validaciones';
 import HorarioAtencion from '../../components/admin/HorarioAtencion';
 import Icon from '../../components/Icon';
+import ErrorDeCampo from '../../components/ErrorDeCampo';
+import { useErrorDeCampo } from '../../hooks/useErrorDeCampo';
 
 /**
  * La sucursal del administrador (role 'manager'): sus datos (solo lectura —
@@ -22,6 +24,7 @@ export default function MiSucursalPage() {
   const [editado, setEditado] = useState(null);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
+  const errorCampo = useErrorDeCampo();
   const [guardado, setGuardado] = useState(false);
 
   if (!sucursal) return <div className="empty-state"><p>No encontramos tu sucursal. Escribile al dueño del negocio.</p></div>;
@@ -31,10 +34,7 @@ export default function MiSucursalPage() {
   const datos = datosDe(sucursal, business);
 
   const guardar = async () => {
-    if (form.propio) {
-      const e = validarHorarioNegocio(form.dias);
-      if (e) { setError(e); return; }
-    }
+    if (form.propio && errorCampo.marcar(validarHorarioNegocio(form.dias))) return;
     setGuardando(true);
     setError('');
     try {
@@ -72,8 +72,9 @@ export default function MiSucursalPage() {
           <span>Horario propio de {sucursal.name}</span>
         </label>
         {form.propio
-          ? <HorarioAtencion dias={form.dias} onChange={(dias) => setEditado({ ...form, dias })} />
+          ? <HorarioAtencion dias={form.dias} onChange={(dias) => setEditado({ ...form, dias })} errorCampo={errorCampo} />
           : <p className="text-sm text-secondary">Usa el horario general del negocio.</p>}
+        <ErrorDeCampo error={errorCampo} prefijo="horario-" />
         {error && <div className="notice notice-danger mt-md">{error}</div>}
         <div className="flex gap-sm mt-lg">
           <button className="btn btn-primary" onClick={guardar} disabled={guardando || !editado}>

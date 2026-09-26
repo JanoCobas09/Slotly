@@ -3,6 +3,9 @@ import { useTenant } from '../../hooks/useTenantData';
 import { addToSubcollection, updateInSubcollection, removeFromSubcollection } from '../../lib/repository';
 import { formatPrice, getDayName } from '../../utils/dateUtils';
 import Icon from '../../components/Icon';
+import ErrorDeCampo from '../../components/ErrorDeCampo';
+import { useErrorDeCampo } from '../../hooks/useErrorDeCampo';
+import { problema, esHora } from '../../utils/validaciones';
 
 const FORM_VACIO = {
   serviceId: '', dayOfWeek: 0, startTime: '14:00', endTime: '17:00',
@@ -16,6 +19,7 @@ export default function PromotionsPage() {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(FORM_VACIO);
   const [error, setError] = useState('');
+  const errorCampo = useErrorDeCampo();
 
   const serviciosActivos = services.filter((s) => s.isActive);
   const nombreServicio = (id) => services.find((s) => s.id === id)?.name || 'Servicio eliminado';
@@ -25,6 +29,7 @@ export default function PromotionsPage() {
     setEditing(null);
     setForm({ ...FORM_VACIO, serviceId: serviciosActivos[0].id });
     setError('');
+    errorCampo.limpiar();
     setShowModal(true);
   };
 
@@ -37,17 +42,18 @@ export default function PromotionsPage() {
       isActive: promo.isActive !== false,
     });
     setError('');
+    errorCampo.limpiar();
     setShowModal(true);
   };
 
   const handleSave = async () => {
-    if (!form.serviceId) return setError('Elegí un servicio.');
-    if (form.startTime >= form.endTime) return setError('El horario "hasta" tiene que ser después del "desde".');
     const valor = Number(form.discountValue);
-    if (!(valor > 0)) return setError('El descuento tiene que ser mayor a cero.');
-    if (form.discountType === 'percentage' && valor >= 100) {
-      return setError('El porcentaje tiene que ser menor a 100.');
-    }
+    const falla = (!form.serviceId && problema('serviceId', 'Elegí un servicio.'))
+      || ((!esHora(form.startTime) || !esHora(form.endTime)) && problema('horario', 'Completá desde y hasta qué hora.'))
+      || (form.startTime >= form.endTime && problema('horario', 'El horario "hasta" tiene que ser después del "desde".'))
+      || (!(valor > 0) && problema('discountValue', 'El descuento tiene que ser mayor a cero.'))
+      || (form.discountType === 'percentage' && valor >= 100 && problema('discountValue', 'El porcentaje tiene que ser menor a 100.'));
+    if (errorCampo.marcar(falla)) return;
 
     setGuardando(true);
     setError('');
@@ -184,11 +190,12 @@ export default function PromotionsPage() {
 
               <div className="form-group">
                 <label className="form-label">Servicio <span className="required">*</span></label>
-                <select className="form-input" value={form.serviceId} onChange={(e) => setForm((f) => ({ ...f, serviceId: e.target.value }))}>
+                <select className="form-input" {...errorCampo.campo('serviceId')} value={form.serviceId} onChange={(e) => setForm((f) => ({ ...f, serviceId: e.target.value }))}>
                   {serviciosActivos.map((s) => (
                     <option key={s.id} value={s.id}>{s.name} — {formatPrice(s.price, business?.currency)}</option>
                   ))}
                 </select>
+                <ErrorDeCampo error={errorCampo} campo="serviceId" />
               </div>
 
               <div className="form-group">
@@ -203,13 +210,14 @@ export default function PromotionsPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
                 <div className="form-group">
                   <label className="form-label">Desde <span className="required">*</span></label>
-                  <input className="form-input" type="time" value={form.startTime} onChange={(e) => setForm((f) => ({ ...f, startTime: e.target.value }))} />
+                  <input className="form-input" type="time" {...errorCampo.campo('horario')} value={form.startTime} onChange={(e) => setForm((f) => ({ ...f, startTime: e.target.value }))} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Hasta <span className="required">*</span></label>
-                  <input className="form-input" type="time" value={form.endTime} onChange={(e) => setForm((f) => ({ ...f, endTime: e.target.value }))} />
+                  <input className="form-input" type="time" {...errorCampo.campo('horario')} value={form.endTime} onChange={(e) => setForm((f) => ({ ...f, endTime: e.target.value }))} />
                 </div>
               </div>
+              <ErrorDeCampo error={errorCampo} campo="horario" />
               <p className="text-xs text-muted" style={{ marginTop: -8, marginBottom: 'var(--space-md)' }}>
                 Aplica a los turnos que EMPIEZAN dentro de este horario.
               </p>
@@ -235,6 +243,7 @@ export default function PromotionsPage() {
                 <div className="flex items-center gap-sm">
                   <input
                     className="form-input" type="number" min="0" max={form.discountType === 'percentage' ? 99 : undefined}
+                    {...errorCampo.campo('discountValue')}
                     value={form.discountValue}
                     inputMode="decimal"
                     // Como texto mientras se tipea (ver ServicesPage): con
@@ -244,6 +253,7 @@ export default function PromotionsPage() {
                   />
                   <span className="text-sm text-muted">{form.discountType === 'fixed' ? (business?.currency || 'ARS') : '%'}</span>
                 </div>
+                <ErrorDeCampo error={errorCampo} campo="discountValue" />
                 {form.discountType === 'percentage' && (() => {
                   const srv = services.find((s) => s.id === form.serviceId);
                   if (!srv) return null;
