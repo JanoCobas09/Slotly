@@ -129,6 +129,8 @@ const MENSAJES_VALIDACION = {
   branches_maps_valido: 'El link de Google Maps tiene que empezar con https://',
   branches_horario_valido: 'Revisá el horario de la sucursal: cada día abierto necesita apertura y cierre, y el cierre después de la apertura.',
   branch_service_prices_precio_valido: 'El precio no puede ser negativo.',
+  avisos_plataforma_titulo_valido: 'El título del aviso tiene que tener entre 1 y 120 caracteres.',
+  avisos_plataforma_mensaje_valido: 'El mensaje del aviso tiene que tener entre 1 y 2000 caracteres.',
 };
 
 function traducirError(error) {
@@ -1036,6 +1038,47 @@ export async function setTicketStatus(ticketId, status) {
 export async function markTicketRead(ticketId, role) {
   const campo = role === 'platform' ? 'unread_for_platform' : 'unread_for_business';
   const { error } = await supabase.from('tickets').update({ [campo]: false }).eq('id', ticketId);
+  if (error) throw traducirError(error);
+}
+
+// ============================================================================
+// AVISOS DE LA PLATAFORMA A LOS DUEÑOS
+// ============================================================================
+// Los escribe solo el dueño de la plataforma; cada dueño de negocio los ve
+// como un cartel hasta que toca "Aceptar" (queda una fila en
+// avisos_aceptados). Ver 20261015000000_avisos_plataforma.sql.
+
+/** Todos los avisos, el más nuevo primero. Los dueños filtran `activo`. */
+export function subscribeAvisosPlataforma(cb, onError) {
+  return liveTable('avisos_plataforma', { orderCol: 'created_at', ascending: false }, cb, onError);
+}
+
+/** Aceptaciones: las propias (dueño) o todas (plataforma), según RLS. */
+export function subscribeAvisosAceptados(cb, onError, { userId = null } = {}) {
+  const filtro = userId ? { filterCol: 'user_id', filterVal: userId } : {};
+  return liveTable('avisos_aceptados', filtro, cb, onError);
+}
+
+export async function crearAvisoPlataforma({ titulo, mensaje }) {
+  const { error } = await supabase.from('avisos_plataforma').insert({ titulo: titulo.trim(), mensaje: mensaje.trim() });
+  if (error) throw traducirError(error);
+}
+
+export async function setAvisoActivo(id, activo) {
+  const { error } = await supabase.from('avisos_plataforma').update({ activo }).eq('id', id);
+  if (error) throw traducirError(error);
+}
+
+export async function borrarAvisoPlataforma(id) {
+  const { error } = await supabase.from('avisos_plataforma').delete().eq('id', id);
+  if (error) throw traducirError(error);
+}
+
+/** El dueño acepta un aviso. Aceptarlo dos veces (dos pestañas) no es error. */
+export async function aceptarAviso(avisoId) {
+  const { error } = await supabase
+    .from('avisos_aceptados')
+    .upsert({ aviso_id: avisoId }, { onConflict: 'aviso_id,user_id', ignoreDuplicates: true });
   if (error) throw traducirError(error);
 }
 

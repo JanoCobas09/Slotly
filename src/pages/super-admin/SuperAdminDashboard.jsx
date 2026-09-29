@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useBusiness } from '../../contexts/BusinessContext';
 import { useAuth } from '../../contexts/AuthContext';
 import TeamPanel from './TeamPanel';
+import AvisosPanel from './AvisosPanel';
 import { PLANS, OVERAGE_COST_USD, findPlanByQuota } from '../../config/plans';
 import { formatPrice, formatDate } from '../../utils/dateUtils';
 import {
@@ -414,6 +415,15 @@ export default function SuperAdminDashboard() {
         </button>
         {!soloLectura && (
           <button
+            onClick={() => setActiveTab('avisos')}
+            className={`btn ${activeTab === 'avisos' ? 'btn-primary' : 'btn-outline'}`}
+            style={{ borderRadius: '8px 8px 0 0', borderBottom: 'none', padding: '10px 18px', display: 'flex', alignItems: 'center', gap: 6 }}
+          >
+            Avisos
+          </button>
+        )}
+        {!soloLectura && (
+          <button
             onClick={() => setActiveTab('equipo')}
             className={`btn ${activeTab === 'equipo' ? 'btn-primary' : 'btn-outline'}`}
             style={{ borderRadius: '8px 8px 0 0', borderBottom: 'none', padding: '10px 18px', display: 'flex', alignItems: 'center', gap: 6 }}
@@ -424,9 +434,10 @@ export default function SuperAdminDashboard() {
       </div>
 
       {activeTab === 'equipo' && !soloLectura && <TeamPanel />}
+      {activeTab === 'avisos' && !soloLectura && <AvisosPanel />}
 
       {/* Base vacía: lo único que tiene sentido hacer es dar de alta el primer cliente */}
-      {totalBusinesses === 0 && activeTab !== 'soporte' && activeTab !== 'equipo' && (
+      {totalBusinesses === 0 && activeTab !== 'soporte' && activeTab !== 'equipo' && activeTab !== 'avisos' && (
         <div className="card empty-state" style={{ padding: 'var(--space-2xl)' }}>
           <div className="empty-state-icon"><Icon name="building" /></div>
           <h3 style={{ marginBottom: 8 }}>Todavía no hay ningún negocio</h3>

@@ -10,6 +10,7 @@ import { capitalize } from '../../utils/text';
 import Icon from '../Icon';
 import ActivarNotificaciones from '../admin/ActivarNotificaciones';
 import FlujoPrimerosPasos from '../admin/FlujoPrimerosPasos';
+import AvisoPlataforma from '../admin/AvisoPlataforma';
 import { limiteSucursales } from '../../config/plans';
 
 // Items visibles solo para el dueño (owner)
@@ -207,6 +208,8 @@ export default function AdminLayout() {
       <main className="admin-main">
         {isOwner && <InstalarAppBanner />}
         {isOwner && <FlujoPrimerosPasos />}
+        {/* Avisos que manda la plataforma: no se van hasta tocar "Aceptar". */}
+        {isOwner && <AvisoPlataforma />}
         <ActivarNotificaciones />
 
         {/* Prueba gratis: los días que quedan, y qué hacer cuando se termina. */}

@@ -1045,6 +1045,21 @@ dominio de más autorizado no es un agujero de seguridad, solo ruido).
    suspender. "Suspender" usa `suspender_cuenta()` (corta la gracia). Ojo, sin
    resolver: una suspensión a mano SIN deuda la levanta el cobro diario.
    `supabase/tests/test-habilitar.mjs` 14/14.
+5k. **Avisos de la plataforma a los dueños (29/09/2026).** Migración
+   `20261015000000_avisos_plataforma.sql`: `avisos_plataforma` (título +
+   mensaje, `activo`) la escribe solo `auth_is_platform()` (no moderadores) y
+   la lee la plataforma y todo rol `owner`; `avisos_aceptados` (una fila por
+   aviso y cuenta, con su `business_id`) la inserta el dueño solo a su nombre.
+   Panel global → pestaña **Avisos** (`super-admin/AvisosPanel.jsx`): escribir,
+   vista previa, "aceptado por X de N negocios" + quiénes faltan, archivar
+   (deja de mostrarse, conserva quién aceptó) o borrar. En el panel del dueño,
+   `components/admin/AvisoPlataforma.jsx` (montado en AdminLayout solo para
+   `owner`) muestra los activos sin aceptar de a uno, del más viejo al más
+   nuevo, en un modal que solo se cierra con "Aceptar". Los dueños leen también
+   los archivados a propósito: si RLS los escondiera, Realtime no avisaría del
+   archivado y el cartel quedaría colgado. Se suscribe desde el componente
+   (como tickets), no desde BusinessSync: no es dato del negocio.
+   `supabase/tests/test-avisos.mjs` 19/19.
 6. **Abuso de reservas.** Hecho: un turno por día y tope de 3 a futuro por
    cuenta. Falta, por orden: bloquear cliente desde el panel (para la cuenta que
    se porta mal), y App Check con reCAPTCHA v3 sobre los callables para frenar
