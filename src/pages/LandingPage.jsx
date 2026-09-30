@@ -4,6 +4,7 @@ import { PLANS, FEATURES_COMUNES } from '../config/plans';
 import HeroMotionMockup from '../components/landing/HeroMotionMockup';
 import FloatingActionWidget from '../components/landing/FloatingActionWidget';
 import VitrinaComercio from '../components/landing/VitrinaComercio';
+import ValoresClave from '../components/landing/ValoresClave';
 import Icon from '../components/Icon';
 
 // ============================================================================
@@ -148,9 +149,10 @@ export default function LandingPage() {
           Vive acá.
         </h1>
 
-        <p className="landing-lead">
-          Tus clientes reservan solos desde un link. Vos atendés. El
-          sistema se acuerda del resto.
+        <p className="landing-lead" style={{ maxWidth: 640 }}>
+          Tus clientes reservan solos desde tu link, solo en los horarios que
+          tenés libres. Vos te enterás de cada turno al instante y el sistema
+          les recuerda que vengan.
         </p>
 
         <div className="landing-cta-row">
@@ -165,6 +167,10 @@ export default function LandingPage() {
           <li><Icon name="check" /> Sin permanencia</li>
           <li><Icon name="check" /> Andando el mismo día</li>
         </ul>
+
+        {/* Los cuatro valores fuertes, antes que cualquier otra cosa: el
+            dueño tiene que entender en cinco segundos qué le resuelve. */}
+        <ValoresClave />
 
         {/* Dynamic 3D HTML Motion Hero Mockup */}
         <HeroMotionMockup />

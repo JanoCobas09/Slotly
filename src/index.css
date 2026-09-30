@@ -2467,6 +2467,183 @@ select.form-input {
   color: var(--text-muted);
 }
 
+/* ── Valores fuertes del hero (ValoresClave.jsx) ──
+   Cuatro tarjetas con una mini-pantalla arriba: se entienden mirando, antes
+   de leer. En escritorio van en fila; en celular, de a una. */
+.landing-valores {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-md);
+  margin: var(--space-2xl) auto 0;
+  text-align: left;
+}
+
+.landing-valor {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-md);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+}
+
+.landing-valor h3 {
+  font-size: 1rem;
+  letter-spacing: -0.01em;
+  margin: var(--space-md) 0 4px;
+}
+
+.landing-valor p {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.valor-visual {
+  height: 104px;
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  padding: 12px;
+  font-size: 0.75rem;
+}
+
+/* Horarios: ocupados tachados, uno elegido */
+.valor-slots {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  align-content: center;
+}
+.valor-slot {
+  text-align: center;
+  padding: 6px 0;
+  border-radius: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.7rem;
+}
+.valor-slot.ocupado {
+  background: transparent;
+  color: var(--text-muted);
+  text-decoration: line-through;
+  border-style: dashed;
+}
+.valor-slot.elegido {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--on-primary);
+}
+
+/* Aviso push al celular del dueño */
+.valor-push {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.valor-push > div { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.valor-push strong { font-size: 0.8rem; }
+.valor-push > div span { color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.valor-push-icono {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 9px;
+  background: var(--primary);
+  color: var(--on-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  animation: valorCampana 3s ease-in-out infinite;
+}
+.valor-push-hora { position: absolute; top: 8px; right: 10px; color: var(--text-muted); font-size: 0.65rem; }
+
+@keyframes valorCampana {
+  0%, 70%, 100% { transform: rotate(0); }
+  75% { transform: rotate(-12deg); }
+  80% { transform: rotate(10deg); }
+  85% { transform: rotate(-6deg); }
+  90% { transform: rotate(0); }
+}
+
+/* Confirmación → recordatorio → seña */
+.valor-timeline {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+}
+.valor-timeline div {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface);
+  border-radius: 6px;
+  padding: 4px 8px;
+}
+.valor-timeline svg { color: var(--primary); flex-shrink: 0; }
+.valor-timeline span { flex: 1; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.valor-timeline em {
+  font-style: normal;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* 1 → 3 → ∞ */
+.valor-escala {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+.valor-escala-paso {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 2px;
+}
+.valor-escala-paso b { font-size: 1.35rem; line-height: 1.1; color: var(--text); }
+.valor-escala-paso span { font-size: 0.6rem; color: var(--text-muted); line-height: 1.2; }
+.valor-escala-paso.destacado { background: var(--primary); border-color: var(--primary); }
+.valor-escala-paso.destacado b,
+.valor-escala-paso.destacado span { color: var(--on-primary); }
+.valor-escala-flecha { color: var(--text-muted); font-size: 0.8rem; }
+
+@media (max-width: 960px) {
+  .landing-valores { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* En el celular, carrusel deslizable: apiladas alargaban demasiado el hero */
+@media (max-width: 520px) {
+  .landing-valores {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    margin-inline: calc(-1 * var(--space-md));
+    padding: 4px var(--space-md) 8px;
+    scrollbar-width: none;
+  }
+  .landing-valores::-webkit-scrollbar { display: none; }
+  .landing-valor { flex: 0 0 82%; scroll-snap-align: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .valor-push-icono { animation: none; }
+}
+
 /* ── Secciones ── */
 .landing-section {
   padding: clamp(44px, 7vw, 84px) 0;
