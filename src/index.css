@@ -1542,6 +1542,19 @@ select.form-input {
   margin: 0 auto;
 }
 
+/* En teléfonos de 375px o menos (iPhone SE/mini, muchos Android de 360) los
+   dos botones grandes no entraban: "Confirmar Reserva" quedaba cortado contra
+   el borde y en 320px la página se corría de costado. Menos relleno, y en los
+   más angostos, letra un poco más chica. */
+@media (max-width: 420px) {
+  .confirm-bar { padding-inline: var(--space-md); }
+  .confirm-bar-actions .btn-lg { padding-inline: 14px; }
+}
+
+@media (max-width: 350px) {
+  .confirm-bar-actions .btn-lg { padding-inline: 10px; font-size: 0.9rem; }
+}
+
 /* Confirmation Page */
 .confirmation-container {
   max-width: 520px;
@@ -3162,6 +3175,10 @@ select.form-input {
 /* En un teléfono de verdad el marco entero se achica, sin tocar lo de adentro */
 @media (max-width: 440px) {
   .vc-phone { zoom: 0.86; }
+}
+
+@media (max-width: 360px) {
+  .vc-phone { zoom: 0.74; }
 }
 
 /* ============================================================================
