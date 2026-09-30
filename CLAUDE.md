@@ -1073,8 +1073,10 @@ dominio de más autorizado no es un agujero de seguridad, solo ruido).
    no usa. Sin él serían 101 kB — 62% menos. `App.jsx` importa `LoginPage` eager
    y los tres contexts importan firebase a nivel de módulo, así que hay que
    desmontar los providers de la raíz y montarlos dentro de las rutas de app.
-8. Revisar `src/components/landing/HeroMotionMockup.jsx` y
-   `FloatingActionWidget.jsx` (generados por Antigravity, sin auditar).
+8. Revisar `src/components/landing/FloatingActionWidget.jsx` (generado por
+   Antigravity, sin auditar). `HeroMotionMockup.jsx` se sacó el 30/09/2026;
+   de su CSS quedaron `.prof-card/.service-card/.service-meta/.service-price`
+   sin acotar, que pisan los de la página de reserva real — decidir si se borran.
 9. Monitoreo global de turnos: hoy la pestaña del panel global solo muestra el
    negocio activo. Necesita `collectionGroup` + regla nueva.
 10. ~~Sacar el fallback de permisos de `AuthContext`~~ Hecho en la auditoría

@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { PLANS, FEATURES_COMUNES } from '../config/plans';
-import HeroMotionMockup from '../components/landing/HeroMotionMockup';
 import FloatingActionWidget from '../components/landing/FloatingActionWidget';
 import VitrinaComercio from '../components/landing/VitrinaComercio';
 import ValoresClave from '../components/landing/ValoresClave';
@@ -172,8 +171,6 @@ export default function LandingPage() {
             dueño tiene que entender en cinco segundos qué le resuelve. */}
         <ValoresClave />
 
-        {/* Dynamic 3D HTML Motion Hero Mockup */}
-        <HeroMotionMockup />
       </section>
 
       {/* ── PROBLEMA ─────────────────────────────────────────────────────── */}
