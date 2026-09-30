@@ -131,13 +131,42 @@ export default function ServicesPage() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('¿Eliminar este servicio?')) return;
+  // Desactivar: deja de ofrecerse al reservar (BookingPage y el turno manual
+  // filtran isActive) pero conserva sus turnos, asignaciones y precios, así
+  // que reactivarlo lo deja exactamente como estaba.
+  const handleToggleActivo = async (srv) => {
     try {
-      // Firestore no borra en cascada: primero se sueltan las asignaciones.
-      await replaceMatching(businessId, 'professionalServices', 'serviceId', id, []);
-      await removeFromSubcollection(businessId, 'services', id);
+      await updateInSubcollection(businessId, 'services', srv.id, { isActive: !srv.isActive });
     } catch (err) {
+      console.error('[ServicesPage] No se pudo cambiar el estado:', err);
+      alert('No se pudo cambiar el estado del servicio: ' + err.message);
+    }
+  };
+
+  const handleDelete = async (srv) => {
+    if (!window.confirm(`¿Eliminar "${srv.name}"?`)) return;
+    try {
+      // Las asignaciones a profesionales y los precios por sucursal se borran
+      // solos en la base (on delete cascade). Antes se soltaban a mano ANTES
+      // de borrar: si el borrado fallaba (servicio con turnos), el servicio
+      // quedaba sin profesionales y desaparecía de la reserva sin aviso.
+      await removeFromSubcollection(businessId, 'services', srv.id);
+    } catch (err) {
+      // 23503: hay turnos (u otros datos) que apuntan a este servicio. No se
+      // borra para no dejar ese historial sin servicio: se ofrece desactivarlo.
+      if (err.code === '23503') {
+        if (!srv.isActive) {
+          alert('Este servicio ya tiene turnos cargados, así que no se puede borrar sin perder ese historial. Ya está desactivado: no aparece para reservar.');
+          return;
+        }
+        if (window.confirm(
+          'Este servicio ya tiene turnos cargados, así que no se puede borrar sin perder ese historial.\n\n'
+          + '¿Lo desactivamos? Deja de aparecer para reservar, los turnos quedan como están y lo podés volver a activar cuando quieras.'
+        )) {
+          await handleToggleActivo(srv);
+        }
+        return;
+      }
       console.error('[ServicesPage] No se pudo eliminar:', err);
       alert('No se pudo eliminar: ' + err.message);
     }
@@ -184,8 +213,15 @@ export default function ServicesPage() {
                   <td><span className={`badge ${srv.isActive ? 'badge-success' : 'badge-neutral'}`}>{srv.isActive ? 'Activo' : 'Inactivo'}</span></td>
                   <td>
                     <div className="table-actions">
-                      <button className="btn btn-ghost btn-sm" onClick={() => openEdit(srv)}><Icon name="edit" /></button>
-                      <button className="btn btn-ghost btn-sm" onClick={() => handleDelete(srv.id)}><Icon name="trash" /></button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => openEdit(srv)} title="Editar"><Icon name="edit" /></button>
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => handleToggleActivo(srv)}
+                        title={srv.isActive ? 'Desactivar: deja de aparecer para reservar' : 'Activar: vuelve a aparecer para reservar'}
+                      >
+                        <Icon name={srv.isActive ? 'pause' : 'check'} />
+                      </button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => handleDelete(srv)} title="Eliminar"><Icon name="trash" /></button>
                     </div>
                   </td>
                 </tr>
