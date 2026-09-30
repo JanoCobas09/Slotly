@@ -3342,6 +3342,228 @@ select.form-input {
 }
 
 /* ============================================================================
+   VITRINA "Así se vería tu comercio" (VitrinaComercio.jsx)
+   ============================================================================
+   Izquierda: los campos de Configuración del dueño. Derecha: un celular con
+   la página de reserva de verdad — usa las mismas clases que BookingPage, y
+   el tema del negocio (--primary, --secondary...) se pisa solo dentro de
+   .vc-pantalla. Como la landing se ve en escritorio, acá abajo se repiten,
+   acotadas al celular, las reglas de pantalla chica que esa página usa en un
+   teléfono (si no, se vería la versión de escritorio metida en 360px).
+   ============================================================================ */
+
+.vitrina {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: clamp(24px, 4vw, 56px);
+  align-items: center;
+  text-align: left;
+}
+
+/* ── Panel del dueño ── */
+.vitrina-panel {
+  padding: var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.vitrina-panel-cabecera p {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  margin-top: 4px;
+}
+
+.vitrina-panel-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--primary);
+}
+
+.vitrina-panel .form-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-sm);
+}
+
+.vitrina-donde {
+  font-style: normal;
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.vitrina-input { position: relative; display: block; }
+.vitrina-input.con-prefijo .form-input { padding-left: 30px; }
+.vitrina-prefijo {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.vitrina-rubros { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.vitrina-rubro {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px;
+  border-radius: 99px;
+  border: 1px solid var(--border-hover);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.vitrina-rubro:hover { border-color: var(--text-muted); color: var(--text); }
+.vitrina-rubro.activo { color: #fff; }
+
+.vitrina-nota {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.vitrina-nota svg { color: var(--success); margin-top: 2px; }
+
+/* ── Celular ── */
+.vitrina-celu {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.vitrina-celu figcaption {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.vc-phone {
+  width: 380px;
+  height: 720px;
+  background: #111;
+  border-radius: 44px;
+  padding: 10px;
+  box-shadow: var(--shadow-xl), 0 30px 60px rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  isolation: isolate; /* el header sticky de adentro no pisa el de la landing */
+}
+
+.vc-status {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 34px;
+  padding: 0 26px;
+  background: #f3f3f3;
+  border-radius: 34px 34px 0 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #111;
+}
+.vc-status-isla { width: 90px; height: 24px; border-radius: 14px; background: #111; }
+
+.vc-url {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 2px 16px 8px;
+  background: #f3f3f3;
+  font-size: 0.75rem;
+  color: #444;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-bottom: 1px solid #e2e2e2;
+}
+
+.vc-pantalla {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--bg);
+  color: var(--text);
+  border-radius: 0 0 34px 34px;
+  scrollbar-width: none;
+}
+.vc-pantalla::-webkit-scrollbar { display: none; }
+
+/* Nada de adentro navega: es una vista, no la página. */
+.vc-pantalla .btn,
+.vc-pantalla .booking-contact-item,
+.vc-pantalla .business-map-copy,
+.vc-pantalla .card-selectable { cursor: default; }
+
+/* Reglas de teléfono de la página de reserva, acotadas al celular */
+.vc-pantalla .header { padding: 0 var(--space-md); }
+.vc-pantalla .header-logo { min-width: 0; font-size: 1rem; }
+.vc-pantalla .header-logo > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vc-pantalla .booking-container { min-height: 0; padding: var(--space-lg) var(--space-md); }
+.vc-pantalla .business-hero-band { height: 80px; }
+.vc-pantalla .business-hero-photo { width: 88px; height: 88px; margin-top: -48px; }
+.vc-pantalla .business-hero-text h1 { font-size: 1.45rem; }
+.vc-pantalla .professionals-grid { grid-template-columns: 1fr 1fr; }
+.vc-pantalla .business-map-footer { flex-wrap: wrap; }
+.vc-pantalla .business-map-go { width: 100%; justify-content: center; }
+.vc-pantalla .stepper { width: 100%; justify-content: stretch; margin-bottom: var(--space-lg); }
+.vc-pantalla .stepper-step { flex: 1 1 0; min-width: 0; gap: 0; }
+.vc-pantalla .stepper-step:first-child { flex: 0 0 auto; }
+.vc-pantalla .stepper-line { flex: 1 1 auto; width: auto; min-width: 8px; margin: 0 3px; }
+.vc-pantalla .stepper-circle { width: 26px; height: 26px; font-size: 0.7rem; flex-shrink: 0; }
+.vc-pantalla .booking-step-title { font-size: 1.25rem; }
+
+/* Resaltado de lo que se está editando en el panel */
+.vc-pantalla .vc-foco {
+  outline: 2px dashed var(--primary);
+  outline-offset: 3px;
+  border-radius: var(--radius-md);
+  animation: vcFoco 1.4s ease-in-out infinite;
+}
+.vc-pantalla .business-hero-band.vc-foco { outline-offset: -4px; border-radius: 0; }
+
+@keyframes vcFoco {
+  0%, 100% { outline-color: var(--primary); }
+  50% { outline-color: transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vc-pantalla .vc-foco { animation: none; }
+}
+
+@media (max-width: 900px) {
+  .vitrina { grid-template-columns: 1fr; }
+  .vitrina-celu { order: -1; }
+}
+
+/* En un teléfono de verdad el marco entero se achica, sin tocar lo de adentro */
+@media (max-width: 440px) {
+  .vc-phone { zoom: 0.86; }
+}
+
+/* ============================================================================
    FLOATING ACTION BUTTON — contacto por WhatsApp
    ============================================================================ */
 

@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { PLANS, FEATURES_COMUNES } from '../config/plans';
 import HeroMotionMockup from '../components/landing/HeroMotionMockup';
 import FloatingActionWidget from '../components/landing/FloatingActionWidget';
+import VitrinaComercio from '../components/landing/VitrinaComercio';
 import Icon from '../components/Icon';
 
 // ============================================================================
@@ -186,8 +187,25 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ── ASÍ SE VERÍA TU COMERCIO ────────────────────────────────────── */}
+      {/* Va justo después del problema: antes de listar funciones, el dueño ve
+          con sus propios datos la página que va a abrir su cliente. */}
+      <section className="landing-section landing-section-alt" id="tu-comercio">
+        <span className="eyebrow">• Del lado de tu cliente</span>
+        <h2 className="landing-h2">Así se vería tu comercio</h2>
+        <p className="landing-sub">
+          Cargá tus datos como en tu panel y mirá, al instante, la página que
+          abre tu cliente cuando toca tu link: con tu Instagram, tu ubicación
+          en Google Maps y tu equipo.
+        </p>
+        <VitrinaComercio />
+        <div className="landing-cta-row" style={{ marginTop: 'var(--space-xl)' }}>
+          <CTAWhatsApp>Quiero el mío</CTAWhatsApp>
+        </div>
+      </section>
+
       {/* ── SOLUCIÓN ─────────────────────────────────────────────────────── */}
-      <section className="landing-section landing-section-alt" id="funciones">
+      <section className="landing-section" id="funciones">
         <span className="eyebrow">• Lo que hace</span>
         <h2 className="landing-h2">Una agenda que trabaja sola</h2>
         <div className="landing-grid-3">
@@ -204,7 +222,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── CÓMO EMPIEZA ─────────────────────────────────────────────────── */}
-      <section className="landing-section" id="como-arranca">
+      <section className="landing-section landing-section-alt" id="como-arranca">
         <span className="eyebrow">• Cómo arranca</span>
         <h2 className="landing-h2">No tenés que configurar nada</h2>
         <p className="landing-sub">
@@ -227,7 +245,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── PRECIOS ──────────────────────────────────────────────────────── */}
-      <section className="landing-section landing-section-alt" id="precios">
+      <section className="landing-section" id="precios">
         <span className="eyebrow">• Precios</span>
         <h2 className="landing-h2">Sin letra chica</h2>
         <p className="landing-sub">
@@ -290,7 +308,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── FAQ ──────────────────────────────────────────────────────────── */}
-      <section className="landing-section" id="dudas">
+      <section className="landing-section landing-section-alt" id="dudas">
         <span className="eyebrow">• Dudas</span>
         <h2 className="landing-h2">Lo que siempre nos preguntan</h2>
         <div className="landing-faq">

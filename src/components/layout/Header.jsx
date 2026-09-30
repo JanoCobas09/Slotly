@@ -42,6 +42,7 @@ export default function Header() {
               encarga de hacer scroll una vez montada (ver su useEffect). */}
           <Link to="/#inicio">Inicio</Link>
           <Link to="/#problema">El día a día</Link>
+          <Link to="/#tu-comercio">Tu comercio</Link>
           <Link to="/#funciones">Funciones</Link>
           <Link to="/#como-arranca">Cómo arranca</Link>
           <Link to="/#precios">Precios</Link>
