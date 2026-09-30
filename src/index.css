@@ -3116,6 +3116,25 @@ select.form-input {
 .vc-pantalla .stepper-line { flex: 1 1 auto; width: auto; min-width: 8px; margin: 0 3px; }
 .vc-pantalla .stepper-circle { width: 26px; height: 26px; font-size: 0.7rem; flex-shrink: 0; }
 .vc-pantalla .booking-step-title { font-size: 1.25rem; }
+.vc-pantalla .timeslots-grid { grid-template-columns: repeat(3, 1fr); }
+.vc-pantalla .confirmation-container { padding: var(--space-xl) var(--space-md); }
+.vc-pantalla .confirmation-container h1 { font-size: 1.5rem; }
+.vc-pantalla .confirmation-actions { flex-direction: column; }
+/* En la real la barra de confirmar está fija a la pantalla (position: fixed);
+   acá se pega al fondo del celular, no de la landing. */
+.vc-pantalla .booking-container.has-confirm-bar { padding-bottom: 0; }
+.vc-pantalla .confirm-bar {
+  position: sticky;
+  padding: var(--space-md);
+}
+.vc-pantalla .confirm-bar .btn-lg { padding-inline: 14px; }
+
+/* Panel de ejemplo: se lee, no se edita (solo cambia el rubro) */
+.vitrina-panel .form-input[readonly] {
+  background: var(--bg-secondary);
+  color: var(--text);
+  cursor: default;
+}
 
 /* Resaltado de lo que se está editando en el panel */
 .vc-pantalla .vc-foco {
