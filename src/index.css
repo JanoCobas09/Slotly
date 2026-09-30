@@ -1131,6 +1131,21 @@ select.form-input {
   color: var(--text-secondary);
 }
 
+/* Precio de ESE profesional para el servicio elegido: solo aparece cuando
+   cambia según quién lo haga (en el paso anterior se mostró "Desde"). */
+.professional-card-precio {
+  margin-top: 6px;
+  font-weight: 700;
+  font-size: 0.9375rem;
+  color: var(--primary);
+}
+
+.service-price-desde {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
 /* Services List */
 .services-list {
   display: flex;

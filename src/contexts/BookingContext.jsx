@@ -22,10 +22,13 @@ function bookingReducer(state, action) {
     // servicio y el horario elegidos pueden no existir en la otra.
     case 'SET_BRANCH':
       return { ...initialBooking, personalInfo: state.personalInfo, customFieldValues: state.customFieldValues, branchId: action.payload };
-    case 'SET_PROFESSIONAL':
-      return { ...state, professionalId: action.payload, serviceId: null, date: null, timeSlot: null };
+    // Primero se elige el servicio y después quién lo hace: cambiar de
+    // servicio borra el profesional (puede no hacer el nuevo); cambiar de
+    // profesional deja el servicio.
     case 'SET_SERVICE':
-      return { ...state, serviceId: action.payload, date: null, timeSlot: null };
+      return { ...state, serviceId: action.payload, professionalId: null, date: null, timeSlot: null };
+    case 'SET_PROFESSIONAL':
+      return { ...state, professionalId: action.payload, date: null, timeSlot: null };
     case 'SET_DATE':
       return { ...state, date: action.payload, timeSlot: null };
     case 'SET_TIMESLOT':

@@ -83,7 +83,7 @@ const FAQ = [
   },
   {
     q: 'Mis clientes son grandes, ¿lo van a poder usar?',
-    a: 'Son cuatro pasos: profesional, servicio, día y hora. Nada de formularios ni contraseñas nuevas. Y el que prefiere llamarte, te sigue llamando: vos cargás ese turno a mano en dos toques.',
+    a: 'Son cuatro pasos: servicio, profesional, día y hora. Nada de formularios ni contraseñas nuevas. Y el que prefiere llamarte, te sigue llamando: vos cargás ese turno a mano en dos toques.',
   },
   {
     q: '¿Sirve para cualquier tipo de negocio?',

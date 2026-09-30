@@ -17,7 +17,7 @@ import { sucursalesActivas, profesionalesDeSucursal, schedulesDeSucursal, precio
 
 // ---- STEPPER ----
 function Stepper({ step }) {
-  const labels = ['Profesional', 'Servicio', 'Datos', 'Fecha', 'Horario', 'Confirmar'];
+  const labels = ['Servicio', 'Profesional', 'Datos', 'Fecha', 'Horario', 'Confirmar'];
   return (
     <div className="stepper">
       {labels.map((label, idx) => {
@@ -241,42 +241,31 @@ function SucursalSelect({ sucursales, negocio, onSelect }) {
   );
 }
 
-// ---- PROFESSIONAL SELECT ----
-function ProfessionalSelect({ professionals, selectedId, onSelect }) {
-  return (
-    <div>
-      <h2 className="booking-step-title">Seleccioná tu profesional</h2>
-      <p className="booking-step-subtitle">Elegí con quién querés atenderte</p>
-      <div className="professionals-grid">
-        {professionals.filter(p => p.isActive).map((prof) => (
-          <div
-            key={prof.id}
-            className={`card card-selectable professional-card ${selectedId === prof.id ? 'card-selected' : ''}`}
-            onClick={() => onSelect(prof.id)}
-          >
-            <div className="avatar avatar-lg">
-              {prof.avatarUrl ? <img src={prof.avatarUrl} alt={prof.name} /> : prof.name.split(' ').map(n => n[0]).join('')}
-            </div>
-            <h3>{prof.name}</h3>
-            <p className="specialty">{prof.specialty}</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // ---- SERVICE SELECT ----
-function ServiceSelect({ services, professionalServices, professionalId, selectedId, onSelect, currency, promotions }) {
+// Primer paso: qué se quiere hacer. Solo se ofrecen los servicios que hace
+// al menos un profesional activo. Cada profesional puede tener su propio
+// precio y duración para un servicio (professionalServices): si varían, se
+// muestra "Desde" el más barato y el rango de minutos; el precio de cada uno
+// se ve en el paso siguiente.
+function ServiceSelect({ services, professionals, professionalServices, selectedId, onSelect, currency, promotions }) {
   const available = useMemo(() => {
-    const psIds = professionalServices
-      .filter(ps => ps.professionalId === professionalId)
-      .map(ps => ps.serviceId);
-    return services.filter(s => s.isActive && psIds.includes(s.id)).map(s => {
-      const ps = professionalServices.find(p => p.professionalId === professionalId && p.serviceId === s.id);
-      return { ...s, finalPrice: ps?.customPrice || s.price, finalDuration: ps?.customDuration || s.durationMinutes };
-    });
-  }, [services, professionalServices, professionalId]);
+    const activos = new Set(professionals.filter((p) => p.isActive).map((p) => p.id));
+    return services.filter((s) => s.isActive).map((s) => {
+      const opciones = professionalServices
+        .filter((ps) => ps.serviceId === s.id && activos.has(ps.professionalId))
+        .map((ps) => ({ precio: ps.customPrice || s.price, duracion: ps.customDuration || s.durationMinutes }));
+      if (opciones.length === 0) return null;
+      const precios = opciones.map((o) => o.precio);
+      const duraciones = opciones.map((o) => o.duracion);
+      return {
+        ...s,
+        precioDesde: Math.min(...precios),
+        variaPrecio: new Set(precios).size > 1,
+        durMin: Math.min(...duraciones),
+        durMax: Math.max(...duraciones),
+      };
+    }).filter(Boolean);
+  }, [services, professionals, professionalServices]);
 
   // Todavía no se eligió fecha ni hora acá: solo se puede avisar que ESTE
   // servicio tiene alguna promo cargada, no si aplica al horario que elija
@@ -286,7 +275,7 @@ function ServiceSelect({ services, professionalServices, professionalId, selecte
   return (
     <div>
       <h2 className="booking-step-title">Elegí un servicio</h2>
-      <p className="booking-step-subtitle">Servicios disponibles</p>
+      <p className="booking-step-subtitle">¿Qué te querés hacer?</p>
       <div className="services-list">
         {available.map((service) => (
           <div
@@ -302,9 +291,51 @@ function ServiceSelect({ services, professionalServices, professionalId, selecte
               <p>{service.description}</p>
             </div>
             <div className="service-meta">
-              <div className="service-price">{formatPrice(service.finalPrice, currency)}</div>
-              <div className="service-duration"><Icon name="clock" /> {service.finalDuration} min</div>
+              <div className="service-price">
+                {service.variaPrecio && <span className="service-price-desde">Desde </span>}
+                {formatPrice(service.precioDesde, currency)}
+              </div>
+              <div className="service-duration">
+                <Icon name="clock" /> {service.durMin === service.durMax ? service.durMin : `${service.durMin}–${service.durMax}`} min
+              </div>
             </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ---- PROFESSIONAL SELECT ----
+// Segundo paso: quién. Solo los profesionales que hacen el servicio elegido.
+// Si el precio cambia según quién lo haga, cada tarjeta muestra el suyo.
+function ProfessionalSelect({ professionals, professionalServices, service, selectedId, onSelect, currency }) {
+  const disponibles = useMemo(() => professionals
+    .filter((p) => p.isActive)
+    .map((p) => {
+      const ps = professionalServices.find((x) => x.professionalId === p.id && x.serviceId === service?.id);
+      return ps ? { ...p, precio: ps.customPrice || service.price } : null;
+    })
+    .filter(Boolean), [professionals, professionalServices, service]);
+  const variaPrecio = new Set(disponibles.map((p) => p.precio)).size > 1;
+
+  return (
+    <div>
+      <h2 className="booking-step-title">Seleccioná tu profesional</h2>
+      <p className="booking-step-subtitle">Elegí con quién querés atenderte</p>
+      <div className="professionals-grid">
+        {disponibles.map((prof) => (
+          <div
+            key={prof.id}
+            className={`card card-selectable professional-card ${selectedId === prof.id ? 'card-selected' : ''}`}
+            onClick={() => onSelect(prof.id)}
+          >
+            <div className="avatar avatar-lg">
+              {prof.avatarUrl ? <img src={prof.avatarUrl} alt={prof.name} /> : prof.name.split(' ').map(n => n[0]).join('')}
+            </div>
+            <h3>{prof.name}</h3>
+            <p className="specialty">{prof.specialty}</p>
+            {variaPrecio && <p className="professional-card-precio">{formatPrice(prof.precio, currency)}</p>}
           </div>
         ))}
       </div>
@@ -875,7 +906,7 @@ export default function BookingPage() {
     return Math.round(precioConDescuento * Math.min(valor, 100)) / 100;
   })();
 
-  // Volvió del login: restaura profesional y servicio (lo único que hacía
+  // Volvió del login: restaura servicio y profesional (lo único que hacía
   // falta guardar — el nombre lo precarga el efecto de abajo con el de la
   // cuenta, y el teléfono todavía no se había cargado en el paso 2) y salta
   // directo al paso de "Tus datos". No depende de en qué paso arrancó este
@@ -890,8 +921,9 @@ export default function BookingPage() {
     } catch { /* sin sessionStorage, no hay nada que restaurar */ }
     if (!draft?.professionalId || !draft?.serviceId) return;
     if (draft.branchId) dispatch({ type: 'SET_BRANCH', payload: draft.branchId });
-    dispatch({ type: 'SET_PROFESSIONAL', payload: draft.professionalId });
+    // En este orden: SET_SERVICE borra el profesional elegido.
     dispatch({ type: 'SET_SERVICE', payload: draft.serviceId });
+    dispatch({ type: 'SET_PROFESSIONAL', payload: draft.professionalId });
     dispatch({ type: 'SET_STEP', payload: 3 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
@@ -984,8 +1016,8 @@ export default function BookingPage() {
 
   const canGoNext = () => {
     switch (step) {
-      case 1: return !!professionalId;
-      case 2: return !!serviceId;
+      case 1: return !!serviceId;
+      case 2: return !!professionalId;
       case 3: return telefonoValido(personalInfo.phone) && nombreValido(personalInfo.name) && !faltanCamposExtra;
       case 4: return !!date && !hasAppointmentToday;
       case 5: return !!timeSlot;
@@ -1003,9 +1035,9 @@ export default function BookingPage() {
       return;
     }
     // Hasta acá se puede mirar sin cuenta. Para poner sus datos y confirmar,
-    // tiene que entrar. profesional y servicio se guardan porque el login
+    // tiene que entrar. servicio y profesional se guardan porque el login
     // recarga la página entera (ver BOOKING_DRAFT_KEY más arriba) — sin
-    // esto, volver de Google largaba de nuevo en "elegí tu profesional".
+    // esto, volver de Google largaba de nuevo en "elegí un servicio".
     if (step === 2 && !user) {
       setError('');
       try { sessionStorage.setItem(BOOKING_DRAFT_KEY, JSON.stringify({ professionalId, serviceId, branchId: booking.branchId })); } catch { /* sin storage, hay que re-elegir al volver */ }
@@ -1145,22 +1177,25 @@ export default function BookingPage() {
       )}
 
       {step === 1 && (
-        <ProfessionalSelect
-          professionals={professionals}
-          selectedId={professionalId}
-          onSelect={id => dispatch({ type: 'SET_PROFESSIONAL', payload: id })}
-        />
-      )}
-
-      {step === 2 && (
         <ServiceSelect
           services={services}
+          professionals={professionals}
           professionalServices={professionalServices}
-          professionalId={professionalId}
           selectedId={serviceId}
           onSelect={id => dispatch({ type: 'SET_SERVICE', payload: id })}
           currency={business.currency}
           promotions={promotions}
+        />
+      )}
+
+      {step === 2 && (
+        <ProfessionalSelect
+          professionals={professionals}
+          professionalServices={professionalServices}
+          service={selectedService}
+          selectedId={professionalId}
+          onSelect={id => dispatch({ type: 'SET_PROFESSIONAL', payload: id })}
+          currency={business.currency}
         />
       )}
 

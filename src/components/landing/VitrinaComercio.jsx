@@ -10,7 +10,7 @@ import Icon from '../Icon';
 // A la izquierda, un EJEMPLO fijo de lo que el dueño carga en Configuración
 // (nombre, bienvenida, teléfono, Instagram, ubicación): lo único que se elige
 // es el rubro. A la derecha, un celular con la página de reserva REAL que abre
-// su cliente, y se puede reservar de punta a punta: profesional → servicio →
+// su cliente, y se puede reservar de punta a punta: servicio → profesional →
 // datos → fecha → horario → confirmar → "¡Turno reservado!". Nada se guarda.
 //
 // Es una copia del markup de BookingPage / ConfirmationPage con sus mismas
@@ -88,7 +88,7 @@ const TELEFONO_DEMO = '11 4567-8910';
 const CLIENTE_DEMO = { nombre: 'Santiago Rossi', email: 'santiago.rossi@gmail.com', telefono: '11 2345-6789' };
 const EXTRAS_DEMO = { vehicleInfo: 'Fiat Cronos · AB 123 CD', petInfo: 'Luna · perra' };
 
-const PASOS = ['Profesional', 'Servicio', 'Datos', 'Fecha', 'Horario', 'Confirmar'];
+const PASOS = ['Servicio', 'Profesional', 'Datos', 'Fecha', 'Horario', 'Confirmar'];
 
 /** "Barbería El Corte" → "barberia-el-corte" (sin tildes ni símbolos). */
 function slugDe(texto) {
@@ -246,8 +246,8 @@ export default function VitrinaComercio() {
 
   const faltaExtra = campos.some((f) => f.required && !String(reserva.extras[f.key] || '').trim());
   const puedeSeguir = {
-    1: reserva.proIdx !== null,
-    2: reserva.servicioIdx !== null,
+    1: reserva.servicioIdx !== null,
+    2: reserva.proIdx !== null,
     3: nombreValido(reserva.nombre) && telefonoValido(reserva.telefono) && !faltaExtra,
     4: !!reserva.fecha,
     5: !!reserva.slot,
@@ -421,18 +421,20 @@ export default function VitrinaComercio() {
 
                 {paso === 1 && (
                   <div>
-                    <h2 className="booking-step-title">Seleccioná tu profesional</h2>
-                    <p className="booking-step-subtitle">Elegí con quién querés atenderte</p>
-                    <div className="professionals-grid">
-                      {demo.profesionales.map((prof, i) => (
+                    <h2 className="booking-step-title">Elegí un servicio</h2>
+                    <p className="booking-step-subtitle">¿Qué te querés hacer?</p>
+                    <div className="services-list">
+                      {servicios.map((s, i) => (
                         <div
-                          key={prof.name}
-                          className={`card card-selectable professional-card ${reserva.proIdx === i ? 'card-selected' : ''}`}
-                          onClick={() => cambiar({ proIdx: i, servicioIdx: null, fecha: null, slot: null })}
+                          key={s.name}
+                          className={`card card-selectable service-card ${reserva.servicioIdx === i ? 'card-selected' : ''}`}
+                          onClick={() => cambiar({ servicioIdx: i, proIdx: null, fecha: null, slot: null })}
                         >
-                          <div className="avatar avatar-lg">{iniciales(prof.name)}</div>
-                          <h3>{prof.name}</h3>
-                          <p className="specialty">{prof.specialty}</p>
+                          <div className="service-info"><h3>{s.name}</h3></div>
+                          <div className="service-meta">
+                            <div className="service-price">{formatPrice(s.price)}</div>
+                            <div className="service-duration"><Icon name="clock" /> {s.durationMinutes} min</div>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -441,20 +443,18 @@ export default function VitrinaComercio() {
 
                 {paso === 2 && (
                   <div>
-                    <h2 className="booking-step-title">Elegí un servicio</h2>
-                    <p className="booking-step-subtitle">Servicios disponibles</p>
-                    <div className="services-list">
-                      {servicios.map((s, i) => (
+                    <h2 className="booking-step-title">Seleccioná tu profesional</h2>
+                    <p className="booking-step-subtitle">Elegí con quién querés atenderte</p>
+                    <div className="professionals-grid">
+                      {demo.profesionales.map((prof, i) => (
                         <div
-                          key={s.name}
-                          className={`card card-selectable service-card ${reserva.servicioIdx === i ? 'card-selected' : ''}`}
-                          onClick={() => cambiar({ servicioIdx: i, fecha: null, slot: null })}
+                          key={prof.name}
+                          className={`card card-selectable professional-card ${reserva.proIdx === i ? 'card-selected' : ''}`}
+                          onClick={() => cambiar({ proIdx: i, fecha: null, slot: null })}
                         >
-                          <div className="service-info"><h3>{s.name}</h3></div>
-                          <div className="service-meta">
-                            <div className="service-price">{formatPrice(s.price)}</div>
-                            <div className="service-duration"><Icon name="clock" /> {s.durationMinutes} min</div>
-                          </div>
+                          <div className="avatar avatar-lg">{iniciales(prof.name)}</div>
+                          <h3>{prof.name}</h3>
+                          <p className="specialty">{prof.specialty}</p>
                         </div>
                       ))}
                     </div>
@@ -668,7 +668,7 @@ export default function VitrinaComercio() {
         <figcaption>
           {confirmado
             ? 'Así termina tu cliente. Al negocio le llega el aviso y a él, el mail.'
-            : 'Probalo: elegí profesional, servicio, día y horario, y confirmá.'}
+            : 'Probalo: elegí servicio, profesional, día y horario, y confirmá.'}
         </figcaption>
       </figure>
     </div>
