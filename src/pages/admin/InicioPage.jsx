@@ -5,6 +5,7 @@ import { useBusinessContext } from '../../hooks/useBusinessContext';
 import AgendaDelDia from '../../components/admin/AgendaDelDia';
 import AccionesTurno from '../../components/admin/AccionesTurno';
 import NuevoTurnoModal from '../../components/admin/NuevoTurnoModal';
+import DetalleTurnoModal from '../../components/admin/DetalleTurnoModal';
 import { formatDate, toDateString, getMonthName } from '../../utils/dateUtils';
 import { diaEnteroBloqueado, rangosDelDia, bloqueosQueAplican } from '../../utils/bloqueos';
 import Icon from '../../components/Icon';
@@ -19,8 +20,9 @@ import { hayVariasSucursales, sucursalesActivas, profesionalesDeSucursal, horari
  *   - Semana: siete columnas, un vistazo de cómo viene la semana.
  *   - Mes:    el calendario del mes con cuántos turnos hay cada día.
  *
- * Tocar un día o un turno en semana/mes abre ese día en la vista Día, que es
- * donde se actúa (confirmar, editar, cancelar). Las estadísticas viven
+ * Tocar un turno (en el día o en la semana) lo abre como tarjeta con sus
+ * datos, los avisos por WhatsApp y las acciones (DetalleTurnoModal). Tocar
+ * un día en semana/mes abre ese día en la vista Día. Las estadísticas viven
  * aparte, en Dashboard.
  */
 
@@ -88,6 +90,16 @@ export default function InicioPage() {
   const blockedDays = bloqueosQueAplican(todosLosBloqueos, { professionalId: filtroProf || null, branchId: sucursalActiva || null });
   const [agendando, setAgendando] = useState(false);
   const [editando, setEditando] = useState(null);
+  // Turno abierto como tarjeta (id): al tocarlo, o recién cancelado.
+  const [detalle, setDetalle] = useState(null);
+  const acciones = (apt) => (
+    <AccionesTurno
+      apt={apt}
+      isOwner={puedeEditar}
+      onEditar={(a) => { setDetalle(null); setEditando(a); }}
+      onCancelado={(a) => setDetalle(a.id)}
+    />
+  );
 
   const varios = professionals.length > 1;
   const nombreProf = (id) => professionals.find((p) => p.id === id)?.name || '—';
@@ -175,6 +187,7 @@ export default function InicioPage() {
 
       {agendando && <NuevoTurnoModal onClose={() => setAgendando(false)} />}
       {editando && <NuevoTurnoModal turno={editando} onClose={() => setEditando(null)} />}
+      {detalle && <DetalleTurnoModal aptId={detalle} onClose={() => setDetalle(null)} acciones={acciones} isOwner={isOwner} />}
 
       <div className="card">
         {/* ── Barra: vista, navegación, título, filtro ── */}
@@ -234,7 +247,8 @@ export default function InicioPage() {
             filtroProfesional={filtroProf}
             sinCabecera
             blockedDays={blockedDays}
-            renderAcciones={(apt) => <AccionesTurno apt={apt} isOwner={puedeEditar} onEditar={setEditando} />}
+            onSelect={(apt) => setDetalle(apt.id)}
+            renderAcciones={acciones}
           />
         )}
 
@@ -257,7 +271,7 @@ export default function InicioPage() {
                     ) : (
                       <>
                         {turnos.slice(0, MAX_SEMANA).map((a) => (
-                          <button key={a.id} className={`mini-turno estado-${a.status}`} onClick={() => irAlDia(iso)}>
+                          <button key={a.id} className={`mini-turno estado-${a.status}`} onClick={() => setDetalle(a.id)}>
                             <span className="mini-turno-hora">{a.startTime}</span>
                             <span className="mini-turno-cliente">{nombreTurno(a)}</span>
                             <span className="mini-turno-detalle">

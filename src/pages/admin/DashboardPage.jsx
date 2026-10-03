@@ -9,6 +9,7 @@ import NuevoTurnoModal from '../../components/admin/NuevoTurnoModal';
 import AgendaDelDia from '../../components/admin/AgendaDelDia';
 import Icon from '../../components/Icon';
 import AccionesTurno from '../../components/admin/AccionesTurno';
+import DetalleTurnoModal from '../../components/admin/DetalleTurnoModal';
 
 const STATUS_BADGES = {
   pendiente:  'badge-warning',
@@ -112,7 +113,9 @@ export default function DashboardPage() {
     : appointments.filter(a => a.professionalId === user?.professionalId);
 
   // Acciones sobre un turno de la agenda (mismo componente que Inicio).
-  const accionesDeTurno = (apt) => <AccionesTurno apt={apt} isOwner={isOwner} />;
+  // Turno abierto como tarjeta (id): al tocarlo, o recién cancelado.
+  const [detalle, setDetalle] = useState(null);
+  const accionesDeTurno = (apt) => <AccionesTurno apt={apt} isOwner={isOwner} onCancelado={(a) => setDetalle(a.id)} />;
 
   // ══════════════════════════════════════════════════════════════════════════
   // VISTA STAFF ASIGNADO
@@ -187,9 +190,12 @@ export default function DashboardPage() {
             services={services}
             business={business}
             professionalId={user.professionalId}
+            onSelect={(apt) => setDetalle(apt.id)}
             renderAcciones={accionesDeTurno}
           />
         </div>
+
+        {detalle && <DetalleTurnoModal aptId={detalle} onClose={() => setDetalle(null)} acciones={accionesDeTurno} isOwner={isOwner} />}
 
         {showWalkinModal && (
           <WalkinModal

@@ -9,9 +9,10 @@ const yaEmpezo = (apt) => new Date(`${apt.appointmentDate}T${apt.startTime}:00`)
  * Botones de un turno en la agenda: editar (solo el dueño), confirmar,
  * completar, no asistió y cancelar. Completar y "no asistió" recién cuando
  * el turno ya empezó. Lo usan Inicio (dueño) y "Hoy" (staff), así las dos
- * agendas se comportan igual.
+ * agendas se comportan igual. `onCancelado(apt)`: después de cancelar (la
+ * pantalla abre la tarjeta del turno para avisarle al cliente).
  */
-export default function AccionesTurno({ apt, isOwner, onEditar }) {
+export default function AccionesTurno({ apt, isOwner, onEditar, onCancelado }) {
   const { businessId } = useTenant();
   if (apt.status !== 'pendiente' && apt.status !== 'confirmada') return null;
 
@@ -24,7 +25,9 @@ export default function AccionesTurno({ apt, isOwner, onEditar }) {
     const accion = status === 'cancelada'
       ? cancelAppointment(businessId, apt.id, '', 'staff')
       : updateAppointment(businessId, apt.id, { status });
-    accion.catch((err) => {
+    accion.then(() => {
+      if (status === 'cancelada') onCancelado?.(apt);
+    }, (err) => {
       console.error('[AccionesTurno] No se pudo actualizar el turno:', err);
       alert('No se pudo actualizar el turno: ' + err.message);
     });

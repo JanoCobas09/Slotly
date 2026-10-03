@@ -1,17 +1,18 @@
 import { useTenant } from '../../hooks/useTenantData';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
 import { updateAppointment } from '../../lib/repository';
-import { avisoQueCorresponde, mensajeAviso, linkAviso, textoBoton } from '../../utils/avisosWhatsApp';
+import { avisoQueCorresponde, mensajeAviso, linkAviso, textoBoton, CAMPO_AVISO } from '../../utils/avisosWhatsApp';
 import { datosDe, hayVariasSucursales, nombreSucursal } from '../../utils/sucursales';
 import Icon from '../Icon';
 
 /**
  * Botón de aviso por WhatsApp al cliente de un turno. Antes del día anterior
  * ofrece la confirmación ("Agendaste..."); desde las 00:00 del día anterior
- * hasta que empieza, el recordatorio. Abre WhatsApp con el mensaje armado y
+ * hasta que empieza, el recordatorio; si se canceló (y todavía no pasó), el
+ * aviso de cancelación. Abre WhatsApp con el mensaje armado y
  * anota en el turno que se mandó (el envío es a mano: si se cierra WhatsApp
  * sin mandar, queda marcado igual — tocándolo de nuevo se vuelve a abrir).
- * Lo usan la agenda (Inicio / Hoy) y Citas.
+ * Lo usan la agenda (Inicio / Hoy), Citas y la tarjeta de detalle.
  */
 export default function AvisoWhatsApp({ apt }) {
   const { businessId, business, professionals, services, branches } = useTenant();
@@ -20,7 +21,7 @@ export default function AvisoWhatsApp({ apt }) {
   const tipo = avisoQueCorresponde(apt);
   if (!tipo) return null;
 
-  const campo = tipo === 'recordatorio' ? 'whatsappRecordatorioAt' : 'whatsappConfirmacionAt';
+  const campo = CAMPO_AVISO[tipo];
   const enviado = Boolean(apt[campo]);
   const branch = (branches || []).find((b) => b.id === apt.branchId);
   const mensaje = mensajeAviso(tipo, {
@@ -31,6 +32,7 @@ export default function AvisoWhatsApp({ apt }) {
     servicio: (services || []).find((s) => s.id === apt.serviceId),
     direccion: datosDe(branch, business).address,
     sucursal: hayVariasSucursales(branches) ? nombreSucursal(branches, apt.branchId) : '',
+    linkReserva: business?.slug ? `${window.location.origin}/${business.slug}` : '',
   });
   const link = linkAviso(apt.clientPhone, mensaje);
 

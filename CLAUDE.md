@@ -1111,6 +1111,20 @@ dominio de más autorizado no es un agujero de seguridad, solo ruido).
    llena el campo si sigue vacío (`SET_PERSONAL_INFO_SI_VACIO` en
    BookingContext), así no pisa lo que el cliente ya escribió ni lo vuelve a
    poner si lo borra. Sin tabla ni columna nueva: sale de sus turnos.
+5p. **Tarjeta del turno + aviso de cancelación (03/10/2026).** Tocar un turno
+   (Citas: fila o tarjeta; agenda de Inicio / Hoy; mini-turno de la semana)
+   abre `components/admin/DetalleTurnoModal.jsx`: datos, seña, quién canceló,
+   avisos por WhatsApp (el que corresponde + cuáles ya se mandaron) y las
+   acciones de la pantalla que lo abre (`acciones(apt)`, solo si el turno
+   sigue vivo). Recibe el id y lee el turno vivo de useTenant. Cancelar desde
+   la agenda o Citas abre la tarjeta de ese turno (`onCancelado` en
+   AccionesTurno): la agenda esconde los cancelados y si no, no había dónde
+   avisar. Aviso nuevo 'cancelacion' en `avisoQueCorresponde` (cancelado y
+   todavía no pasó): mensaje distinto si canceló el cliente o el negocio
+   (con motivo y link para reservar otro horario); marca en
+   `appointments.whatsapp_cancelacion_at`
+   (`20261020000000_aviso_cancelacion_whatsapp.sql`, mismo trigger).
+   `test-avisos-whatsapp.mjs` 11/11.
 6. **Abuso de reservas.** Hecho: un turno por día y tope de 3 a futuro por
    cuenta. Falta, por orden: bloquear cliente desde el panel (para la cuenta que
    se porta mal), y App Check con reCAPTCHA v3 sobre los callables para frenar

@@ -54,14 +54,16 @@ const inicioDelTurno = (apt) => {
 
 /**
  * Qué aviso corresponde ahora: 'recordatorio' desde las 00:00 del día
- * anterior hasta que el turno empieza; antes, 'confirmacion'; después (o si
- * el turno ya no está vivo, o es un walk-in), ninguno.
+ * anterior hasta que el turno empieza; antes, 'confirmacion'. Si está
+ * cancelado y todavía no pasó, 'cancelacion'. Después de la hora (o si
+ * terminó de otra forma, o es un walk-in), ninguno.
  */
 export function avisoQueCorresponde(apt, ahora = new Date()) {
   if (!apt || apt.type === 'walkin') return null;
-  if (apt.status !== 'pendiente' && apt.status !== 'confirmada') return null;
   const inicio = inicioDelTurno(apt);
   if (ahora >= inicio) return null;
+  if (apt.status === 'cancelada') return 'cancelacion';
+  if (apt.status !== 'pendiente' && apt.status !== 'confirmada') return null;
   const desde = new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate() - 1);
   return ahora >= desde ? 'recordatorio' : 'confirmacion';
 }
@@ -76,15 +78,42 @@ function cuando(apt, ahora) {
 }
 
 /**
- * El mensaje, con los datos del turno. `tipo`: 'confirmacion' | 'recordatorio'.
- * Usa *negrita* de WhatsApp y nada de emojis (algunos WhatsApp de escritorio
- * los rompen al venir por el link).
+ * El mensaje, con los datos del turno. `tipo`: 'confirmacion' |
+ * 'recordatorio' | 'cancelacion'. Usa *negrita* de WhatsApp y nada de emojis
+ * (algunos WhatsApp de escritorio los rompen al venir por el link).
+ * `linkReserva`: el link público, para ofrecer otro horario al cancelar.
  */
-export function mensajeAviso(tipo, { apt, business, terminology, profesional, servicio, direccion, sucursal, ahora = new Date() }) {
+export function mensajeAviso(tipo, { apt, business, terminology, profesional, servicio, direccion, sucursal, linkReserva, ahora = new Date() }) {
   const nombre = (apt.clientName || '').trim().split(/\s+/)[0];
   const saludo = nombre ? `¡Hola ${nombre}!` : '¡Hola!';
   const queTiene = conArticulo(terminology);
   const negocio = business?.name ? ` en *${business.name}*` : '';
+  const femenino = queTiene.startsWith('una');
+
+  if (tipo === 'cancelacion') {
+    const tu = `tu ${terminology?.appointmentNoun || 'turno'}`;
+    const cancelado = femenino ? 'cancelada' : 'cancelado';
+    const loCancelo = apt.cancelledBy === 'client';
+    const datosCancelado = [
+      `*Día:* ${formatDate(apt.appointmentDate).split(',')[0].toLowerCase()}`,
+      `*Hora:* ${apt.startTime} hs`,
+      (apt.serviceName || servicio?.name) && `*Servicio:* ${apt.serviceName || servicio.name}`,
+      profesional?.name && `*Con:* ${profesional.name}`,
+      !loCancelo && apt.cancellationReason && `*Motivo:* ${apt.cancellationReason}`,
+    ].filter(Boolean);
+    return [
+      loCancelo
+        ? `${saludo} Te confirmamos que ${tu}${negocio} quedó ${cancelado}.`
+        : `${saludo} Lamentamos avisarte que ${tu}${negocio} quedó ${cancelado}.`,
+      '',
+      ...datosCancelado,
+      '',
+      linkReserva
+        ? `Si querés, podés reservar otro horario acá: ${linkReserva}`
+        : 'Si querés, respondenos por acá y te buscamos otro horario.',
+      loCancelo ? '¡Gracias por avisarnos!' : 'Disculpá las molestias.',
+    ].join('\n');
+  }
 
   const dia = cuando(apt, ahora);
   const primera = tipo === 'recordatorio'
@@ -101,7 +130,7 @@ export function mensajeAviso(tipo, { apt, business, terminology, profesional, se
     Number(apt.price) > 0 && `*Precio:* ${formatPrice(Number(apt.price), business?.currency)}`,
   ].filter(Boolean);
 
-  const lo = queTiene.startsWith('una') ? 'la' : 'lo';
+  const lo = femenino ? 'la' : 'lo';
   const cierre = tipo === 'recordatorio'
     ? 'Si no vas a poder venir, avisanos por acá así liberamos el horario. ¡Te esperamos!'
     : `Si necesitás cambiar${lo} o cancelar${lo}, avisanos por acá. ¡Te esperamos!`;
@@ -115,8 +144,16 @@ export function linkAviso(telefono, mensaje) {
   return numero ? `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}` : null;
 }
 
+/** Columna del turno donde queda la marca de cada aviso. */
+export const CAMPO_AVISO = {
+  confirmacion: 'whatsappConfirmacionAt',
+  recordatorio: 'whatsappRecordatorioAt',
+  cancelacion: 'whatsappCancelacionAt',
+};
+
 /** Textos del botón según el aviso y si ya se mandó. */
 export function textoBoton(tipo, enviado) {
+  if (tipo === 'cancelacion') return enviado ? 'Cancelación avisada' : 'Avisar cancelación';
   if (tipo === 'recordatorio') return enviado ? 'Recordatorio enviado' : 'Enviar recordatorio';
   return enviado ? 'Confirmación enviada' : 'Enviar confirmación';
 }

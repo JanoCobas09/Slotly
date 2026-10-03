@@ -3405,6 +3405,69 @@ select.form-input {
 .agenda-turno.clickeable { cursor: pointer; }
 .agenda-turno.clickeable:hover { border-color: var(--border-hover); }
 
+/* Turnos que se abren como tarjeta (DetalleTurnoModal) en Citas. */
+.cita-tarjeta.clickeable { cursor: pointer; }
+.cita-tarjeta.clickeable:hover { border-color: var(--border-hover); }
+.fila-clickeable { cursor: pointer; }
+.fila-clickeable:hover td { background: var(--bg); }
+
+.detalle-turno-datos {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+}
+
+.detalle-turno-fila {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 12px;
+  align-items: baseline;
+  font-size: 0.9rem;
+}
+
+.detalle-turno-fila dt {
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.detalle-turno-fila dd {
+  margin: 0;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.detalle-turno-avisos {
+  margin-top: var(--space-md);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.detalle-turno-avisos-titulo {
+  font-weight: 600;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.detalle-turno-acciones {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 400px) {
+  .detalle-turno-fila { grid-template-columns: 96px 1fr; gap: 8px; }
+}
+
+
 .agenda-turno.estado-pendiente  { border-left-color: var(--warning); }
 .agenda-turno.estado-confirmada { border-left-color: var(--success); }
 .agenda-turno.estado-completada { border-left-color: var(--primary); opacity: 0.8; }

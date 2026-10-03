@@ -85,6 +85,16 @@ async function main() {
   f = await fila(id);
   ok(!e8 && !f.whatsapp_confirmacion_at, `mover el día también — ${e8?.message || 'ok'}`);
 
+  console.log('Aviso de cancelación:');
+  const id3 = await turno();
+  await dueno.db.from('appointments').update({ status: 'cancelada' }).eq('id', id3);
+  const { error: e9 } = await dueno.db.from('appointments').update({ whatsapp_cancelacion_at: ahora() }).eq('id', id3);
+  ok(!e9 && (await fila(id3)).whatsapp_cancelacion_at, `el dueño marca la cancelación como avisada — ${e9?.message || 'ok'}`);
+  const id4 = await turno();
+  await cliente.db.from('appointments').update({ status: 'cancelada', cancelled_by: 'client' }).eq('id', id4);
+  const { error: e10 } = await cliente.db.from('appointments').update({ whatsapp_cancelacion_at: ahora() }).eq('id', id4);
+  ok(Boolean(e10) && !(await fila(id4)).whatsapp_cancelacion_at, `el cliente no — ${e10?.message}`);
+
   await admin.from('businesses').delete().eq('id', bizId);
   console.log(`\n${pasaron} pasaron, ${fallaron} fallaron`);
   process.exit(fallaron ? 1 : 0);

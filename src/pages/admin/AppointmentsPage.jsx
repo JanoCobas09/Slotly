@@ -8,6 +8,7 @@ import { formatDate, formatPrice } from '../../utils/dateUtils';
 import Icon from '../../components/Icon';
 import SenaTurno from '../../components/admin/SenaTurno';
 import AvisoWhatsApp from '../../components/admin/AvisoWhatsApp';
+import DetalleTurnoModal from '../../components/admin/DetalleTurnoModal';
 import { esTurnoEditable, confirmacionCancelar } from '../../utils/turnos';
 import { hayVariasSucursales, sucursalesActivas, nombreSucursal, profesionalesDeSucursal } from '../../utils/sucursales';
 
@@ -69,6 +70,9 @@ export default function AppointmentsPage() {
   const [filterDate,   setFilterDate]   = useState('');
   const [agendando,    setAgendando]    = useState(false);
   const [editando,     setEditando]     = useState(null);
+  // Turno abierto como tarjeta (id): al tocarlo, o recién cancelado (para
+  // avisarle al cliente en el momento).
+  const [detalle,      setDetalle]      = useState(null);
 
   const filtered = useMemo(() => {
     let result = [...appointments].sort((a, b) => {
@@ -98,7 +102,7 @@ export default function AppointmentsPage() {
 
   const handleCancel = (apt) => {
     if (window.confirm(confirmacionCancelar(apt))) {
-      cancelAppointment(businessId, apt.id).catch((err) => {
+      cancelAppointment(businessId, apt.id).then(() => setDetalle(apt.id), (err) => {
         console.error('[AppointmentsPage] No se pudo cancelar:', err);
         alert('No se pudo cancelar el turno: ' + err.message);
       });
@@ -110,9 +114,10 @@ export default function AppointmentsPage() {
     const started = isAppointmentStarted(apt);
     const blockedMsg = 'El turno todavía no comenzó';
     return (
-      <div className="table-actions">
+      // Los botones no abren la tarjeta del turno (la fila/tarjeta sí).
+      <div className="table-actions" onClick={(e) => e.stopPropagation()}>
         {esTurnoEditable(apt, verTodo) && (
-          <button className="btn btn-ghost btn-sm" title="Editar turno" onClick={() => setEditando(apt)}><Icon name="edit" /></button>
+          <button className="btn btn-ghost btn-sm" title="Editar turno" onClick={() => { setDetalle(null); setEditando(apt); }}><Icon name="edit" /></button>
         )}
         {(apt.status === 'pendiente' || apt.status === 'confirmada') && (
           <>
@@ -157,6 +162,7 @@ export default function AppointmentsPage() {
 
       {agendando && <NuevoTurnoModal onClose={() => setAgendando(false)} />}
       {editando && <NuevoTurnoModal turno={editando} onClose={() => setEditando(null)} />}
+      {detalle && <DetalleTurnoModal aptId={detalle} onClose={() => setDetalle(null)} acciones={accionesDe} isOwner={isOwner} />}
 
       {/* Filtros */}
       <div className="filters-bar">
@@ -219,7 +225,7 @@ export default function AppointmentsPage() {
           const srv  = services.find(s => s.id === apt.serviceId);
           const isWalkin = apt.type === 'walkin';
           return (
-            <div key={apt.id} className={`card cita-tarjeta estado-${apt.status}`}>
+            <div key={apt.id} className={`card cita-tarjeta clickeable estado-${apt.status}`} onClick={() => setDetalle(apt.id)} role="button">
               <div className="cita-tarjeta-fila">
                 <div>
                   <div className="cita-tarjeta-hora">{apt.startTime}<span> — {apt.endTime}</span></div>
@@ -234,7 +240,7 @@ export default function AppointmentsPage() {
                 {varias && apt.branchId && <> · {nombreSucursal(branches, apt.branchId)}</>}
               </div>
               {apt.clientPhone && !isWalkin && (
-                <a className="text-sm" href={`tel:${apt.clientPhone}`} style={{ color: 'var(--text-muted)', textDecoration: 'none' }}><Icon name="phone" /> {apt.clientPhone}</a>
+                <a className="text-sm" href={`tel:${apt.clientPhone}`} onClick={(e) => e.stopPropagation()} style={{ color: 'var(--text-muted)', textDecoration: 'none' }}><Icon name="phone" /> {apt.clientPhone}</a>
               )}
               {apt.notes && (
                 <div className="text-xs text-muted" style={{ marginTop: 4 }}><Icon name="note" /> {apt.notes}</div>
@@ -272,7 +278,7 @@ export default function AppointmentsPage() {
               const isWalkin = apt.type === 'walkin';
 
               return (
-                <tr key={apt.id} style={isWalkin ? { background: 'var(--bg-secondary)', fontStyle: 'italic' } : {}}>
+                <tr key={apt.id} className="fila-clickeable" onClick={() => setDetalle(apt.id)} style={isWalkin ? { background: 'var(--bg-secondary)', fontStyle: 'italic' } : {}}>
                   <td>{formatDate(apt.appointmentDate).split(',')[0]}</td>
                   <td><strong>{apt.startTime}</strong> — {apt.endTime}</td>
                   {verTodo && (
