@@ -1,9 +1,10 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useBooking } from '../../contexts/BookingContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../hooks/useTenantData';
 import { createAppointment, getBusySlots, resolveMapsLink } from '../../lib/functions';
+import { getUltimoTelefono } from '../../lib/repository';
 import { calculateAvailableSlots, professionalWorksOnDate } from '../../utils/availabilityEngine';
 import { promoParaSlot, precioConPromo } from '../../utils/promoEngine';
 import { formatDate, formatPrice, toDateString, getMonthName, getLocalDayOfWeek } from '../../utils/dateUtils';
@@ -547,7 +548,7 @@ function problemaDatosPersonales(name, phone, customFields, customFieldValues) {
   return null;
 }
 
-function PersonalInfoStep({ user, name, phone, onNameChange, onPhoneChange, customFields, customFieldValues, onCustomFieldChange, errorCampo }) {
+function PersonalInfoStep({ user, name, phone, onNameChange, onPhoneChange, telefonoRecordado, customFields, customFieldValues, onCustomFieldChange, errorCampo }) {
   // El aviso en vivo (mientras tipea) se calla si ya está el de Siguiente, para no repetirlo.
   const marcado = errorCampo.problema?.campo;
   const nombreTocado = name.length > 0 && marcado !== 'clientName';
@@ -613,7 +614,9 @@ function PersonalInfoStep({ user, name, phone, onNameChange, onPhoneChange, cust
           )}
           <ErrorDeCampo error={errorCampo} campo="clientPhone" />
           <p className="text-xs text-muted" style={{ marginTop: 4 }}>
-            Es por donde te va a contactar el negocio si hace falta.
+            {telefonoRecordado
+              ? 'Es el que usaste la última vez. Si cambió, tocalo y escribí el nuevo.'
+              : 'Es por donde te va a contactar el negocio si hace falta.'}
           </p>
         </div>
 
@@ -936,6 +939,23 @@ export default function BookingPage() {
     }
   }, [user, personalInfo.name, dispatch]);
 
+  // Precarga el teléfono con el de su última reserva, editable: así no lo
+  // escribe cada vez. Una sola vez por cuenta — si lo borra para escribir
+  // otro, no se lo vuelve a poner — y solo si el campo sigue vacío cuando
+  // llega la respuesta (no pisa lo que ya empezó a escribir).
+  const telefonoBuscado = useRef(null);
+  const [telefonoRecordado, setTelefonoRecordado] = useState(null);
+  useEffect(() => {
+    if (!user?.id || telefonoBuscado.current === user.id) return;
+    telefonoBuscado.current = user.id;
+    if (personalInfo.phone) return;
+    getUltimoTelefono(user.id).then((tel) => {
+      if (!tel) return;
+      dispatch({ type: 'SET_PERSONAL_INFO_SI_VACIO', payload: { phone: tel } });
+      setTelefonoRecordado(tel);
+    });
+  }, [user?.id, personalInfo.phone, dispatch]);
+
   // Qué está ocupado ese día para ese profesional. No sale de `appointments`
   // del contexto: para un cliente esa lista trae SOLO sus propios turnos (las
   // Rules no le dejan ver los de los demás, y está bien), así que con ella la
@@ -1206,6 +1226,7 @@ export default function BookingPage() {
           onNameChange={name => dispatch({ type: 'SET_PERSONAL_INFO', payload: { name } })}
           phone={personalInfo.phone}
           onPhoneChange={phone => dispatch({ type: 'SET_PERSONAL_INFO', payload: { phone } })}
+          telefonoRecordado={Boolean(telefonoRecordado) && personalInfo.phone === telefonoRecordado}
           customFields={customerFields}
           customFieldValues={customFieldValues}
           onCustomFieldChange={(key, value) => dispatch({ type: 'SET_CUSTOM_FIELD', payload: { key, value } })}

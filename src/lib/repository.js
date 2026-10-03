@@ -690,6 +690,29 @@ export async function replaceSchedulesDeSucursal(businessId, professionalId, bra
   if (insErr) throw traducirError(insErr);
 }
 
+/**
+ * El teléfono que dejó el cliente en su última reserva (en cualquier
+ * negocio), para precargarlo en la próxima. Solo turnos `type = 'client'`:
+ * en uno manual, `user_id` es el del staff que lo cargó y el teléfono es el
+ * de SU cliente, no el suyo. RLS ya limita la lectura a sus propios turnos.
+ * null si no reservó nunca o si falla (precargar es una ayuda, no un requisito).
+ */
+export async function getUltimoTelefono(userId) {
+  if (!userId) return null;
+  const { data, error } = await supabase
+    .from('appointments')
+    .select('client_phone')
+    .eq('user_id', userId)
+    .eq('type', 'client')
+    .neq('client_phone', '')
+    .not('client_phone', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) return null;
+  return data?.client_phone || null;
+}
+
 /** Turnos de un cliente puntual. RLS ya limita esto a sus propios turnos. */
 export function subscribeMyAppointments(businessId, userId, cb, onError) {
   return liveTable('appointments', { filterCol: 'user_id', filterVal: userId }, cb, onError);

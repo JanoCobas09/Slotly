@@ -35,6 +35,12 @@ function bookingReducer(state, action) {
       return { ...state, timeSlot: action.payload };
     case 'SET_PERSONAL_INFO':
       return { ...state, personalInfo: { ...state.personalInfo, ...action.payload } };
+    // Precarga (ej. el teléfono de la última reserva): solo los campos que
+    // siguen vacíos, para no pisar lo que el cliente ya escribió.
+    case 'SET_PERSONAL_INFO_SI_VACIO': {
+      const vacios = Object.fromEntries(Object.entries(action.payload).filter(([k]) => !state.personalInfo[k]));
+      return { ...state, personalInfo: { ...state.personalInfo, ...vacios } };
+    }
     case 'SET_CUSTOM_FIELD':
       return { ...state, customFieldValues: { ...state.customFieldValues, [action.payload.key]: action.payload.value } };
     case 'SET_STEP':

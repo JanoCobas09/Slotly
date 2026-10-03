@@ -1103,6 +1103,14 @@ dominio de más autorizado no es un agujero de seguridad, solo ruido).
    sigue siendo válido (CHECK, filtros, botón "Confirmar") para los turnos
    viejos que quedaron así. Con seña sin pagar también nace confirmado: lo
    que espera es `deposit_status`.
+5o. **Teléfono recordado en la reserva (03/10/2026).** En "Tus datos" el
+   teléfono viene precargado con el de la última reserva de esa cuenta, en
+   cualquier negocio (`getUltimoTelefono` en repository.js: solo
+   `type = 'client'`, porque en un turno manual `user_id` es el del staff y el
+   teléfono el de su cliente). Editable; se busca una vez por cuenta y solo
+   llena el campo si sigue vacío (`SET_PERSONAL_INFO_SI_VACIO` en
+   BookingContext), así no pisa lo que el cliente ya escribió ni lo vuelve a
+   poner si lo borra. Sin tabla ni columna nueva: sale de sus turnos.
 6. **Abuso de reservas.** Hecho: un turno por día y tope de 3 a futuro por
    cuenta. Falta, por orden: bloquear cliente desde el panel (para la cuenta que
    se porta mal), y App Check con reCAPTCHA v3 sobre los callables para frenar
