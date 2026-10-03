@@ -13,7 +13,7 @@ import {
   removeProfessionalPhoto,
 } from '../../lib/repository';
 import { getDayName } from '../../utils/dateUtils';
-import { getPlan } from '../../config/plans';
+import { topeProfesionales as topeDelNegocio } from '../../config/plans';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
 import { capitalize } from '../../utils/text';
 import Icon from '../../components/Icon';
@@ -34,10 +34,8 @@ export default function ProfessionalsPage() {
   const { terminology } = useBusinessContext();
   const profesionalPlural = `${terminology.professionalNoun}s`;
 
-  // Límite de profesionales del plan contratado. `maxProfessionals: null` = sin
-  // tope. `plan` sale de la tabla estática PLANS (plans.js) por `planId`, no
-  // de un documento de Firestore, así que no hace falta un fallback a un
-  // nombre de campo viejo acá: alcanza con que PLANS use el nombre nuevo.
+  // Límite de profesionales del plan contratado, más los extras que le haya
+  // dado la plataforma (topeProfesionales en plans.js). null = sin tope.
   //
   // Se cuentan solo los activos: uno que se fue no debería ocuparle un lugar
   // al que entra. Y se compara al AGREGAR, no al editar, para que un negocio
@@ -48,8 +46,7 @@ export default function ProfessionalsPage() {
   // interfaz. Alguien con la consola abierta podría saltearlo, igual que
   // cualquier tope de plan en una app de browser. Lo que protege los datos son
   // las Rules, y este número no es un dato a proteger.
-  const plan = getPlan(business?.planId);
-  const topeProfesionales = plan?.maxProfessionals ?? null;
+  const topeProfesionales = topeDelNegocio(business);
   const activos = professionals.filter((p) => p.isActive !== false).length;
   const llegoAlTope = topeProfesionales !== null && activos >= topeProfesionales;
 
@@ -268,7 +265,7 @@ export default function ProfessionalsPage() {
           <h1>Profesionales</h1>
           {topeProfesionales !== null && (
             <p className="text-secondary text-sm" style={{ marginTop: 4 }}>
-              {activos} de {topeProfesionales} {topeProfesionales === 1 ? 'lugar usado' : 'lugares usados'} en tu plan
+              {activos} de {topeProfesionales} {topeProfesionales === 1 ? 'lugar usado' : 'lugares usados'} en tu cuenta
             </p>
           )}
         </div>
@@ -281,7 +278,7 @@ export default function ProfessionalsPage() {
 
       {llegoAlTope && (
         <div className="notice notice-info" style={{ marginBottom: 'var(--space-md)' }}>
-          <strong>Llegaste al tope de tu plan.</strong> Incluye{' '}
+          <strong>Llegaste al tope de tu cuenta.</strong> Incluye{' '}
           {topeProfesionales === 1 ? `1 ${terminology.professionalNoun}` : `${topeProfesionales} ${profesionalPlural}`} y ya los
           tenés cargados. Para sumar más,{' '}
           <a href={LINK_AMPLIAR} target="_blank" rel="noreferrer" style={{ fontWeight: 700 }}>

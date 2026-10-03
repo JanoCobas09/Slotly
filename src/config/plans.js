@@ -105,6 +105,22 @@ export function limiteSucursales(planId) {
   return plan ? plan.maxBranches ?? null : null;
 }
 
+/**
+ * Topes reales de un negocio: los del plan + los extras que le dio la
+ * plataforma sin cambiarle el plan (`extraSucursales` / `extraProfesionales`,
+ * ver 20261016000000_extras_plataforma.sql). null = sin límite. Las pantallas
+ * del dueño usan estos, no los del plan pelado.
+ */
+export function topeSucursales(business) {
+  const base = limiteSucursales(business?.planId);
+  return base === null ? null : base + (business?.extraSucursales || 0);
+}
+
+export function topeProfesionales(business) {
+  const base = getPlan(business?.planId)?.maxProfessionals ?? null;
+  return base === null ? null : base + (business?.extraProfesionales || 0);
+}
+
 /** El primer plan que permite más de una sucursal (para el "disponible desde…"). */
 export const planConSucursales = () => PLANS.find((p) => p.maxBranches === null || p.maxBranches > 1);
 

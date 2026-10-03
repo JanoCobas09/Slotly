@@ -10,7 +10,7 @@ import { validarEmailObligatorio, problema, LIMITES } from '../../utils/validaci
 import ErrorDeCampo from '../../components/ErrorDeCampo';
 import { useErrorDeCampo } from '../../hooks/useErrorDeCampo';
 import { sucursalesActivas, nombreSucursal } from '../../utils/sucursales';
-import { limiteSucursales } from '../../config/plans';
+import { topeSucursales } from '../../config/plans';
 
 const ROLE_OWNER = { value: 'owner', label: 'Dueño/a — acceso total' };
 
@@ -37,7 +37,7 @@ export default function AdminsPage() {
   // rechaza el intento; acá directamente no se ofrece la opción.
   // Administrador de sucursal: solo con un plan que tenga sucursales (o si ya
   // tiene varias de antes de bajar de plan: lo cargado se conserva).
-  const conSucursales = limiteSucursales(business?.planId) !== 1 || sucursales.length > 1;
+  const conSucursales = topeSucursales(business) !== 1 || sucursales.length > 1;
   const roleOptions = [
     ...(user?.isPlatformOwner ? [ROLE_OWNER] : []),
     roleAdmin,

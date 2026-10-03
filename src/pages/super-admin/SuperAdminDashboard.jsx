@@ -4,7 +4,7 @@ import { useBusiness } from '../../contexts/BusinessContext';
 import { useAuth } from '../../contexts/AuthContext';
 import TeamPanel from './TeamPanel';
 import AvisosPanel from './AvisosPanel';
-import { PLANS, OVERAGE_COST_USD, findPlanByQuota } from '../../config/plans';
+import { PLANS, OVERAGE_COST_USD, findPlanByQuota, getPlan, limiteSucursales } from '../../config/plans';
 import { formatPrice, formatDate } from '../../utils/dateUtils';
 import {
   habilitarCuenta,
@@ -12,6 +12,7 @@ import {
   recordPayment,
   updateBilling,
   upgradePlan,
+  setExtras,
   savePlatformConfig,
 } from '../../lib/repository';
 import { deleteBusiness } from '../../lib/functions';
@@ -73,6 +74,11 @@ export default function SuperAdminDashboard() {
   const [upgradeFee, setUpgradeFee] = useState('');
   // Plan gratis: la cuenta tiene el plan elegido pero no se le cobra (ver cambiar_plan en la base).
   const [upgradeGratis, setUpgradeGratis] = useState(false);
+
+  // Extras: sucursales/profesionales de más sin cambiar el plan.
+  const [extraSucursales, setExtraSucursales] = useState(0);
+  const [extraProfesionales, setExtraProfesionales] = useState(0);
+  const [guardandoExtras, setGuardandoExtras] = useState(false);
 
   // WhatsApp Form
   const [waForm, setWaForm] = useState({
@@ -193,6 +199,29 @@ export default function SuperAdminDashboard() {
     }
     setUpgradeGratis(Boolean(biz.planGratis));
     setModalType('upgrade');
+  };
+
+  const handleOpenExtrasModal = (biz) => {
+    setSelectedBusiness(biz);
+    setExtraSucursales(biz.extraSucursales || 0);
+    setExtraProfesionales(biz.extraProfesionales || 0);
+    setModalType('extras');
+  };
+
+  const handleSaveExtras = async () => {
+    if (guardandoExtras) return;
+    setGuardandoExtras(true);
+    try {
+      await setExtras(selectedBusiness.id, { extraSucursales, extraProfesionales });
+    } catch (err) {
+      console.error('[super-admin] No se pudieron guardar los extras:', err);
+      alert('No se pudieron guardar los extras: ' + err.message);
+      return;
+    } finally {
+      setGuardandoExtras(false);
+    }
+    setModalType(null);
+    setSelectedBusiness(null);
   };
 
   const handleRecordPayment = async () => {
@@ -722,6 +751,14 @@ export default function SuperAdminDashboard() {
                     </div>
                     <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                       {b.planGratis && <span className="badge badge-primary" style={{ fontSize: 11 }}>Plan gratis</span>}
+                      {(b.extraSucursales > 0 || b.extraProfesionales > 0) && (
+                        <span className="badge badge-primary" style={{ fontSize: 11 }} title="Extras por fuera del plan">
+                          {[
+                            b.extraSucursales > 0 && `+${b.extraSucursales} ${b.extraSucursales === 1 ? 'sucursal' : 'sucursales'}`,
+                            b.extraProfesionales > 0 && `+${b.extraProfesionales} ${b.extraProfesionales === 1 ? 'profesional' : 'profesionales'}`,
+                          ].filter(Boolean).join(' · ')}
+                        </span>
+                      )}
                       <span className={`badge ${b.isFrozen ? 'badge-danger' : 'badge-success'}`} style={{ fontSize: 11 }}>
                         {b.isFrozen ? 'Suspendido' : 'Activo'}
                       </span>
@@ -859,6 +896,13 @@ export default function SuperAdminDashboard() {
                       style={{ padding: '8px', fontSize: 12, justifyContent: 'center' }}
                     >
                       <Icon name="edit" /> Editar Saldo
+                    </button>
+                    <button
+                      onClick={() => handleOpenExtrasModal(b)}
+                      className="btn btn-outline"
+                      style={{ padding: '8px', fontSize: 12, justifyContent: 'center', gridColumn: '1 / -1' }}
+                    >
+                      <Icon name="sparkle" /> Extras sin cambiar el plan
                     </button>
                     <button
                       onClick={() => handleOpenDeleteModal(b)}
@@ -1458,6 +1502,58 @@ export default function SuperAdminDashboard() {
           </div>
         </div>
       )}
+
+
+      {/* --- MODAL: EXTRAS SIN CAMBIAR EL PLAN --- */}
+      {modalType === 'extras' && selectedBusiness && (() => {
+        const plan = getPlan(selectedBusiness.planId);
+        const filas = [
+          { clave: 'sucursales', singular: 'sucursal', plural: 'sucursales', base: limiteSucursales(selectedBusiness.planId), valor: extraSucursales, cambiar: setExtraSucursales },
+          { clave: 'profesionales', singular: 'profesional', plural: 'profesionales', base: plan ? plan.maxProfessionals ?? null : null, valor: extraProfesionales, cambiar: setExtraProfesionales },
+        ];
+        return (
+          <div className="modal-overlay" onClick={() => !guardandoExtras && setModalType(null)}>
+            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 450 }}>
+              <div className="modal-header">
+                <h3>Extras sin cambiar el plan</h3>
+                <button className="modal-close" onClick={() => setModalType(null)} disabled={guardandoExtras}><Icon name="x" /></button>
+              </div>
+              <div className="modal-body">
+                <p className="text-secondary" style={{ marginBottom: 'var(--space-md)', fontSize: 13 }}>
+                  Sumale lugares a <strong>{selectedBusiness.name}</strong> sin tocarle el plan ({plan?.label || 'Plan Personalizado'}) ni el abono.
+                  Se suman al tope del plan: el dueño los usa como cualquier otro, y puede editar, desactivar, borrar y volver a
+                  crear mientras no se pase. Si le sacás un extra, lo que ya tiene activo queda; solo no puede sumar más.
+                </p>
+                {filas.map((f) => (
+                  <div key={f.clave} className="form-group" style={{ background: 'var(--bg-secondary)', padding: '10px 14px', borderRadius: 8, marginBottom: 'var(--space-sm)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+                      <div>
+                        <strong style={{ fontSize: 13, textTransform: 'capitalize' }}>{f.plural}</strong>
+                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
+                          {f.base === null
+                            ? 'Su plan ya no tiene límite: un extra no cambia nada.'
+                            : `Plan: ${f.base} · con extras: ${f.base + f.valor} ${f.base + f.valor === 1 ? f.singular : f.plural}`}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <button className="btn btn-outline btn-sm" onClick={() => f.cambiar(Math.max(0, f.valor - 1))} disabled={guardandoExtras || f.valor === 0} aria-label={`Sacar una ${f.singular}`}>−</button>
+                        <strong style={{ minWidth: 32, textAlign: 'center' }}>+{f.valor}</strong>
+                        <button className="btn btn-outline btn-sm" onClick={() => f.cambiar(Math.min(50, f.valor + 1))} disabled={guardandoExtras || f.valor >= 50} aria-label={`Sumar una ${f.singular}`}>+</button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="modal-footer">
+                <button className="btn btn-outline" onClick={() => setModalType(null)} disabled={guardandoExtras}>Cancelar</button>
+                <button className="btn btn-primary" onClick={handleSaveExtras} disabled={guardandoExtras}>
+                  {guardandoExtras ? 'Guardando…' : 'Guardar extras'}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
     </div>
   );

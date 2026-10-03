@@ -129,6 +129,7 @@ const MENSAJES_VALIDACION = {
   branches_maps_valido: 'El link de Google Maps tiene que empezar con https://',
   branches_horario_valido: 'Revisá el horario de la sucursal: cada día abierto necesita apertura y cierre, y el cierre después de la apertura.',
   branch_service_prices_precio_valido: 'El precio no puede ser negativo.',
+  businesses_extras_validos: 'Los extras tienen que ser un número entre 0 y 50.',
   avisos_plataforma_titulo_valido: 'El título del aviso tiene que tener entre 1 y 120 caracteres.',
   avisos_plataforma_mensaje_valido: 'El mensaje del aviso tiene que tener entre 1 y 2000 caracteres.',
 };
@@ -334,7 +335,7 @@ export function subscribeAllBusinesses(cb, onError) {
  * se filtran acá antes de mandar para no gastar un viaje al servidor en un
  * update que va a rebotar.
  */
-const CAMPOS_SOLO_PLATAFORMA = ['isFrozen', 'planId', 'whatsappQuota', 'slug', 'id', 'trialEndsAt', 'signupSource', 'frozenAt', 'planGratis'];
+const CAMPOS_SOLO_PLATAFORMA = ['isFrozen', 'planId', 'whatsappQuota', 'slug', 'id', 'trialEndsAt', 'signupSource', 'frozenAt', 'planGratis', 'extraSucursales', 'extraProfesionales'];
 
 export async function updateBusiness(businessId, cambios, { esPlataforma = false } = {}) {
   const payload = { ...cambios };
@@ -396,6 +397,15 @@ export async function suspenderCuenta(businessId) {
 export async function setBusinessFrozen(businessId, isFrozen) {
   const { error } = await supabase.from('businesses').update({ is_frozen: isFrozen }).eq('id', businessId);
   if (error) throw traducirError(error);
+}
+
+/**
+ * Extras del panel global: sucursales y profesionales de más por fuera del
+ * plan (se suman a su tope; ver topeSucursales/topeProfesionales en plans.js).
+ * Solo el dueño de la plataforma (protect_business_columns).
+ */
+export async function setExtras(businessId, { extraSucursales, extraProfesionales }) {
+  return updateBusiness(businessId, { extraSucursales, extraProfesionales }, { esPlataforma: true });
 }
 
 // Borrar un negocio es `deleteBusiness` en lib/functions.js: en cascada, con

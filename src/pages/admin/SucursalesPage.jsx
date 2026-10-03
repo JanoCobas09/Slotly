@@ -10,7 +10,7 @@ import HorarioAtencion from '../../components/admin/HorarioAtencion';
 import Icon from '../../components/Icon';
 import ErrorDeCampo from '../../components/ErrorDeCampo';
 import { useErrorDeCampo } from '../../hooks/useErrorDeCampo';
-import { getPlan, limiteSucursales, planConSucursales, linkAmpliarPlan } from '../../config/plans';
+import { getPlan, topeSucursales, planConSucursales, linkAmpliarPlan } from '../../config/plans';
 
 const VACIA = { name: '', address: '', phone: '', mapsUrl: '', horarioPropio: false, businessHours: HORARIO_INICIAL, precios: {} };
 
@@ -139,7 +139,7 @@ export default function SucursalesPage() {
   // Plan: Básico tiene solo la principal; Pro hasta 3; Business sin límite.
   // Lo que ya existe se conserva aunque baje de plan; lo que no se puede es
   // sumar (la base lo frena igual: enforce_limite_sucursales).
-  const tope = limiteSucursales(business?.planId);
+  const tope = topeSucursales(business);
   const activas = sucursalesActivas(branches).length;
   const llegoAlTope = tope !== null && activas >= tope;
   const bloqueadoPorPlan = tope === 1;
@@ -178,7 +178,7 @@ export default function SucursalesPage() {
 
       {!bloqueadoPorPlan && llegoAlTope && (
         <div className="notice notice-info" style={{ marginBottom: 'var(--space-md)' }}>
-          <strong>Llegaste al tope de tu plan ({tope} sucursales activas).</strong> Para sumar más,{' '}
+          <strong>Llegaste al tope de tu cuenta ({tope} sucursales activas).</strong> Para sumar más,{' '}
           <a href={linkAmpliarPlan('quiero sumar más sucursales')} target="_blank" rel="noreferrer" style={{ fontWeight: 700 }}>pasate al plan Business</a>.
           Si dejaste de usar alguna, desactivala y se libera el lugar.
         </div>

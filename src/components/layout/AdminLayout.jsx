@@ -11,7 +11,7 @@ import Icon from '../Icon';
 import ActivarNotificaciones from '../admin/ActivarNotificaciones';
 import FlujoPrimerosPasos from '../admin/FlujoPrimerosPasos';
 import AvisoPlataforma from '../admin/AvisoPlataforma';
-import { limiteSucursales } from '../../config/plans';
+import { topeSucursales } from '../../config/plans';
 
 // Items visibles solo para el dueño (owner)
 const ownerNavItems = [
@@ -158,7 +158,7 @@ export default function AdminLayout() {
               <span className="nav-icon"><Icon name={item.icon} /></span>
               {item.label}
               {/* No incluida en su plan: se ve con candado (la página explica cómo pasarse). */}
-              {item.to === '/admin/sucursales' && limiteSucursales(business?.planId) === 1 && (
+              {item.to === '/admin/sucursales' && topeSucursales(business) === 1 && (
                 <Icon name="lock" className="nav-candado" aria-label="No incluido en tu plan" />
               )}
             </NavLink>
@@ -208,8 +208,11 @@ export default function AdminLayout() {
       <main className="admin-main">
         {isOwner && <InstalarAppBanner />}
         {isOwner && <FlujoPrimerosPasos />}
-        {/* Avisos que manda la plataforma: no se van hasta tocar "Aceptar". */}
-        {isOwner && <AvisoPlataforma />}
+        {/* Avisos que manda la plataforma: no se van hasta tocar "Aceptar".
+            No al dueño de la plataforma administrando una cuenta: también
+            tiene role 'owner', pero no puede aceptar a nombre del negocio
+            (RLS de avisos_aceptados) y el cartel le trababa el panel. */}
+        {isOwner && !user?.isPlatformOwner && <AvisoPlataforma />}
         <ActivarNotificaciones />
 
         {/* Prueba gratis: los días que quedan, y qué hacer cuando se termina. */}
