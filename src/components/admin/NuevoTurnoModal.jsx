@@ -26,8 +26,8 @@ import { turnoBloqueado, diaEnteroBloqueado, bloqueosQueAplican } from '../../ut
  * solapamiento lo evita la grilla, que se arma con la agenda que el staff sí
  * puede ver (el dueño toda, el barbero la suya).
  *
- * Nace 'pendiente' (lo exigen las Rules) y se confirma acto seguido: si el
- * barbero lo cargó es porque ya lo acordó con el cliente.
+ * Nace confirmado (createAppointment): si el barbero lo cargó es porque ya
+ * lo acordó con el cliente.
  *
  * Con `turno`, el mismo formulario EDITA ese turno en vez de crear otro. El
  * dueño puede editar cualquiera; si lo reservó el cliente se le recomienda
@@ -174,7 +174,7 @@ export default function NuevoTurnoModal({ onClose, turno = null }) {
         onClose();
         return;
       }
-      const id = await createAppointment(businessId, {
+      await createAppointment(businessId, {
         professionalId: form.professionalId,
         serviceId: form.serviceId,
         appointmentDate: form.date,
@@ -193,7 +193,6 @@ export default function NuevoTurnoModal({ onClose, turno = null }) {
         userId: user.id,
         type: 'manual',
       });
-      await updateAppointment(businessId, id, { status: 'confirmada' });
       onClose();
     } catch (err) {
       console.error('[NuevoTurnoModal] No se pudo guardar:', err);

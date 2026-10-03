@@ -1127,7 +1127,7 @@ export default function BookingPage() {
 
       dispatch({ type: 'RESET' });
       navigate(`/${slug}/confirmacion`, {
-        state: { appointment: { ...datos, id, businessId, status: 'pendiente' } },
+        state: { appointment: { ...datos, id, businessId, status: 'confirmada' } },
       });
     } catch (err) {
       ventanaMp?.close();

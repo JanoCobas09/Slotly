@@ -30,8 +30,6 @@ export default function ConfirmationPage() {
   return (
     <div className="confirmation-container">
       <div className="confirmation-icon"><Icon name="check" /></div>
-      {/* Nace 'pendiente': el negocio lo confirma. Decir "confirmada" acá y
-          que el staff lo vea como pendiente confundía a los dos. */}
       <h1>¡{capitalize(terminology.appointmentNoun)} {reservadoPara(terminology)}!</h1>
       <p className="text-secondary mt-sm mb-lg">{terminology.confirmationMsg}</p>
 

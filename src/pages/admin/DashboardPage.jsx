@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../hooks/useTenantData';
-import { createAppointment, updateAppointment } from '../../lib/repository';
+import { createAppointment } from '../../lib/repository';
 import EstadisticasDueno from '../../components/admin/EstadisticasDueno';
 import { formatDate, toDateString } from '../../utils/dateUtils';
 import NuevoTurnoModal from '../../components/admin/NuevoTurnoModal';
@@ -131,9 +131,8 @@ export default function DashboardPage() {
 
     const handleWalkin = async (startTime, endTime) => {
       try {
-        // Nace en 'pendiente' (lo exigen las Rules) y se confirma acto seguido:
-        // el cliente ya está sentado en la silla.
-        const id = await createAppointment(businessId, {
+        // Nace confirmado (createAppointment): el cliente ya está en la silla.
+        await createAppointment(businessId, {
           professionalId: user.professionalId,
           serviceId: null,
           appointmentDate: today,
@@ -147,7 +146,6 @@ export default function DashboardPage() {
           adminNotes: '',
           userId: user.id,
         });
-        await updateAppointment(businessId, id, { status: 'confirmada' });
       } catch (err) {
         console.error('[Dashboard] No se pudo registrar el servicio:', err);
         alert('No se pudo registrar el servicio: ' + err.message);

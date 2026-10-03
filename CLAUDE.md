@@ -1094,6 +1094,15 @@ dominio de más autorizado no es un agujero de seguridad, solo ruido).
    marcan (el cliente no, ni al cancelar — ojo con el `coalesce`: sin él la
    condición daba NULL y lo dejaba pasar); cambiar día u hora borra las dos
    marcas. `supabase/tests/test-avisos-whatsapp.mjs` 9/9.
+5n. **Los turnos nacen confirmados (03/10/2026).** Pedido del usuario: el
+   cliente solo elige horarios que el negocio ya habilitó, no hay nada que
+   aprobar. Migración `20261018000000_turnos_nacen_confirmados.sql`
+   (create_appointment igual que en sucursales salvo el estado) y
+   `createAppointment` de repository.js (manual/walk-in) insertan
+   'confirmada'; ya no hay un update de confirmación después. 'pendiente'
+   sigue siendo válido (CHECK, filtros, botón "Confirmar") para los turnos
+   viejos que quedaron así. Con seña sin pagar también nace confirmado: lo
+   que espera es `deposit_status`.
 6. **Abuso de reservas.** Hecho: un turno por día y tope de 3 a futuro por
    cuenta. Falta, por orden: bloquear cliente desde el panel (para la cuenta que
    se porta mal), y App Check con reCAPTCHA v3 sobre los callables para frenar

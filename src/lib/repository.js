@@ -700,8 +700,9 @@ export function subscribeMyAppointments(businessId, userId, cb, onError) {
 // revalidan siempre del lado del servidor. `createAppointment` acá abajo es
 // solo para el turno que carga el propio staff a mano (walk-in/manual):
 // RLS ya permite al staff insertar en su propia agenda directamente.
+// Nace confirmado, como todo turno (20261018000000_turnos_nacen_confirmados.sql).
 export async function createAppointment(businessId, data) {
-  const payload = { ...toRow('appointments', data), business_id: businessId, status: 'pendiente' };
+  const payload = { ...toRow('appointments', data), business_id: businessId, status: 'confirmada' };
   delete payload.id;
   const { data: fila, error } = await supabase.from('appointments').insert(payload).select('id').single();
   if (error) throw traducirError(error);
