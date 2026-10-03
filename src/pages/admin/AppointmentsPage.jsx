@@ -7,6 +7,7 @@ import LinkPublicoBoton from '../../components/admin/LinkPublicoBoton';
 import { formatDate, formatPrice } from '../../utils/dateUtils';
 import Icon from '../../components/Icon';
 import SenaTurno from '../../components/admin/SenaTurno';
+import AvisoWhatsApp from '../../components/admin/AvisoWhatsApp';
 import { esTurnoEditable, confirmacionCancelar } from '../../utils/turnos';
 import { hayVariasSucursales, sucursalesActivas, nombreSucursal, profesionalesDeSucursal } from '../../utils/sucursales';
 
@@ -238,6 +239,7 @@ export default function AppointmentsPage() {
               {apt.notes && (
                 <div className="text-xs text-muted" style={{ marginTop: 4 }}><Icon name="note" /> {apt.notes}</div>
               )}
+              <div style={{ marginTop: 6 }}><AvisoWhatsApp apt={apt} /></div>
               {apt.depositStatus && <div style={{ marginTop: 6 }}><SenaTurno apt={apt} isOwner={isOwner} /></div>}
               {accionesDe(apt)}
             </div>
@@ -286,7 +288,10 @@ export default function AppointmentsPage() {
                     }
                     {apt.notes && <span className="text-xs text-muted"> <Icon name="note" /></span>}
                   </td>
-                  <td>{apt.clientPhone || '—'}</td>
+                  <td>
+                    {apt.clientPhone || '—'}
+                    <div style={{ marginTop: 4 }}><AvisoWhatsApp apt={apt} /></div>
+                  </td>
                   <td>
                     {isWalkin
                       ? <span className="badge badge-neutral" style={{ fontSize: 11 }}>bloqueado</span>

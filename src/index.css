@@ -3451,6 +3451,37 @@ select.form-input {
   gap: 2px;
 }
 
+/* Aviso por WhatsApp al cliente (AvisoWhatsApp.jsx): verde WhatsApp sin
+   mandar, apagado con tilde una vez mandado. */
+.aviso-wa {
+  background: transparent;
+  color: #128c4a;
+  border: 1px solid #25d366;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.aviso-wa:hover:not(:disabled) {
+  background: #25d366;
+  color: #fff;
+}
+
+.aviso-wa.aviso-wa-enviado {
+  color: var(--text-muted);
+  border-color: var(--border);
+}
+
+.aviso-wa.aviso-wa-enviado:hover:not(:disabled) {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.aviso-wa:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 @media (max-width: 480px) {
   .agenda-franja {
     grid-template-columns: 52px 1fr;

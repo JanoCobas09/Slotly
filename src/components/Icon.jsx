@@ -73,6 +73,7 @@ const PATHS = {
   copy: <><rect x="8.5" y="8.5" width="12" height="12" rx="2" /><path d="M15.5 8.5V5.5a2 2 0 0 0-2-2h-8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3" /></>,
   navigation: <><path d="M3.5 11l17-7.5-7.5 17-2-7.5z" /></>,
   pin: <><path d="M12 21s7-7.5 7-12.5A7 7 0 0 0 5 8.5C5 13.5 12 21 12 21z" /><circle cx="12" cy="8.5" r="2.3" /></>,
+  whatsapp: <><path d="M3.5 20.5l1.2-4.1A8.5 8.5 0 1 1 8 19.4z" /><path d="M9 8.6c.1 3.2 3.2 6.3 6.4 6.4l1.1-1.5-2-1.1-1 .8a4.6 4.6 0 0 1-2.7-2.7l.8-1-1.1-2z" /></>,
 
   // Íconos por rubro (professionPresets.js) — uno por categoría, para que el
   // dueño reconozca su profesión de un vistazo en vez de leer solo texto.

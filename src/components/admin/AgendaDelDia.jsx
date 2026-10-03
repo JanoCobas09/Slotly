@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { formatDate, toDateString, timeToMinutes } from '../../utils/dateUtils';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
 import Icon from '../Icon';
+import AvisoWhatsApp from './AvisoWhatsApp';
 import SenaTurno from './SenaTurno';
 import { diaEnteroBloqueado, rangosDelDia } from '../../utils/bloqueos';
 
@@ -287,6 +288,8 @@ export default function AgendaDelDia({
                           {a.notes && (
                             <div className="text-xs text-muted"><Icon name="note" /> {a.notes}</div>
                           )}
+                          {/* Solo donde se gestiona la agenda (con acciones). */}
+                          {renderAcciones && <div style={{ marginTop: 6 }}><AvisoWhatsApp apt={a} /></div>}
                         </div>
                         <div className="agenda-turno-lateral">
                           <span className={`badge ${est.clase}`}>{est.label}</span>

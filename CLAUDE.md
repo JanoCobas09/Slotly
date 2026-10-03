@@ -1060,6 +1060,40 @@ dominio de más autorizado no es un agujero de seguridad, solo ruido).
    archivado y el cartel quedaría colgado. Se suscribe desde el componente
    (como tickets), no desde BusinessSync: no es dato del negocio.
    `supabase/tests/test-avisos.mjs` 19/19.
+   Ojo: el dueño de la plataforma tiene role `owner` en el front, pero al
+   administrar una cuenta no puede aceptar a nombre del negocio (RLS) — el
+   cartel no se le muestra (AdminLayout, `!user.isPlatformOwner`); antes lo
+   dejaba trabado.
+5l. **Extras sin cambiar el plan (03/10/2026).** Migración
+   `20261016000000_extras_plataforma.sql`: `businesses.extra_sucursales` y
+   `extra_profesionales` (0–50, protegidos: solo `auth_is_platform()`, no
+   moderadores). Se SUMAN al tope del plan (Básico + 1 = 2 sucursales); con
+   plan sin límite no cambian nada. Es un lugar, no una sucursal puntual: el
+   dueño edita, desactiva, borra y vuelve a crear dentro del tope. Sacar un
+   extra no borra ni desactiva nada (igual que bajar de plan). Front: las
+   pantallas del dueño usan `topeSucursales(business)` /
+   `topeProfesionales(business)` de `config/plans.js`, nunca el número pelado
+   del plan; la base lo hace cumplir para sucursales (`enforce_limite_sucursales`
+   redefinida), profesionales sigue siendo tope de interfaz. Panel global →
+   botón "Extras sin cambiar el plan" en cada tarjeta (+ badge "+1 sucursal").
+   `supabase/tests/test-extras.mjs` 17/17.
+5m. **Avisos por WhatsApp, manuales (03/10/2026).** Migración
+   `20261017000000_avisos_whatsapp.sql`: `appointments.whatsapp_confirmacion_at`
+   y `whatsapp_recordatorio_at` (NULL = no se mandó). Botón
+   `components/admin/AvisoWhatsApp.jsx` debajo del teléfono en Citas (tabla y
+   tarjetas) y en la agenda de Inicio / Hoy (solo con `renderAcciones`): antes
+   del día anterior ofrece "Enviar confirmación" ("Agendaste un turno /
+   una consulta..."); desde las 00:00 del día anterior hasta que empieza,
+   "Enviar recordatorio" ("Recordá que tenés..."); después, nada. Abre
+   wa.me con el mensaje armado (día, hora, servicio, profesional, sucursal si
+   hay varias, dirección, precio) y marca el turno; el envío es a mano, sin
+   API de Meta. Cálculo puro en `utils/avisosWhatsApp.js` (normaliza el
+   teléfono argentino a 549…, saca 0 y 15; artículo un/una con el mismo
+   criterio que `reservadoPara`). Trigger `proteger_avisos_whatsapp`: solo
+   dueño / profesional del turno / administrador de su sucursal / plataforma
+   marcan (el cliente no, ni al cancelar — ojo con el `coalesce`: sin él la
+   condición daba NULL y lo dejaba pasar); cambiar día u hora borra las dos
+   marcas. `supabase/tests/test-avisos-whatsapp.mjs` 9/9.
 6. **Abuso de reservas.** Hecho: un turno por día y tope de 3 a futuro por
    cuenta. Falta, por orden: bloquear cliente desde el panel (para la cuenta que
    se porta mal), y App Check con reCAPTCHA v3 sobre los callables para frenar
