@@ -60,9 +60,15 @@ export async function enviarWebPush(admin: SupabaseClient, destinatarios: PushRo
 
   await Promise.all(destinatarios.map(async (d) => {
     try {
+      // urgency 'high' (header Urgency del estándar): sin esto el push sale
+      // con prioridad normal y Android, con el teléfono bloqueado y en
+      // reposo (Doze), lo retiene hasta que se desbloquea. Con 'high' FCM/
+      // APNs despiertan el equipo y la notificación entra en el momento,
+      // con sonido, como un WhatsApp.
       await webpush.sendNotification(
         { endpoint: d.endpoint, keys: { p256dh: d.p256dh, auth: d.auth_key } },
         cuerpo,
+        { urgency: 'high' },
       );
       enviados++;
     } catch (err) {

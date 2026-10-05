@@ -1125,6 +1125,18 @@ dominio de más autorizado no es un agujero de seguridad, solo ruido).
    `appointments.whatsapp_cancelacion_at`
    (`20261020000000_aviso_cancelacion_whatsapp.sql`, mismo trigger).
    `test-avisos-whatsapp.mjs` 11/11.
+5q. **Push que entra con el teléfono bloqueado (05/10/2026).** Pedido: que
+   el aviso llegue con sonido aunque el celular esté bloqueado, "como un
+   WhatsApp". Causa: `enviarWebPush` mandaba sin header `Urgency` → prioridad
+   normal → Android en reposo (Doze) lo retenía hasta desbloquear. Ahora
+   `_shared/webpush.ts` manda `{ urgency: 'high' }` (verificado que web-push
+   3.6.7 pone `Urgency: high`; TTL queda en el default de 4 semanas). `sw.js`:
+   `silent: false`, `vibrate`, `requireInteraction` (en desktop no se va sola)
+   y sin `tag` para que cada aviso vuelva a sonar. El sonido lo elige el
+   sistema (la Web no deja poner uno propio); si el canal de notificaciones
+   del teléfono está en "silencioso" o la app tiene batería restringida, eso
+   se arregla en el teléfono, no acá. iPhone: solo con el panel instalado en
+   pantalla de inicio (iOS 16.4+).
 6. **Abuso de reservas.** Hecho: un turno por día y tope de 3 a futuro por
    cuenta. Falta, por orden: bloquear cliente desde el panel (para la cuenta que
    se porta mal), y App Check con reCAPTCHA v3 sobre los callables para frenar

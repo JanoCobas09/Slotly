@@ -30,6 +30,15 @@ self.addEventListener('push', (event) => {
       // transparencia, por eso es el glifo blanco sobre fondo transparente
       // (con el ícono común salía un cuadrado blanco lleno).
       badge: '/icons/badge-96.png',
+      // Que suene y vibre siempre (el sonido lo pone el sistema: no hay
+      // forma estándar de elegir uno propio). Sin `tag`, cada aviso es una
+      // notificación nueva y vuelve a sonar, en vez de pisar la anterior.
+      silent: false,
+      vibrate: [200, 100, 200],
+      // En la compu no desaparece sola a los segundos: queda hasta que el
+      // dueño la ve. En Android no cambia nada (ahí siempre queda).
+      requireInteraction: true,
+      timestamp: Date.now(),
       data: { url },
     })
   );
