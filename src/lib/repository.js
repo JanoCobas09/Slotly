@@ -713,9 +713,59 @@ export async function getUltimoTelefono(userId) {
   return data?.client_phone || null;
 }
 
-/** Turnos de un cliente puntual. RLS ya limita esto a sus propios turnos. */
+/**
+ * "Verificá tu turno" (/mis-turnos): los turnos que reservó esta cuenta en
+ * CUALQUIER negocio, con lo necesario para mostrarlos (nombre y link del
+ * negocio, profesional, sucursal). Solo `type = 'client'`: en un turno que
+ * carga el staff, `user_id` es el del staff y el turno es de otra persona.
+ * RLS ya limita la lectura a los turnos propios; negocios, profesionales y
+ * sucursales son de lectura pública. Lectura de una vez, sin Realtime: es
+ * una consulta puntual, no una pantalla de trabajo.
+ */
+export async function getMisTurnos(userId) {
+  const { data, error } = await supabase
+    .from('appointments')
+    .select('id, business_id, professional_id, branch_id, appointment_date, start_time, end_time, price, service_name, status, deposit_status, deposit_amount, deposit_expires_at')
+    .eq('user_id', userId)
+    .eq('type', 'client')
+    .order('appointment_date', { ascending: false })
+    .order('start_time', { ascending: false })
+    .limit(200);
+  if (error) throw traducirError(error);
+  const turnos = rows('appointments', data);
+
+  const unicos = (campo) => [...new Set(turnos.map((t) => t[campo]).filter(Boolean))];
+  const negociosIds = unicos('businessId');
+  const profesionalesIds = unicos('professionalId');
+  const sucursalesIds = unicos('branchId');
+  const vacio = Promise.resolve({ data: [] });
+  const [negocios, profesionales, sucursales] = await Promise.all([
+    negociosIds.length
+      ? supabase.from('businesses').select('id, name, slug, currency, min_cancel_hours, logo_url, address, maps_url').in('id', negociosIds)
+      : vacio,
+    profesionalesIds.length ? supabase.from('professionals').select('id, name').in('id', profesionalesIds) : vacio,
+    sucursalesIds.length ? supabase.from('branches').select('id, name, address, is_main').in('id', sucursalesIds) : vacio,
+  ]);
+  const porId = (tabla, res) => Object.fromEntries(rows(tabla, res.data).map((r) => [r.id, r]));
+  return {
+    turnos,
+    negocios: porId('businesses', negocios),
+    profesionales: porId('professionals', profesionales),
+    sucursales: porId('branches', sucursales),
+  };
+}
+
+/**
+ * Turnos de un cliente puntual EN ESTE NEGOCIO. RLS ya limita esto a sus
+ * propios turnos, pero de todos los negocios: liveTable filtra por una sola
+ * columna (user_id) y el negocio se filtra acá. Antes no se filtraba y los
+ * turnos de otros negocios aparecían en "Mis Citas" (sin nombre de servicio
+ * ni profesional), contaban para "ya tenés un turno ese día" en la reserva
+ * de este negocio y podían mostrar la seña pendiente de otro.
+ */
 export function subscribeMyAppointments(businessId, userId, cb, onError) {
-  return liveTable('appointments', { filterCol: 'user_id', filterVal: userId }, cb, onError);
+  const deEsteNegocio = (lista) => cb(lista.filter((a) => a.businessId === businessId));
+  return liveTable('appointments', { filterCol: 'user_id', filterVal: userId }, deEsteNegocio, onError);
 }
 
 // La creación de turnos de cliente pasa por la Edge Function create-appointment

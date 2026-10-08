@@ -1,15 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { isPlatformOwner, PLATFORM_OWNERS } from '../../config/platform';
 import Icon from '../../components/Icon';
-
+import { leerUltimaCuenta, olvidarUltimaCuenta } from '../../lib/ultimaCuenta';
 // El login con Google de Supabase es un redirect de página completa (a
-// diferencia del popup de Firebase): esta pestaña se destruye y vuelve a
-// cargar de cero al volver de accounts.google.com, así que `location.state`
-// (de dónde venía, para saber a dónde mandarlo después) no sobrevive el
-// viaje. Se guarda acá para leerlo de nuevo cuando la sesión aparezca.
-const REDIRECT_TRAS_GOOGLE = 'slotly:loginRedirectFrom';
+// diferencia del popup de Firebase): `location.state` (de dónde venía) no
+// sobrevive el viaje, así que se guarda en sessionStorage (ver el módulo).
+import { borrarDestinoLogin, guardarDestinoLogin, leerDestinoLogin } from '../../lib/destinoLogin';
 
 /**
  * Cuentas del emulador local (ver scripts/seed-local-demo.mjs). Son sesiones
@@ -32,9 +30,13 @@ const USANDO_EMULADORES = import.meta.env.DEV && import.meta.env.VITE_USE_EMULAT
 
 export default function LoginPage() {
   const [error, setError] = useState('');
+  // false, o qué botón abrió Google ('login' | 'registro' | 'continuar' |
+  // 'otra'), para mostrar "Abriendo Google…" solo en ese.
   const [entrando, setEntrando] = useState(false);
   const [bypassEmail, setBypassEmail] = useState('');
-  const { loginWithGoogle, loginWithPassword, loginBypass, user, isAuthenticated } = useAuth();
+  // La última cuenta que entró desde este navegador (lib/ultimaCuenta.js).
+  const [recordada, setRecordada] = useState(leerUltimaCuenta);
+  const { loginWithGoogle, loginWithPassword, loginBypass, logout, user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   // Evita redirigir dos veces si el efecto de "volví de Google" corre más
@@ -50,10 +52,17 @@ export default function LoginPage() {
   // "Reservar turno" solo si venía del link de un negocio. Si venía del
   // panel (cerró sesión, o le venció el token), es alguien del staff y el
   // título de reserva lo confunde.
-  const vieneDeReserva = Boolean(from) && !/^\/(admin|super-admin|cuenta)(\/|$)/.test(from);
+  const vieneDeReserva = Boolean(from) && !/^\/(admin|super-admin|cuenta|mis-turnos)(\/|$)/.test(from);
+  // Llegó por "¿Reservaste un turno? Verificalo" (landing, encabezado o el
+  // link de abajo): entra con Google y va a /mis-turnos.
+  const verificandoTurno = from === '/mis-turnos';
 
   const redirectAfterLogin = (user, destino = from) => {
-    if (user.isPlatformTeam || isPlatformOwner(user.email)) {
+    if (destino === '/mis-turnos') {
+      // Quiere ver los turnos que reservó, aunque sea dueño o staff de un
+      // comercio (también se reserva en otros negocios).
+      navigate('/mis-turnos');
+    } else if (user.isPlatformTeam || isPlatformOwner(user.email)) {
       navigate('/super-admin');
     } else if (['owner', 'admin', 'manager'].includes(user.role)) {
       navigate('/admin');
@@ -76,11 +85,8 @@ export default function LoginPage() {
   // falta leer a dónde había que ir (guardado antes de salir) y navegar.
   useEffect(() => {
     if (!isAuthenticated || !user || yaRedirigido.current) return;
-    let destino = null;
-    try {
-      destino = sessionStorage.getItem(REDIRECT_TRAS_GOOGLE);
-      sessionStorage.removeItem(REDIRECT_TRAS_GOOGLE);
-    } catch { /* sin sessionStorage, se pierde el destino — vuelve al default */ }
+    const destino = leerDestinoLogin();
+    borrarDestinoLogin();
     // Solo si esta pantalla fue la que disparó el login (dejó la marca). Si
     // alguien ya logueado navega directo a /login por error, no hace nada acá
     // — otras rutas ya lo redirigen por su cuenta.
@@ -96,21 +102,49 @@ export default function LoginPage() {
    * logueado: la pestaña entera navega a accounts.google.com y vuelve. Por
    * eso se guarda `from` en sessionStorage antes de salir — es lo único que
    * sobrevive el viaje — y el redirect final lo hace el useEffect de arriba.
+   *
+   * "Iniciar sesión" y "Registrarme" hacen exactamente lo mismo: Google no
+   * distingue cuenta nueva de cuenta existente, y el destino lo decide
+   * redirectAfterLogin según lo que tenga esa cuenta (panel si ya tiene
+   * comercio, alta de comercio si no). Son dos botones para que quien llega
+   * por primera vez encuentre por dónde registrarse.
    */
-  const handleGoogle = async () => {
+  const handleGoogle = async (boton, opciones) => {
     setError('');
-    setEntrando(true);
-    try {
-      sessionStorage.setItem(REDIRECT_TRAS_GOOGLE, from || '');
-    } catch { /* sin sessionStorage, el destino cae al default post-login */ }
-    const result = await loginWithGoogle();
+    setEntrando(boton);
+    guardarDestinoLogin(from);
+    const result = await loginWithGoogle(opciones);
     if (!result.success) {
       setEntrando(false);
       setError(result.error);
-      try { sessionStorage.removeItem(REDIRECT_TRAS_GOOGLE); } catch { /* nada */ }
+      borrarDestinoLogin();
     }
     // Si tuvo éxito, la página está a punto de navegar a Google — no hay
     // nada más para hacer acá.
+  };
+
+  // "Continuar como": con la sesión todavía abierta (un cliente; al staff
+  // PublicOnlyRoute ya lo mandó a su panel) no hace falta ni pasar por
+  // Google. Si no, abre Google directo en esa cuenta.
+  const sesionAbierta = isAuthenticated && user && !user.isBypass;
+  const perfil = sesionAbierta
+    ? { name: user.name, email: user.email, avatarUrl: user.avatarUrl }
+    : recordada;
+
+  const handleContinuar = () => {
+    if (sesionAbierta) redirectAfterLogin(user);
+    else handleGoogle('continuar', { cuenta: perfil.email });
+  };
+
+  const handleOtraCuenta = async () => {
+    if (sesionAbierta) await logout();
+    handleGoogle('otra', { elegirCuenta: true });
+  };
+
+  const handleOlvidar = async () => {
+    if (sesionAbierta) await logout();
+    olvidarUltimaCuenta();
+    setRecordada(null);
   };
 
   const handleDemoLogin = async (email, password) => {
@@ -139,11 +173,13 @@ export default function LoginPage() {
         <div style={{ textAlign: 'center', marginBottom: 'var(--space-md)' }}>
           <img src="/img/slotly-logo-full.svg" alt="Slotly" width="200" height="48" style={{ margin: '0 auto' }} />
         </div>
-        <h1>{vieneDeReserva ? 'Reservar turno' : 'Iniciar sesión'}</h1>
+        <h1>{verificandoTurno ? 'Verificá tu turno' : vieneDeReserva ? 'Reservar turno' : 'Entrá a Slotly'}</h1>
         <p className="auth-subtitle">
-          {vieneDeReserva
-            ? 'Entrá con tu cuenta para confirmar el turno'
-            : 'Entrá a tu panel, o al link de tu negocio para reservar'}
+          {verificandoTurno
+            ? 'Entrá con la cuenta de Google con la que reservaste y te mostramos tus turnos en todos los negocios.'
+            : vieneDeReserva
+              ? 'Entrá con tu cuenta de Google para confirmar el turno'
+              : 'Con tu cuenta de Google. Si todavía no tenés tu comercio en Slotly, registrate y lo creás en un par de minutos.'}
         </p>
 
         {error && (
@@ -155,12 +191,52 @@ export default function LoginPage() {
           </div>
         )}
 
-        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 'var(--space-lg)' }}>
+        {perfil ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)', marginTop: 'var(--space-lg)' }}>
+            <div className="cuenta-recordada">
+              <AvatarCuenta perfil={perfil} />
+              <div style={{ minWidth: 0 }}>
+                <div className="cuenta-recordada-nombre">{perfil.name || perfil.email}</div>
+                {perfil.name && <div className="cuenta-recordada-email">{perfil.email}</div>}
+              </div>
+            </div>
+            <button
+              type="button"
+              className="btn btn-primary btn-lg"
+              onClick={handleContinuar}
+              disabled={Boolean(entrando)}
+              style={{ width: '100%', gap: 10 }}
+            >
+              {entrando === 'continuar'
+                ? 'Abriendo Google…'
+                : `Continuar como ${(perfil.name || perfil.email).split(/[\s@]/)[0]}`}
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary btn-lg"
+              onClick={handleOtraCuenta}
+              disabled={Boolean(entrando)}
+              style={{ width: '100%', gap: 10 }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  fill="currentColor"
+                  d="M12 11v3.2h5.3c-.2 1.4-1.6 4-5.3 4a5.7 5.7 0 0 1 0-11.4c1.7 0 2.9.7 3.6 1.4l2.4-2.4A9.1 9.1 0 0 0 12 3a9 9 0 1 0 0 18c5.2 0 8.6-3.6 8.6-8.7 0-.6 0-1-.1-1.4H12z"
+                />
+              </svg>
+              {entrando === 'otra' ? 'Abriendo Google…' : 'Usar otra cuenta'}
+            </button>
+            <button type="button" className="cuenta-recordada-olvidar" onClick={handleOlvidar} disabled={Boolean(entrando)}>
+              No soy yo
+            </button>
+          </div>
+        ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)', marginTop: 'var(--space-lg)' }}>
           <button
             type="button"
             className="btn btn-primary btn-lg"
-            onClick={handleGoogle}
-            disabled={entrando}
+            onClick={() => handleGoogle('login')}
+            disabled={Boolean(entrando)}
             style={{ width: '100%', gap: 10 }}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
@@ -169,9 +245,34 @@ export default function LoginPage() {
                 d="M12 11v3.2h5.3c-.2 1.4-1.6 4-5.3 4a5.7 5.7 0 0 1 0-11.4c1.7 0 2.9.7 3.6 1.4l2.4-2.4A9.1 9.1 0 0 0 12 3a9 9 0 1 0 0 18c5.2 0 8.6-3.6 8.6-8.7 0-.6 0-1-.1-1.4H12z"
               />
             </svg>
-            {entrando ? 'Abriendo Google…' : 'Continuar con Google'}
+            {entrando === 'login' ? 'Abriendo Google…' : verificandoTurno ? 'Entrar con Google' : 'Iniciar sesión'}
           </button>
+          {!verificandoTurno && (
+          <button
+            type="button"
+            className="btn btn-secondary btn-lg"
+            onClick={() => handleGoogle('registro')}
+            disabled={Boolean(entrando)}
+            style={{ width: '100%', gap: 10 }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M12 11v3.2h5.3c-.2 1.4-1.6 4-5.3 4a5.7 5.7 0 0 1 0-11.4c1.7 0 2.9.7 3.6 1.4l2.4-2.4A9.1 9.1 0 0 0 12 3a9 9 0 1 0 0 18c5.2 0 8.6-3.6 8.6-8.7 0-.6 0-1-.1-1.4H12z"
+              />
+            </svg>
+            {entrando === 'registro' ? 'Abriendo Google…' : 'Registrarme'}
+          </button>
+          )}
         </div>
+        )}
+
+        {!verificandoTurno && !vieneDeReserva && (
+          <p className="auth-link">
+            ¿Reservaste un turno?{' '}
+            <Link to="/mis-turnos">Verificalo acá</Link>
+          </p>
+        )}
 
         {/*
           ACCESO RÁPIDO — SOLO DESARROLLO.
@@ -261,6 +362,20 @@ export default function LoginPage() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/** Foto de Google de la cuenta, o sus iniciales si no hay (o no carga). */
+function AvatarCuenta({ perfil }) {
+  const [sinFoto, setSinFoto] = useState(false);
+  const iniciales = (perfil.name || perfil.email)
+    .split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((p) => p[0].toUpperCase()).join('');
+  return (
+    <div className="avatar avatar-md">
+      {perfil.avatarUrl && !sinFoto
+        ? <img src={perfil.avatarUrl} alt="" referrerPolicy="no-referrer" onError={() => setSinFoto(true)} />
+        : iniciales}
     </div>
   );
 }

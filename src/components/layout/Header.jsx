@@ -7,7 +7,12 @@ import Icon from '../Icon';
 export default function Header() {
   const location = useLocation();
   const { isAuthenticated, logout } = useAuth();
-  const { business, slug } = useCurrentBusiness();
+  const actual = useCurrentBusiness();
+  // /mis-turnos muestra turnos de todos los negocios: encabezado de Slotly,
+  // no el del comercio propio de un dueño que entró a ver lo que reservó.
+  const enMisTurnos = location.pathname === '/mis-turnos';
+  const business = enMisTurnos ? null : actual.business;
+  const slug = enMisTurnos ? null : actual.slug;
   // Aplica el tema (color de marca) del negocio activo. Header está montado
   // tanto en la landing como en toda página de cliente, así que es el punto
   // que garantiza que el tema se pinte apenas se resuelve el negocio.
@@ -53,9 +58,14 @@ export default function Header() {
       <div className="header-actions">
         {isAuthenticated ? (
           <>
-            {slug && (
+            {slug ? (
               <Link to={`${home}/mis-citas`} className="btn btn-ghost btn-sm">
                 <Icon name="calendar" /> Mis Citas
+              </Link>
+            ) : (
+              // Fuera del link de un negocio: sus turnos en todos los negocios.
+              <Link to="/mis-turnos" className="btn btn-ghost btn-sm">
+                <Icon name="calendar" /> Mis turnos
               </Link>
             )}
             <button onClick={logout} className="btn btn-ghost btn-sm">

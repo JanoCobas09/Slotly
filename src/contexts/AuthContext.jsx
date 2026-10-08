@@ -2,6 +2,7 @@ import { createContext, useContext, useReducer, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase';
 import { useBusiness } from './BusinessContext';
 import { isPlatformOwner } from '../config/platform';
+import { guardarUltimaCuenta } from '../lib/ultimaCuenta';
 
 const AuthContext = createContext();
 
@@ -225,7 +226,10 @@ export function AuthProvider({ children }) {
         supabaseUser = await limpiarSiHuerfano(supabaseUser);
       }
 
-      dispatch({ type: 'LOGIN', payload: buildUser(supabaseUser) });
+      const usuario = buildUser(supabaseUser);
+      // Para el "Continuar como" de la próxima vez (ver lib/ultimaCuenta.js).
+      guardarUltimaCuenta(usuario);
+      dispatch({ type: 'LOGIN', payload: usuario });
     });
     // Se suscribe una sola vez.
     return () => subscription.unsubscribe();
@@ -242,12 +246,24 @@ export function AuthProvider({ children }) {
    * `redirectTo` apunta de nuevo a /login: quien llama (LoginPage) guarda
    * antes en sessionStorage a dónde ir después, porque el estado de React
    * Router (`location.state`) no sobrevive el ida-y-vuelta a accounts.google.com.
+   *
+   * `cuenta`: el correo con el que abrir Google ("Continuar como", Google va
+   * directo a esa cuenta si está abierta en el navegador). `elegirCuenta`:
+   * que Google muestre siempre el selector ("Usar otra cuenta"); sin esto,
+   * con una sola cuenta abierta entra con esa sin preguntar.
    */
-  const loginWithGoogle = async () => {
+  const loginWithGoogle = async ({ cuenta, elegirCuenta } = {}) => {
     try {
+      const queryParams = {};
+      if (cuenta) queryParams.login_hint = cuenta;
+      if (elegirCuenta) queryParams.prompt = 'select_account';
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: `${window.location.origin}/login` },
+        options: {
+          redirectTo: `${window.location.origin}/login`,
+          // Sin parámetros, la misma llamada de siempre (ni un `&` de más).
+          ...(Object.keys(queryParams).length ? { queryParams } : {}),
+        },
       });
       if (error) throw error;
       return { success: true, redirecting: true };

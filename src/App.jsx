@@ -4,6 +4,7 @@ import { useAuth } from './contexts/AuthContext';
 import { useBusiness } from './contexts/BusinessContext';
 import BusinessSync from './contexts/BusinessSync';
 import { isPlatformOwner } from './config/platform';
+import { leerDestinoLogin } from './lib/destinoLogin';
 import Header from './components/layout/Header';
 import Footer from './components/layout/Footer';
 
@@ -29,6 +30,7 @@ const BookingPage      = lazy(() => import('./pages/client/BookingPage'));
 const ConfirmationPage = lazy(() => import('./pages/client/ConfirmationPage'));
 const PagoSenaPage = lazy(() => import('./pages/client/PagoSenaPage'));
 const MyAppointments   = lazy(() => import('./pages/client/MyAppointments'));
+const MisTurnosPage    = lazy(() => import('./pages/client/MisTurnosPage'));
 const OnboardingPage   = lazy(() => import('./pages/client/OnboardingPage'));
 
 // Panel del negocio
@@ -152,6 +154,12 @@ function PublicOnlyRoute({ children }) {
   const { isAuthenticated, user, loading } = useAuth();
   if (loading) return <SessionLoading />;
   if (isAuthenticated) {
+    // Volvió de Google después de "Verificá tu turno": a sus turnos, aunque
+    // tenga comercio. MisTurnosPage borra la marca (acá no: el render puede
+    // correr dos veces y la segunda lo mandaría al panel).
+    if (leerDestinoLogin() === '/mis-turnos') {
+      return <Navigate to="/mis-turnos" replace />;
+    }
     if (user?.isPlatformTeam || isPlatformOwner(user?.email)) {
       return <Navigate to="/super-admin" replace />;
     }
@@ -251,6 +259,16 @@ export default function App() {
             Ahora es el fallback de "prefiero que me lo armen"; el destino
             por defecto de ese login es /onboarding (ver LoginPage). */}
         <Route path="/cuenta" element={<ClientLayout><CuentaSinNegocio /></ClientLayout>} />
+
+        {/* "Verificá tu turno": los turnos de la cuenta en TODOS los
+            negocios. Pide entrar con Google (nunca por un correo tipeado).
+            Cualquier rol puede entrar: un dueño también reserva en otros
+            negocios. */}
+        <Route path="/mis-turnos" element={
+          <ProtectedRoute>
+            <ClientLayout><MisTurnosPage /></ClientLayout>
+          </ProtectedRoute>
+        } />
 
         {/* Alta self-service: la completa quien se logueó con Google y
             todavía no tiene negocio. Ver OnboardingPage y

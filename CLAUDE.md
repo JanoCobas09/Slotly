@@ -1137,6 +1137,42 @@ dominio de más autorizado no es un agujero de seguridad, solo ruido).
    del teléfono está en "silencioso" o la app tiene batería restringida, eso
    se arregla en el teléfono, no acá. iPhone: solo con el panel instalado en
    pantalla de inicio (iOS 16.4+).
+5r. **Login de dos botones, "Continuar como" y "Verificá tu turno" (08/10/2026).**
+   Todo sigue siendo SOLO con Google (decisión del usuario: se probó correo +
+   contraseña y lo descartó). `/login` tiene "Iniciar sesión" y "Registrarme",
+   que hacen lo mismo (Google no distingue cuenta nueva); el destino lo decide
+   `redirectAfterLogin` como siempre (panel si tiene comercio, `/onboarding` si
+   no). "Continuar como": `lib/ultimaCuenta.js` guarda en localStorage nombre,
+   correo y foto de la última cuenta que entró (AuthContext, al loguear) y NO
+   se borra al cerrar sesión; `/login` muestra la tarjeta → con sesión abierta
+   entra directo, si no abre Google con `login_hint` (directo a esa cuenta);
+   "Usar otra cuenta" manda `prompt=select_account`; "No soy yo" la olvida.
+   Verificado que Supabase de producción reenvía los dos parámetros a Google.
+   **Verificá tu turno** (`/mis-turnos`, `MisTurnosPage.jsx`): los turnos que
+   reservó la cuenta en TODOS los negocios (`getMisTurnos` en repository.js:
+   `user_id` + `type = 'client'`, sin Realtime; RLS ya permitía leer los
+   propios) con próximos/pasados, cancelar con la anticipación de cada
+   negocio, pagar seña pendiente y "Reservar de nuevo". Pide entrar con Google
+   (nunca turnos por un correo tipeado). Se llega desde un aviso arriba del
+   hero de la landing, el cierre de la landing, el link de abajo del login y
+   "Mis turnos" en el encabezado fuera del link de un negocio. Con
+   `from = '/mis-turnos'` el login cambia de título y va ahí aunque la cuenta
+   sea staff. Los turnos que el negocio carga a mano NO aparecen (no tienen la
+   cuenta del cliente). `mis-turnos` y `onboarding` agregados a
+   `RESERVED_SLUGS` (utils/slug.js); falta sumarlos a `reservados` de
+   `create_business_self_service` en la base (hoy no hay ningún slug así).
+   Ojo con el dueño: al volver de Google, `PublicOnlyRoute` lo manda a /admin
+   antes de que LoginPage lea el destino — por eso PublicOnlyRoute también
+   mira la marca (`lib/destinoLogin.js`, la misma sessionStorage que usa
+   LoginPage) y MisTurnosPage la borra al entrar. El encabezado en
+   /mis-turnos es el de Slotly aunque la cuenta tenga comercio.
+   **Arreglado de paso (bug viejo):** `subscribeMyAppointments` filtraba solo
+   por `user_id` (liveTable admite una columna) y traía los turnos del
+   cliente en TODOS los negocios: aparecían en "Mis Citas" de cada negocio
+   sin servicio ni profesional, contaban para "ya tenés un turno ese día" en
+   la reserva de otro negocio y podían mostrar la seña pendiente de otro.
+   Ahora filtra por negocio en el callback. Verificado todo sobre el build de
+   producción (`vite preview`) con sesiones inyectadas, sin errores de consola.
 6. **Abuso de reservas.** Hecho: un turno por día y tope de 3 a futuro por
    cuenta. Falta, por orden: bloquear cliente desde el panel (para la cuenta que
    se porta mal), y App Check con reCAPTCHA v3 sobre los callables para frenar
