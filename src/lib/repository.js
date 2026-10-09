@@ -943,11 +943,24 @@ export async function savePushToken(businessId, subscription, { uid, role, profe
       branch_id: branchId,
       p256dh: subscription.keys.p256dh,
       auth_key: subscription.keys.auth,
+      baja_at: null,
       updated_at: new Date().toISOString(),
     },
     { onConflict: 'endpoint' }
   );
   if (error) throw traducirError(error);
+}
+
+/**
+ * ¿Este endpoint sigue vigente a nombre de la cuenta? send-push marca
+ * `baja_at` cuando el servicio de push responde 404/410 (suscripción muerta),
+ * así que una suscripción que el navegador todavía tiene pero que acá falta o
+ * está de baja es una que no va a recibir nada.
+ */
+export async function pushTokenRegistrado(endpoint) {
+  const { data, error } = await supabase.from('push_subscriptions').select('endpoint').eq('endpoint', endpoint).is('baja_at', null).maybeSingle();
+  if (error) throw traducirError(error);
+  return Boolean(data);
 }
 
 export async function removePushToken(businessId, endpoint) {

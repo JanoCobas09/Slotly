@@ -1186,6 +1186,28 @@ dominio de más autorizado no es un agujero de seguridad, solo ruido).
    la reserva de otro negocio y podían mostrar la seña pendiente de otro.
    Ahora filtra por negocio en el callback. Verificado todo sobre el build de
    producción (`vite preview`) con sesiones inyectadas, sin errores de consola.
+5s. **Push caído: re-registro solo + respaldo por mail (09/10/2026).** Caso
+   real (Reiz): el servicio de push respondió 410 a la única suscripción del
+   dueño, send-push la borró y el negocio quedó sin avisos sin enterarse — con
+   el permiso en 'granted' la campanita no ofrecía nada para re-registrarse.
+   Migración `20261021000000_push_caido_respaldo_mail.sql`:
+   `push_subscriptions.baja_at` — en 404/410 `_shared/webpush.ts` la MARCA en
+   vez de borrarla (y no le vuelve a mandar). `send-push`: si alguien con push
+   (vigente o caído hace <30 días) no recibió el aviso en NINGÚN dispositivo,
+   se lo manda por mail con cómo reactivarlo; a los 30 días de la baja borra la
+   fila y deja de mandar. `respaldoMail: false` lo apaga: la cancelación del
+   cliente lo pasa (handle_turno_cancelado redefinido) porque ya va por
+   notify-cancellation. Quien nunca activó push no recibe nada (lo eligió).
+   Front: `sincronizarPush` (lib/push.js), llamado por CampanaNotificaciones
+   al montar con el permiso ya dado, vuelve a registrar el dispositivo; si el
+   navegador tiene una suscripción que la base no tiene vigente
+   (`pushTokenRegistrado`), la desuscribe, borra su fila y pide otra (volver a
+   guardar el mismo endpoint muerto no sirve). La campanita ahora muestra
+   "activas" + la prueba después de recargar (antes desaparecían).
+   Diagnóstico en producción: `net._http_response` guarda ~6 h la respuesta de
+   cada send-push (`enviados`/`fallidos`/`avisadosPorMail`).
+   `supabase/tests/test-push-caido.mjs` 16/16 (usa httpbin.org/status/410 y
+   /201 como servicio de push: web-push solo habla HTTPS).
 6. **Abuso de reservas.** Hecho: un turno por día y tope de 3 a futuro por
    cuenta. Falta, por orden: bloquear cliente desde el panel (para la cuenta que
    se porta mal), y App Check con reCAPTCHA v3 sobre los callables para frenar

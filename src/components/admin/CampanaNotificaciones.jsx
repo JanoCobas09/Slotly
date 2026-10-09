@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../hooks/useTenantData';
 import { useCurrentBusiness } from '../../hooks/useCurrentBusiness';
 import { markNotificationRead } from '../../lib/repository';
-import { enablePushNotifications, EVENTO_PUSH_ACTIVADO } from '../../lib/push';
+import { enablePushNotifications, sincronizarPush, EVENTO_PUSH_ACTIVADO } from '../../lib/push';
 import { enviarPushDePrueba } from '../../lib/functions';
 import Icon from '../Icon';
 import Toast from '../Toast';
@@ -69,6 +69,38 @@ export default function CampanaNotificaciones() {
   }, []);
 
   const uid = user?.id;
+
+  // Con el permiso ya dado, cada vez que se abre el panel se vuelve a dejar
+  // registrado este dispositivo (sincronizarPush). La plataforma administrando
+  // una cuenta no: no es staff del negocio y no tiene que recibir sus avisos.
+  const esStaff = (user?.role === 'owner' || user?.role === 'admin' || user?.role === 'manager') && !user?.isPlatformTeam;
+  // Lee el permiso del navegador y no el estado `permiso`: al tocar "Activar"
+  // ese estado pasa a 'granted' y esto correría en paralelo con
+  // enablePushNotifications, pisándose la suscripción.
+  useEffect(() => {
+    if (!esStaff || !businessId || !uid || typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+    let vigente = true;
+    sincronizarPush({
+      businessId,
+      uid,
+      role: user.role,
+      professionalId: user.professionalId || null,
+      branchId: user.branchId || null,
+    })
+      .then((res) => {
+        if (!vigente) return;
+        if (res.ok) setPushEstado('activo');
+        else if (res.error) { setPushEstado('error'); setPushError(res.error); }
+      })
+      .catch((err) => {
+        if (!vigente) return;
+        setPushEstado('error');
+        setPushError(err.message || 'No se pudo registrar este dispositivo.');
+      });
+    return () => { vigente = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- una vez por cuenta/negocio, no en cada render de user
+  }, [esStaff, businessId, uid]);
+
   const noLeidas = notificaciones.filter((n) => !n.leidaPor?.[uid]);
 
   // Cerrar al hacer clic afuera.

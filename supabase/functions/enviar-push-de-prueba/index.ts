@@ -25,7 +25,8 @@ Deno.serve(async (req) => {
     const { data: subs, error } = await admin
       .from('push_subscriptions')
       .select('endpoint, p256dh, auth_key')
-      .eq('user_id', caller.id);
+      .eq('user_id', caller.id)
+      .is('baja_at', null);
     if (error) throw error;
     if (!subs || subs.length === 0) {
       throw failedPrecondition('Este dispositivo todavía no activó las notificaciones push.');

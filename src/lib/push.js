@@ -20,7 +20,7 @@
 // pasa hoy) pero no hace falta cablearlo a nada: no existe un canal
 // separado que enrutar.
 
-import { savePushToken, removePushToken } from './repository';
+import { savePushToken, removePushToken, pushTokenRegistrado } from './repository';
 
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY;
 
@@ -75,14 +75,31 @@ export async function enablePushNotifications({ businessId, uid, role, professio
     return { ok: false, error: 'No se pudo activar el service worker.' };
   }
 
+  return registrarDispositivo(registration, { businessId, uid, role, professionalId, branchId });
+}
+
+/**
+ * Suscripción que sirve: la que ya tiene el navegador si sigue registrada en
+ * la base, o una nueva. Si el navegador tiene una que la base ya no tiene,
+ * send-push la marcó de baja porque el servicio de push la dio por muerta (404/410):
+ * volver a guardar ese mismo endpoint no arregla nada, hay que pedir otro.
+ */
+async function registrarDispositivo(registration, { businessId, uid, role, professionalId, branchId }) {
   let suscripcion;
   try {
-    suscripcion =
-      (await registration.pushManager.getSubscription()) ||
-      (await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
-      }));
+    suscripcion = await registration.pushManager.getSubscription();
+    if (suscripcion && !(await pushTokenRegistrado(suscripcion.endpoint))) {
+      // La fila de baja se borra: este dispositivo vuelve con otro endpoint
+      // y ya no hace falta el respaldo por mail por el viejo.
+      const vieja = suscripcion.endpoint;
+      await suscripcion.unsubscribe();
+      await removePushToken(businessId, vieja);
+      suscripcion = null;
+    }
+    suscripcion ||= await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+    });
   } catch (err) {
     console.error('[push] No se pudo suscribir:', err);
     return { ok: false, error: 'No se pudo registrar este dispositivo para notificaciones.' };
@@ -92,6 +109,20 @@ export async function enablePushNotifications({ businessId, uid, role, professio
   await savePushToken(businessId, json, { uid, role, professionalId, branchId });
 
   return { ok: true, endpoint: json.endpoint };
+}
+
+/**
+ * Al abrir el panel con el permiso ya dado: vuelve a dejar registrado este
+ * dispositivo sin preguntar nada. Sin esto, una suscripción que el servicio
+ * de push dio por muerta (send-push la marca de baja) dejaba al dueño sin avisos para
+ * siempre: con el permiso en 'granted' la campanita no ofrece "Activar" y no
+ * había forma de volver a registrarse desde la app.
+ */
+export async function sincronizarPush({ businessId, uid, role, professionalId = null, branchId = null }) {
+  if (!VAPID_PUBLIC_KEY || !pushSupported() || Notification.permission !== 'granted') return { ok: false, error: null };
+  const registration = await registerServiceWorker();
+  if (!registration) return { ok: false, error: 'No se pudo activar el service worker.' };
+  return registrarDispositivo(registration, { businessId, uid, role, professionalId, branchId });
 }
 
 /** Apaga las notificaciones en ESTE dispositivo (no en los demás). */
