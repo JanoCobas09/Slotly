@@ -73,6 +73,17 @@ export default function Header() {
             </button>
           </>
         ) : (
+          <>
+          {/* Fuera del link de un negocio (landing, login): el cliente que
+              reservó en algún negocio encuentra sus turnos sin leer la
+              página de venta. En el celular, texto corto. */}
+          {!slug && (
+            <Link to="/mis-turnos" className="btn btn-ghost btn-sm header-verificar">
+              <Icon name="calendar" />
+              <span className="header-texto-largo">¿Reservaste un turno? <strong>Verificalo</strong></span>
+              <span className="header-texto-corto">Mi turno</span>
+            </Link>
+          )}
           <Link
             to="/login"
             state={{ from: location.pathname }}
@@ -80,6 +91,7 @@ export default function Header() {
           >
             Iniciar Sesión
           </Link>
+          </>
         )}
       </div>
     </header>

@@ -57,6 +57,7 @@ const PATHS = {
   tag: <><path d="M11.5 3.5H5.8a1 1 0 0 0-1 1v5.7a1 1 0 0 0 .3.7l9 9a1 1 0 0 0 1.4 0l5.7-5.7a1 1 0 0 0 0-1.4l-9-9a1 1 0 0 0-.7-.3z" /><circle cx="8.7" cy="8.7" r="1.2" /></>,
   building: <><rect x="4.5" y="3.5" width="10" height="17" rx="1" /><rect x="14.5" y="9.5" width="5" height="11" rx="1" /><path d="M7.5 7.5h1M11 7.5h1M7.5 11h1M11 11h1M7.5 14.5h1M11 14.5h1" /></>,
   search: <><circle cx="10.5" cy="10.5" r="6.5" /><path d="M20 20l-4.7-4.7" /></>,
+  'chevron-right': <path d="M9.5 6l6 6-6 6" />,
   lock: <><rect x="5" y="10.5" width="14" height="10" rx="1.8" /><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5" /></>,
   question: <><circle cx="12" cy="12" r="8.5" /><path d="M9.3 9.3a2.7 2.7 0 1 1 3.8 2.5c-.9.4-1.4 1-1.4 2" /><circle cx="12" cy="16.7" r="0.15" fill="currentColor" /></>,
   sparkle: <path d="M12 2.5l1.6 5.3 5.4 1.6-5.4 1.6L12 16.3l-1.6-5.3-5.4-1.6 5.4-1.6z" />,

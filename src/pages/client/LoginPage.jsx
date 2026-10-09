@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { isPlatformOwner, PLATFORM_OWNERS } from '../../config/platform';
 import Icon from '../../components/Icon';
@@ -97,6 +97,14 @@ export default function LoginPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, user]);
 
+  // Fue a Google y volvió con "atrás": el navegador restaura esta página tal
+  // cual quedó (bfcache), con los botones en "Abriendo…" y deshabilitados.
+  useEffect(() => {
+    const alVolver = (e) => { if (e.persisted) setEntrando(false); };
+    window.addEventListener('pageshow', alVolver);
+    return () => window.removeEventListener('pageshow', alVolver);
+  }, []);
+
   /**
    * Dispara el redirect a Google (supabase.auth.signInWithOAuth). A
    * diferencia del popup de Firebase, esta función no devuelve el usuario
@@ -190,39 +198,48 @@ export default function LoginPage() {
         )}
 
         {perfil ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)', marginTop: 'var(--space-lg)' }}>
-            <div className="cuenta-recordada">
-              <AvatarCuenta perfil={perfil} />
-              <div style={{ minWidth: 0 }}>
-                <div className="cuenta-recordada-nombre">{perfil.name || perfil.email}</div>
-                {perfil.name && <div className="cuenta-recordada-email">{perfil.email}</div>}
-              </div>
+          // Como el selector de cuentas de Google: la cuenta conocida es una
+          // fila que se toca para entrar, y abajo "Usar otra cuenta". La G va
+          // una sola vez.
+          <div style={{ marginTop: 'var(--space-lg)' }}>
+            <div className="selector-cuentas">
+              <button
+                type="button"
+                className="selector-cuentas-fila"
+                onClick={handleContinuar}
+                disabled={Boolean(entrando)}
+              >
+                <AvatarCuenta perfil={perfil} />
+                <span className="selector-cuentas-texto">
+                  <span className="selector-cuentas-titulo">
+                    {`Continuar como ${(perfil.name || perfil.email).split(/[\s@]/)[0]}`}
+                  </span>
+                  <span className="selector-cuentas-detalle">{perfil.email}</span>
+                </span>
+                <span className="selector-cuentas-accion" aria-hidden="true">
+                  {entrando === 'continuar' ? 'Abriendo…' : <Icon name="chevron-right" size={18} />}
+                </span>
+              </button>
+              <button
+                type="button"
+                className="selector-cuentas-fila"
+                onClick={handleOtraCuenta}
+                disabled={Boolean(entrando)}
+              >
+                <span className="selector-cuentas-icono"><GoogleLogo size={18} /></span>
+                <span className="selector-cuentas-texto">
+                  <span className="selector-cuentas-otra">Usar otra cuenta</span>
+                </span>
+                <span className="selector-cuentas-accion" aria-hidden="true">
+                  {entrando === 'otra' ? 'Abriendo…' : <Icon name="chevron-right" size={18} />}
+                </span>
+              </button>
             </div>
-            <button
-              type="button"
-              className="btn btn-primary btn-lg"
-              onClick={handleContinuar}
-              disabled={Boolean(entrando)}
-              style={{ width: '100%', gap: 10 }}
-            >
-              <GoogleLogo conFondo />
-              {entrando === 'continuar'
-                ? 'Abriendo Google…'
-                : `Continuar como ${(perfil.name || perfil.email).split(/[\s@]/)[0]}`}
-            </button>
-            <button
-              type="button"
-              className="btn btn-secondary btn-lg"
-              onClick={handleOtraCuenta}
-              disabled={Boolean(entrando)}
-              style={{ width: '100%', gap: 10 }}
-            >
-              <GoogleLogo />
-              {entrando === 'otra' ? 'Abriendo Google…' : 'Usar otra cuenta'}
-            </button>
-            <button type="button" className="cuenta-recordada-olvidar" onClick={handleOlvidar} disabled={Boolean(entrando)}>
-              No soy yo
-            </button>
+            <div style={{ textAlign: 'center', marginTop: 'var(--space-sm)' }}>
+              <button type="button" className="cuenta-recordada-olvidar" onClick={handleOlvidar} disabled={Boolean(entrando)}>
+                No soy {(perfil.name || perfil.email).split(/[\s@]/)[0]}
+              </button>
+            </div>
           </div>
         ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)', marginTop: 'var(--space-lg)' }}>
@@ -244,18 +261,10 @@ export default function LoginPage() {
             disabled={Boolean(entrando)}
             style={{ width: '100%', gap: 10 }}
           >
-            <GoogleLogo />
             {entrando === 'registro' ? 'Abriendo Google…' : 'Registrarme'}
           </button>
           )}
         </div>
-        )}
-
-        {!verificandoTurno && !vieneDeReserva && (
-          <p className="auth-link">
-            ¿Reservaste un turno?{' '}
-            <Link to="/mis-turnos">Verificalo acá</Link>
-          </p>
         )}
 
         {/*

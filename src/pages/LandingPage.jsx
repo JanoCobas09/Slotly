@@ -138,13 +138,6 @@ export default function LandingPage() {
     <div className="landing">
       {/* ── HERO ─────────────────────────────────────────────────────────── */}
       <section className="landing-hero" id="inicio">
-        {/* La landing le habla al dueño, pero acá también cae el cliente que
-            reservó en algún negocio y quiere ver su turno: que lo encuentre
-            sin leer toda la página de venta. */}
-        <Link to="/mis-turnos" className="aviso-verificar-turno">
-          <Icon name="calendar" /> ¿Reservaste un turno? <strong>Verificalo acá</strong>
-        </Link>
-
         <span className="eyebrow">• Turnos y reservas para tu negocio · Argentina</span>
 
         <h1 className="landing-title">

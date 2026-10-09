@@ -1144,18 +1144,26 @@ dominio de más autorizado no es un agujero de seguridad, solo ruido).
    `redirectAfterLogin` como siempre (panel si tiene comercio, `/onboarding` si
    no). "Continuar como": `lib/ultimaCuenta.js` guarda en localStorage nombre,
    correo y foto de la última cuenta que entró (AuthContext, al loguear) y NO
-   se borra al cerrar sesión; `/login` muestra la tarjeta → con sesión abierta
-   entra directo, si no abre Google con `login_hint` (directo a esa cuenta);
-   "Usar otra cuenta" manda `prompt=select_account`; "No soy yo" la olvida.
-   Verificado que Supabase de producción reenvía los dos parámetros a Google.
+   se borra al cerrar sesión; `/login` la muestra como el selector de cuentas
+   de Google (`.selector-cuentas`: la cuenta es una fila que se toca, abajo
+   "Usar otra cuenta"; pedido explícito: la G una sola vez, nada de botones
+   grandes repetidos) → con sesión abierta entra directo, si no abre Google
+   con `login_hint` (directo a esa cuenta); "Usar otra cuenta" manda
+   `prompt=select_account`; "No soy X" la olvida. Verificado que Supabase de
+   producción reenvía los dos parámetros a Google. La G es la oficial a
+   colores (`components/GoogleLogo.jsx`). Volver de Google con "atrás"
+   restaura la página del bfcache con los botones en "Abriendo…": un
+   listener de `pageshow` los rehabilita.
    **Verificá tu turno** (`/mis-turnos`, `MisTurnosPage.jsx`): los turnos que
    reservó la cuenta en TODOS los negocios (`getMisTurnos` en repository.js:
    `user_id` + `type = 'client'`, sin Realtime; RLS ya permitía leer los
    propios) con próximos/pasados, cancelar con la anticipación de cada
    negocio, pagar seña pendiente y "Reservar de nuevo". Pide entrar con Google
-   (nunca turnos por un correo tipeado). Se llega desde un aviso arriba del
-   hero de la landing, el cierre de la landing, el link de abajo del login y
-   "Mis turnos" en el encabezado fuera del link de un negocio. Con
+   (nunca turnos por un correo tipeado). Se llega desde el encabezado (fuera
+   del link de un negocio): sin sesión "¿Reservaste un turno? Verificalo" al
+   lado de "Iniciar Sesión" ("Mi turno" en el celular; pedido del usuario que
+   esté ahí y no en el hero), con sesión "Mis turnos"; y desde el cierre de
+   la landing. Con
    `from = '/mis-turnos'` el login cambia de título y va ahí aunque la cuenta
    sea staff. Los turnos que el negocio carga a mano NO aparecen (no tienen la
    cuenta del cliente). `mis-turnos` y `onboarding` agregados a

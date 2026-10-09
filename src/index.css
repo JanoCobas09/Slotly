@@ -1785,30 +1785,23 @@ select.form-input {
   flex-shrink: 0;
 }
 
-/* Landing: acceso del cliente que reservó en algún negocio (/mis-turnos). */
-.aviso-verificar-turno {
-  display: flex;
-  width: fit-content;
-  max-width: 100%;
-  align-items: center;
-  gap: 8px;
-  margin: 0 auto var(--space-lg);
-  padding: 8px 16px;
-  border: 1px solid var(--border-accent);
-  border-radius: 999px;
-  background: var(--primary-light);
-  color: var(--text);
-  font-size: 0.875rem;
-  text-decoration: none;
-  transition: border-color var(--transition);
+/* Encabezado: acceso del cliente que reservó en algún negocio (/mis-turnos),
+   al lado de "Iniciar Sesión". En el celular, solo "Mi turno". */
+.header-verificar {
+  gap: 6px;
+  white-space: nowrap;
 }
 
-.aviso-verificar-turno strong {
+.header-verificar strong {
   color: var(--primary);
+  font-weight: 600;
 }
 
-.aviso-verificar-turno:hover {
-  border-color: var(--primary);
+.header-texto-corto { display: none; }
+
+@media (max-width: 640px) {
+  .header-texto-largo { display: none; }
+  .header-texto-corto { display: inline; }
 }
 
 /* /mis-turnos */
@@ -1849,35 +1842,107 @@ select.form-input {
   object-fit: cover;
 }
 
-/* "Continuar como": la cuenta de Google que ya entró desde este navegador. */
-.cuenta-recordada {
+/* "Continuar como": la cuenta de Google que ya entró desde este navegador,
+   como el selector de cuentas de Google — filas en una lista, no botones
+   grandes apilados. */
+.selector-cuentas {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg, 12px);
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.selector-cuentas-fila {
   display: flex;
   align-items: center;
-  gap: var(--space-md);
-  padding: var(--space-md);
-  margin-bottom: var(--space-xs);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  gap: 14px;
+  width: 100%;
+  padding: 14px 16px;
+  border: none;
+  background: transparent;
+  font: inherit;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.selector-cuentas-fila + .selector-cuentas-fila {
+  border-top: 1px solid var(--border);
+}
+
+.selector-cuentas-fila:hover:not(:disabled) {
   background: var(--bg);
 }
 
-.cuenta-recordada .avatar img {
+.selector-cuentas-fila:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+.selector-cuentas-fila:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.selector-cuentas-fila .avatar {
+  width: 40px;
+  height: 40px;
+  font-size: 0.875rem;
+}
+
+.selector-cuentas-fila .avatar img {
   border-radius: 50%;
 }
 
-.cuenta-recordada-nombre {
-  font-weight: 700;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+/* Mismo lugar y tamaño que el avatar, para que las filas alineen. */
+.selector-cuentas-icono {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: #ffffff;
+  flex-shrink: 0;
 }
 
-.cuenta-recordada-email {
+.selector-cuentas-texto {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.selector-cuentas-titulo {
+  font-weight: 600;
+  font-size: 0.9375rem;
+}
+
+.selector-cuentas-detalle {
   font-size: 0.8125rem;
   color: var(--text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.selector-cuentas-otra {
+  font-weight: 500;
+  font-size: 0.9375rem;
+}
+
+.selector-cuentas-accion {
+  display: flex;
+  align-items: center;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  flex-shrink: 0;
+}
+
+.selector-cuentas-fila:hover:not(:disabled) .selector-cuentas-accion {
+  color: var(--primary);
 }
 
 .cuenta-recordada-olvidar {
