@@ -13,6 +13,12 @@
 
 export const DESTINO_TRAS_GOOGLE = 'slotly:loginRedirectFrom';
 
+/** "Ya tengo turno" en el link de un negocio: /:slug/mis-citas. */
+export const esMisCitasDeNegocio = (destino) => /^\/[^/]+\/mis-citas$/.test(destino || '');
+
+/** ¿El destino es ver turnos ya reservados (de todos los negocios o de uno)? */
+export const esDestinoDeTurnos = (destino) => destino === '/mis-turnos' || esMisCitasDeNegocio(destino);
+
 /** El destino guardado ('' = el de siempre), o null si no hay marca. */
 export function leerDestinoLogin() {
   try {

@@ -8,7 +8,9 @@ import { leerUltimaCuenta, olvidarUltimaCuenta } from '../../lib/ultimaCuenta';
 // El login con Google de Supabase es un redirect de página completa (a
 // diferencia del popup de Firebase): `location.state` (de dónde venía) no
 // sobrevive el viaje, así que se guarda en sessionStorage (ver el módulo).
-import { borrarDestinoLogin, guardarDestinoLogin, leerDestinoLogin } from '../../lib/destinoLogin';
+import {
+  borrarDestinoLogin, esDestinoDeTurnos, esMisCitasDeNegocio, guardarDestinoLogin, leerDestinoLogin,
+} from '../../lib/destinoLogin';
 
 /**
  * Cuentas del emulador local (ver scripts/seed-local-demo.mjs). Son sesiones
@@ -53,15 +55,20 @@ export default function LoginPage() {
   // "Reservar turno" solo si venía del link de un negocio. Si venía del
   // panel (cerró sesión, o le venció el token), es alguien del staff y el
   // título de reserva lo confunde.
-  const vieneDeReserva = Boolean(from) && !/^\/(admin|super-admin|cuenta|mis-turnos)(\/|$)/.test(from);
-  // Llegó por "¿Reservaste un turno? Verificalo" (landing, encabezado o el
-  // link de abajo): entra con Google y va a /mis-turnos.
-  const verificandoTurno = from === '/mis-turnos';
+  // Llegó por "¿Reservaste un turno? Verificalo" (landing) o "Ya tengo turno"
+  // (link de un negocio): entra con Google y va a ver sus turnos.
+  const verificandoTurno = esDestinoDeTurnos(from);
+  const vieneDeReserva = Boolean(from) && !verificandoTurno
+    && !/^\/(admin|super-admin|cuenta)(\/|$)/.test(from);
 
   const redirectAfterLogin = (user, destino = from) => {
-    if (destino === '/mis-turnos') {
+    const esStaff = user.isPlatformTeam || isPlatformOwner(user.email)
+      || ['owner', 'admin', 'manager'].includes(user.role);
+    if (destino === '/mis-turnos' || (esStaff && esMisCitasDeNegocio(destino))) {
       // Quiere ver los turnos que reservó, aunque sea dueño o staff de un
-      // comercio (también se reserva en otros negocios).
+      // comercio (también se reserva en otros negocios). Al staff, el "Mis
+      // Citas" de un negocio ajeno no le sirve (para el staff la app
+      // resuelve siempre su propio negocio): va a los de todos los negocios.
       navigate('/mis-turnos');
     } else if (user.isPlatformTeam || isPlatformOwner(user.email)) {
       navigate('/super-admin');
@@ -182,7 +189,7 @@ export default function LoginPage() {
         <h1>{verificandoTurno ? 'Verificá tu turno' : vieneDeReserva ? 'Reservar turno' : 'Entrá a Slotly'}</h1>
         <p className="auth-subtitle">
           {verificandoTurno
-            ? 'Entrá con la cuenta de Google con la que reservaste y te mostramos tus turnos en todos los negocios.'
+            ? `Entrá con la cuenta de Google con la que reservaste y te mostramos tus turnos${esMisCitasDeNegocio(from) ? '' : ' en todos los negocios'}.`
             : vieneDeReserva
               ? 'Entrá con tu cuenta de Google para confirmar el turno'
               : 'Con tu cuenta de Google. Si todavía no tenés tu comercio en Slotly, registrate y lo creás en un par de minutos.'}

@@ -4,7 +4,7 @@ import { useAuth } from './contexts/AuthContext';
 import { useBusiness } from './contexts/BusinessContext';
 import BusinessSync from './contexts/BusinessSync';
 import { isPlatformOwner } from './config/platform';
-import { leerDestinoLogin } from './lib/destinoLogin';
+import { esMisCitasDeNegocio, leerDestinoLogin } from './lib/destinoLogin';
 import Header from './components/layout/Header';
 import Footer from './components/layout/Footer';
 
@@ -154,10 +154,16 @@ function PublicOnlyRoute({ children }) {
   const { isAuthenticated, user, loading } = useAuth();
   if (loading) return <SessionLoading />;
   if (isAuthenticated) {
-    // Volvió de Google después de "Verificá tu turno": a sus turnos, aunque
-    // tenga comercio. MisTurnosPage borra la marca (acá no: el render puede
-    // correr dos veces y la segunda lo mandaría al panel).
-    if (leerDestinoLogin() === '/mis-turnos') {
+    // Volvió de Google después de "Verificá tu turno" o "Ya tengo turno": a
+    // sus turnos, aunque tenga comercio. Al staff, desde el link de un
+    // negocio ajeno también a /mis-turnos (el "Mis Citas" de ese negocio no
+    // le resuelve ese negocio); al cliente de ahí lo lleva LoginPage.
+    // MisTurnosPage borra la marca (acá no: el render puede correr dos veces
+    // y la segunda lo mandaría al panel).
+    const destino = leerDestinoLogin();
+    const esStaff = user?.isPlatformTeam || isPlatformOwner(user?.email)
+      || ['owner', 'admin', 'manager'].includes(user?.role);
+    if (destino === '/mis-turnos' || (esStaff && esMisCitasDeNegocio(destino))) {
       return <Navigate to="/mis-turnos" replace />;
     }
     if (user?.isPlatformTeam || isPlatformOwner(user?.email)) {

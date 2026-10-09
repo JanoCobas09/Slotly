@@ -1163,7 +1163,12 @@ dominio de más autorizado no es un agujero de seguridad, solo ruido).
    del link de un negocio): sin sesión "¿Reservaste un turno? Verificalo" al
    lado de "Iniciar Sesión" ("Mi turno" en el celular; pedido del usuario que
    esté ahí y no en el hero), con sesión "Mis turnos"; y desde el cierre de
-   la landing. Con
+   la landing. En el link de un negocio, el mismo lugar del encabezado dice
+   "Ya tengo turno" y lleva a `/:slug/mis-citas` (los de ESE negocio); si
+   quien entra es staff de otro comercio, va a /mis-turnos (para el staff la
+   app resuelve siempre su propio negocio, el "Mis Citas" ajeno no le sirve) —
+   lo deciden `esMisCitasDeNegocio`/`esDestinoDeTurnos` de
+   `lib/destinoLogin.js`, en LoginPage y en PublicOnlyRoute. Con
    `from = '/mis-turnos'` el login cambia de título y va ahí aunque la cuenta
    sea staff. Los turnos que el negocio carga a mano NO aparecen (no tienen la
    cuenta del cliente). `mis-turnos` y `onboarding` agregados a

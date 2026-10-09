@@ -74,16 +74,18 @@ export default function Header() {
           </>
         ) : (
           <>
-          {/* Fuera del link de un negocio (landing, login): el cliente que
-              reservó en algún negocio encuentra sus turnos sin leer la
-              página de venta. En el celular, texto corto. */}
-          {!slug && (
-            <Link to="/mis-turnos" className="btn btn-ghost btn-sm header-verificar">
-              <Icon name="calendar" />
-              <span className="header-texto-largo">¿Reservaste un turno? <strong>Verificalo</strong></span>
-              <span className="header-texto-corto">Mi turno</span>
-            </Link>
-          )}
+          {/* El cliente que ya reservó encuentra sus turnos sin buscar.
+              En el link de un negocio: los de ese negocio (/:slug/mis-citas).
+              Fuera (landing, login): los de todos los negocios
+              (/mis-turnos), sin leer la página de venta. En el celular,
+              texto corto. */}
+          <Link to={slug ? `${home}/mis-citas` : '/mis-turnos'} className="btn btn-ghost btn-sm header-verificar">
+            <Icon name="calendar" />
+            <span className="header-texto-largo">
+              {slug ? <strong>Ya tengo turno</strong> : <>¿Reservaste un turno? <strong>Verificalo</strong></>}
+            </span>
+            <span className="header-texto-corto">Mi turno</span>
+          </Link>
           <Link
             to="/login"
             state={{ from: location.pathname }}

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { cancelAppointment, getMisTurnos } from '../../lib/repository';
-import { borrarDestinoLogin, leerDestinoLogin } from '../../lib/destinoLogin';
+import { borrarDestinoLogin, esDestinoDeTurnos, leerDestinoLogin } from '../../lib/destinoLogin';
 import { formatDate, formatPrice } from '../../utils/dateUtils';
 import Icon from '../../components/Icon';
 
@@ -48,7 +48,7 @@ export default function MisTurnosPage() {
   // Llegó: la marca de "después de Google, a /mis-turnos" ya cumplió. Si
   // quedara, el próximo /login con sesión volvería a mandarlo acá.
   useEffect(() => {
-    if (leerDestinoLogin() === '/mis-turnos') borrarDestinoLogin();
+    if (esDestinoDeTurnos(leerDestinoLogin())) borrarDestinoLogin();
   }, []);
 
   const otraCuenta = async () => {
