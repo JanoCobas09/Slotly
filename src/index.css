@@ -1772,6 +1772,19 @@ select.form-input {
   color: var(--text-secondary);
 }
 
+/* La G de Google sobre un botón de color: en un cuadrito blanco (guía de
+   marca de Google), ver components/GoogleLogo.jsx. */
+.google-logo-fondo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: #ffffff;
+  flex-shrink: 0;
+}
+
 /* Landing: acceso del cliente que reservó en algún negocio (/mis-turnos). */
 .aviso-verificar-turno {
   display: flex;

@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { isPlatformOwner, PLATFORM_OWNERS } from '../../config/platform';
 import Icon from '../../components/Icon';
+import GoogleLogo from '../../components/GoogleLogo';
 import { leerUltimaCuenta, olvidarUltimaCuenta } from '../../lib/ultimaCuenta';
 // El login con Google de Supabase es un redirect de página completa (a
 // diferencia del popup de Firebase): `location.state` (de dónde venía) no
@@ -170,9 +171,6 @@ export default function LoginPage() {
   return (
     <div className="auth-container">
       <div className="auth-card">
-        <div style={{ textAlign: 'center', marginBottom: 'var(--space-md)' }}>
-          <img src="/img/slotly-logo-full.svg" alt="Slotly" width="200" height="48" style={{ margin: '0 auto' }} />
-        </div>
         <h1>{verificandoTurno ? 'Verificá tu turno' : vieneDeReserva ? 'Reservar turno' : 'Entrá a Slotly'}</h1>
         <p className="auth-subtitle">
           {verificandoTurno
@@ -207,6 +205,7 @@ export default function LoginPage() {
               disabled={Boolean(entrando)}
               style={{ width: '100%', gap: 10 }}
             >
+              <GoogleLogo conFondo />
               {entrando === 'continuar'
                 ? 'Abriendo Google…'
                 : `Continuar como ${(perfil.name || perfil.email).split(/[\s@]/)[0]}`}
@@ -218,12 +217,7 @@ export default function LoginPage() {
               disabled={Boolean(entrando)}
               style={{ width: '100%', gap: 10 }}
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  fill="currentColor"
-                  d="M12 11v3.2h5.3c-.2 1.4-1.6 4-5.3 4a5.7 5.7 0 0 1 0-11.4c1.7 0 2.9.7 3.6 1.4l2.4-2.4A9.1 9.1 0 0 0 12 3a9 9 0 1 0 0 18c5.2 0 8.6-3.6 8.6-8.7 0-.6 0-1-.1-1.4H12z"
-                />
-              </svg>
+              <GoogleLogo />
               {entrando === 'otra' ? 'Abriendo Google…' : 'Usar otra cuenta'}
             </button>
             <button type="button" className="cuenta-recordada-olvidar" onClick={handleOlvidar} disabled={Boolean(entrando)}>
@@ -239,12 +233,7 @@ export default function LoginPage() {
             disabled={Boolean(entrando)}
             style={{ width: '100%', gap: 10 }}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                fill="currentColor"
-                d="M12 11v3.2h5.3c-.2 1.4-1.6 4-5.3 4a5.7 5.7 0 0 1 0-11.4c1.7 0 2.9.7 3.6 1.4l2.4-2.4A9.1 9.1 0 0 0 12 3a9 9 0 1 0 0 18c5.2 0 8.6-3.6 8.6-8.7 0-.6 0-1-.1-1.4H12z"
-              />
-            </svg>
+            <GoogleLogo conFondo />
             {entrando === 'login' ? 'Abriendo Google…' : verificandoTurno ? 'Entrar con Google' : 'Iniciar sesión'}
           </button>
           {!verificandoTurno && (
@@ -255,12 +244,7 @@ export default function LoginPage() {
             disabled={Boolean(entrando)}
             style={{ width: '100%', gap: 10 }}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                fill="currentColor"
-                d="M12 11v3.2h5.3c-.2 1.4-1.6 4-5.3 4a5.7 5.7 0 0 1 0-11.4c1.7 0 2.9.7 3.6 1.4l2.4-2.4A9.1 9.1 0 0 0 12 3a9 9 0 1 0 0 18c5.2 0 8.6-3.6 8.6-8.7 0-.6 0-1-.1-1.4H12z"
-              />
-            </svg>
+            <GoogleLogo />
             {entrando === 'registro' ? 'Abriendo Google…' : 'Registrarme'}
           </button>
           )}
