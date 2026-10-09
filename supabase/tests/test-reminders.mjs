@@ -75,8 +75,10 @@ async function main() {
     const search = await res.json();
     // La búsqueda de Mailpit es por tokens, así que se filtra client-side
     // por la dirección exacta en vez de confiar en `total` a ciegas.
-    const exactos = (search.messages || []).filter((m) => m.To.some((t) => t.Address === clientEmail));
-    ok(exactos.length === 1, `Mailpit recibió exactamente 1 mail para esa dirección — ${JSON.stringify(exactos.length)}`);
+    // Solo los recordatorios: el turno de prueba también dispara la
+    // confirmación al reservar (cola de avisos, mandar-confirmacion).
+    const exactos = (search.messages || []).filter((m) => m.To.some((t) => t.Address === clientEmail) && m.Subject.startsWith('Recordatorio'));
+    ok(exactos.length === 1, `Mailpit recibió exactamente 1 recordatorio para esa dirección — ${JSON.stringify(exactos.length)}`);
     if (exactos.length === 1) {
       ok(exactos[0].Subject.includes('12:00') && exactos[0].Subject.includes('Negocio Recordatorios'), `asunto correcto — "${exactos[0].Subject}"`);
     }

@@ -1208,6 +1208,28 @@ dominio de más autorizado no es un agujero de seguridad, solo ruido).
    cada send-push (`enviados`/`fallidos`/`avisadosPorMail`).
    `supabase/tests/test-push-caido.mjs` 16/16 (usa httpbin.org/status/410 y
    /201 como servicio de push: web-push solo habla HTTPS).
+5t. **Cola de avisos: ninguno se pierde en silencio (09/10/2026).** Migración
+   `20261022000000_cola_de_avisos.sql`. Los triggers ya no llaman a las Edge
+   Functions con pg_net "y listo": `encolar_envio(funcion, payload)` guarda una
+   fila en `envios_pendientes` (sin acceso desde el browser) y la despacha con
+   `envioId`. La función la marca `procesado_at` (`_shared/envios.ts`,
+   `marcarEnvio`) recién cuando el aviso le llegó a todos o no hay forma de
+   que llegue; si no, `reintentar_envios()` (pg_cron `reintentar-envios`, cada
+   2 min) la vuelve a mandar con espera 2/4/8/16/32 min, hasta 6 intentos y
+   6 h. `progreso.avisados` evita repetirle el aviso a quien ya lo recibió.
+   Pasan por la cola: `send-push` (turno nuevo y cancelaciones),
+   `notify-cancellation` y **`mandar-confirmacion`** (Edge Function nueva: la
+   confirmación al cliente; antes salía de create-appointment / mp-webhook en
+   un solo intento — ya no la mandan ellos, la encola `notificar_nuevo_turno`).
+   `send-push` con `avisarSinPush` (solo turno nuevo): el dueño (`admins`
+   role owner) que NO tiene push registrado recibe el aviso por mail. Si alguna
+   vez cambia algún aviso disparado desde la base, que pase por
+   `encolar_envio` y que su función llame a `marcarEnvio`. Diagnóstico:
+   `select funcion, intentos, procesado_at, payload from envios_pendientes
+   where procesado_at is null` (se borran a los 7 días).
+   `supabase/tests/test-cola-avisos.mjs` 19/19 (incluye Edge Functions caídas
+   al reservar → el cron lo recupera). test-reminders ahora cuenta solo
+   recordatorios (el turno de prueba también recibe la confirmación).
 6. **Abuso de reservas.** Hecho: un turno por día y tope de 3 a futuro por
    cuenta. Falta, por orden: bloquear cliente desde el panel (para la cuenta que
    se porta mal), y App Check con reCAPTCHA v3 sobre los callables para frenar

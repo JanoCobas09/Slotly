@@ -16,7 +16,6 @@
 import { corsHeaders } from '../_shared/cors.ts';
 import { supabaseAdmin, jsonResponse } from '../_shared/auth.ts';
 import { tokenDeNegocio, obtenerPago, devolverPago } from '../_shared/mercadopago.ts';
-import { mandarConfirmacion } from '../_shared/confirmacionTurno.ts';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -75,10 +74,7 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
       if (actualizado) {
-        const promesaMail = mandarConfirmacion(admin, actualizado);
-        // @ts-ignore EdgeRuntime es un global del runtime de Supabase, no de Deno estándar.
-        if (typeof EdgeRuntime !== 'undefined') EdgeRuntime.waitUntil(promesaMail);
-        else await promesaMail;
+        // La confirmación al cliente la encola handle_sena_pagada (mandar-confirmacion).
         return jsonResponse({ status: 'pagada' }, corsHeaders);
       }
     }

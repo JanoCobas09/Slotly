@@ -11,6 +11,7 @@ import { corsHeaders } from '../_shared/cors.ts';
 import { supabaseAdmin, errorResponse, jsonResponse, unauthenticated, invalidArgument } from '../_shared/auth.ts';
 import { enviarMail, smtpConfigurado } from '../_shared/mail.ts';
 import { plantillaHtml } from '../_shared/emailTemplate.ts';
+import { marcarEnvio } from '../_shared/envios.ts';
 
 function fechaLinda(fechaISO: string): string {
   const d = new Date(`${fechaISO}T12:00:00Z`);
@@ -28,18 +29,26 @@ Deno.serve(async (req) => {
       throw unauthenticated('Esto solo lo puede llamar el propio proyecto (trigger).');
     }
 
-    const { appointmentId } = await req.json();
+    const { appointmentId, envioId = null } = await req.json();
     if (!appointmentId) throw invalidArgument('Falta appointmentId.');
 
-    if (!smtpConfigurado()) return jsonResponse({ status: 'sin-credenciales' }, corsHeaders);
-
+    // Cola de avisos (20261022000000_cola_de_avisos.sql): se marca listo cuando
+    // el mail salió o no hay a quién mandarlo; si falló el SMTP, el cron reintenta.
     const admin = supabaseAdmin();
+    if (!smtpConfigurado()) {
+      await marcarEnvio(admin, envioId, { listo: true });
+      return jsonResponse({ status: 'sin-credenciales' }, corsHeaders);
+    }
+
     const { data: turno } = await admin
       .from('appointments')
       .select('business_id, professional_id, client_name, service_name, appointment_date, start_time, end_time, cancellation_reason')
       .eq('id', appointmentId)
       .maybeSingle();
-    if (!turno) return jsonResponse({ status: 'turno-no-encontrado' }, corsHeaders);
+    if (!turno) {
+      await marcarEnvio(admin, envioId, { listo: true });
+      return jsonResponse({ status: 'turno-no-encontrado' }, corsHeaders);
+    }
 
     const { data: dueños } = await admin
       .from('admins')
@@ -47,7 +56,10 @@ Deno.serve(async (req) => {
       .eq('business_id', turno.business_id)
       .eq('role', 'owner');
     const destinatarios = (dueños || []).map((d) => d.email).filter(Boolean);
-    if (destinatarios.length === 0) return jsonResponse({ status: 'sin-destinatarios' }, corsHeaders);
+    if (destinatarios.length === 0) {
+      await marcarEnvio(admin, envioId, { listo: true });
+      return jsonResponse({ status: 'sin-destinatarios' }, corsHeaders);
+    }
 
     const { data: negocio } = await admin.from('businesses').select('name').eq('id', turno.business_id).maybeSingle();
     const { data: profesional } = turno.professional_id
@@ -89,6 +101,7 @@ Deno.serve(async (req) => {
       const ok = await enviarMail({ to, subject: asunto, text: texto, html, fromName: negocioNombre });
       if (ok) enviados++;
     }
+    await marcarEnvio(admin, envioId, { listo: enviados === destinatarios.length });
 
     return jsonResponse({ status: 'processed', enviados }, corsHeaders);
   } catch (err) {

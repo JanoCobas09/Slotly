@@ -22,7 +22,6 @@ import {
   errorDeFuncionSql,
   failedPrecondition,
 } from '../_shared/auth.ts';
-import { mandarConfirmacion } from '../_shared/confirmacionTurno.ts';
 import { tokenDeNegocio, crearPreferencia, origenPermitido } from '../_shared/mercadopago.ts';
 
 Deno.serve(async (req) => {
@@ -105,14 +104,8 @@ Deno.serve(async (req) => {
       }, corsHeaders);
     }
 
-    // No se espera a que termine (el mail puede tardar) para no demorar la
-    // respuesta al cliente — el turno ya está confirmado, esto es un aviso
-    // aparte. `EdgeRuntime.waitUntil` deja que Deno termine el envío aunque
-    // la respuesta HTTP ya haya vuelto.
-    const promesaMail = mandarConfirmacion(admin, data);
-    // @ts-ignore EdgeRuntime es un global del runtime de Supabase, no de Deno estándar.
-    if (typeof EdgeRuntime !== 'undefined') EdgeRuntime.waitUntil(promesaMail);
-    else await promesaMail;
+    // El mail de confirmación no sale de acá: lo encola el trigger del turno
+    // nuevo (mandar-confirmacion, con reintentos — 20261022000000_cola_de_avisos.sql).
 
     return jsonResponse(
       { status: 'created', id: data.id, price: data.price, endTime: data.end_time },

@@ -1,9 +1,11 @@
 // ============================================================================
 // Mail de confirmación de un turno al cliente
 // ============================================================================
-// Lo manda create-appointment apenas se reserva un turno sin seña, y
-// mp-webhook cuando se paga la seña de uno que la pedía (antes de eso el
-// turno todavía no está confirmado: si no se paga, se libera solo).
+// Lo manda la Edge Function mandar-confirmacion, que encola el trigger del
+// turno nuevo (notificar_nuevo_turno) apenas se reserva un turno sin seña, o
+// cuando se paga la seña de uno que la pedía (antes de eso el turno todavía
+// no está confirmado: si no se paga, se libera solo). Si el mail no sale, la
+// cola de avisos lo reintenta (20261022000000_cola_de_avisos.sql).
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { enviarMail } from './mail.ts';
 import { plantillaHtml } from './emailTemplate.ts';
@@ -24,15 +26,15 @@ export interface TurnoParaMail {
 /**
  * Sale al toque — a diferencia del recordatorio de send-reminders (que sale
  * recién ~3hs antes): quien acaba de reservar tiene el teléfono en la mano
- * en ese momento. Nunca puede tirar abajo la reserva ya hecha: cualquier
- * error acá se loguea y se sigue.
+ * en ese momento. Nunca tira error: devuelve si el mail salió (false = hay
+ * que reintentar).
  */
-export async function mandarConfirmacion(admin: SupabaseClient, turno: TurnoParaMail) {
-  if (!turno.client_email) return;
+export async function mandarConfirmacion(admin: SupabaseClient, turno: TurnoParaMail): Promise<boolean> {
+  if (!turno.client_email) return false;
   try {
     const { data: negocioBase } = await admin.from('businesses').select('name, address, phone').eq('id', turno.business_id).maybeSingle();
     const { data: profesional } = await admin.from('professionals').select('name').eq('id', turno.professional_id).maybeSingle();
-    if (!negocioBase) return; // no debería pasar (el turno ya se creó contra este negocio), pero sin nombre no hay mail que armar
+    if (!negocioBase) return false; // no debería pasar (el turno ya se creó contra este negocio), pero sin nombre no hay mail que armar
 
     // Sucursal: su dirección y teléfono pisan los del negocio, y si el
     // negocio tiene más de una se aclara en cuál es el turno.
@@ -77,8 +79,9 @@ export async function mandarConfirmacion(admin: SupabaseClient, turno: TurnoPara
       nota,
     });
 
-    await enviarMail({ to: turno.client_email, subject: asunto, text: texto, html, fromName: negocio.name });
+    return await enviarMail({ to: turno.client_email, subject: asunto, text: texto, html, fromName: negocio.name });
   } catch (err) {
     console.error('[confirmacionTurno] No se pudo mandar la confirmación por mail:', err);
+    return false;
   }
 }

@@ -44,12 +44,12 @@ function vapidListo(): boolean {
  * 404/410 para siempre: se marca `baja_at` y no se le vuelve a mandar. No se
  * borra: esa fila es la que le dice a send-push que esa persona quería avisos
  * y tiene que recibirlos por mail mientras no se vuelva a registrar.
- * `entregados` son los endpoints a los que llegó.
+ * `entregados` son los endpoints a los que llegó; `caidos`, los que se dieron de baja.
  */
 export async function enviarWebPush(admin: SupabaseClient, destinatarios: PushRow[], payload: PushPayload) {
   if (!vapidListo()) {
     console.warn('[webpush] Faltan VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY: no se manda nada.');
-    return { enviados: 0, fallidos: 0, entregados: [] as string[] };
+    return { enviados: 0, fallidos: 0, entregados: [] as string[], caidos: [] as string[] };
   }
   webpush.setVapidDetails(
     Deno.env.get('VAPID_SUBJECT') || 'mailto:soporte@slotly.app',
@@ -60,6 +60,7 @@ export async function enviarWebPush(admin: SupabaseClient, destinatarios: PushRo
   let enviados = 0;
   let fallidos = 0;
   const entregados: string[] = [];
+  const caidos: string[] = [];
   const cuerpo = JSON.stringify({ title: payload.title, body: payload.body, url: payload.url || '/admin/citas', icon: payload.icon || null });
 
   await Promise.all(destinatarios.map(async (d) => {
@@ -81,6 +82,7 @@ export async function enviarWebPush(admin: SupabaseClient, destinatarios: PushRo
       const status = (err as { statusCode?: number }).statusCode;
       if (status === 404 || status === 410) {
         console.warn(`[webpush] Suscripción caída (${status}), se marca de baja: ${d.endpoint}`);
+        caidos.push(d.endpoint);
         await admin.from('push_subscriptions').update({ baja_at: new Date().toISOString() }).eq('endpoint', d.endpoint);
       } else {
         console.error(`[webpush] No se pudo mandar a ${d.endpoint}:`, err);
@@ -88,5 +90,5 @@ export async function enviarWebPush(admin: SupabaseClient, destinatarios: PushRo
     }
   }));
 
-  return { enviados, fallidos, entregados };
+  return { enviados, fallidos, entregados, caidos };
 }
