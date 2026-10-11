@@ -46,6 +46,8 @@ const SettingsPage        = lazy(() => import('./pages/admin/SettingsPage'));
 const AdminsPage          = lazy(() => import('./pages/admin/AdminsPage'));
 const ProfileSettingsPage = lazy(() => import('./pages/admin/ProfileSettingsPage'));
 const SupportPage         = lazy(() => import('./pages/admin/SupportPage'));
+const ClientesPage        = lazy(() => import('./pages/admin/ClientesPage'));
+const ClienteFichaPage    = lazy(() => import('./pages/admin/ClienteFichaPage'));
 const SucursalesPage      = lazy(() => import('./pages/admin/SucursalesPage'));
 // Administrador de sucursal
 const EquipoSucursalPage  = lazy(() => import('./pages/admin/EquipoSucursalPage'));
@@ -321,6 +323,8 @@ export default function App() {
           <Route path="promociones" element={<SoloDueno><PromotionsPage /></SoloDueno>} />
           <Route path="dias-bloqueados" element={<BlockedDaysPage />} />
           <Route path="citas" element={<AppointmentsPage />} />
+          <Route path="clientes" element={<ClientesPage />} />
+          <Route path="clientes/:id" element={<ClienteFichaPage />} />
           <Route path="admins" element={<AdminsPage />} />
           <Route path="configuracion" element={<SoloDueno><SettingsPage /></SoloDueno>} />
           <Route path="ajustes" element={<ProfileSettingsPage />} />

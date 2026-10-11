@@ -36,3 +36,26 @@ export function confirmacionCancelar(apt) {
     + sena
     + '¿Cancelarlo igual?';
 }
+
+/** Etiqueta y clase de badge de cada estado de turno (los que usa la base). */
+export const ESTADOS_TURNO = {
+  pendiente:  { label: 'Pendiente',  clase: 'badge-warning' },
+  confirmada: { label: 'Confirmada', clase: 'badge-success' },
+  completada: { label: 'Completada', clase: 'badge-primary' },
+  cancelada:  { label: 'Cancelada',  clase: 'badge-danger' },
+  no_asistio: { label: 'No asistió', clase: 'badge-danger' },
+};
+
+/**
+ * ¿Quien está logueado puede escribir en la documentación de este turno
+ * (comentarios y archivos)? Mismo criterio que turno_documentable() en la
+ * base, que es la que de verdad decide: esto solo evita mostrar botones que
+ * van a fallar.
+ */
+export function puedeDocumentar(user, apt) {
+  if (!user || !apt || user.isPlatformTeam) return false;
+  if (user.role === 'owner') return true;
+  if (user.role === 'admin') return Boolean(user.professionalId) && apt.professionalId === user.professionalId;
+  if (user.role === 'manager') return Boolean(user.branchId) && apt.branchId === user.branchId;
+  return false;
+}

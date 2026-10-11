@@ -209,3 +209,16 @@ export function devolverSena({ appointmentId }) {
 export function estadoSena({ appointmentId }) {
   return llamar('estado-sena', { appointmentId });
 }
+
+/**
+ * Último paso de la subida de un archivo a un turno: valida el contenido real
+ * (no la extensión) y lo deja visible. Ver supabase/functions/confirmar-adjunto.
+ */
+export function confirmarAdjunto({ adjuntoId }) {
+  return llamar('confirmar-adjunto', { adjuntoId });
+}
+
+/** Borra un archivo de un turno (objeto + fila). Quien lo subió o el dueño. */
+export function eliminarAdjunto({ adjuntoId }) {
+  return llamar('eliminar-adjunto', { adjuntoId });
+}

@@ -26,6 +26,7 @@ export const LIMITES = {
   email: 254,
   url: 2000,
   instagram: 31,
+  observaciones: 2000,
 };
 
 const HORA = /^([01][0-9]|2[0-3]):[0-5][0-9]$/;
@@ -167,4 +168,14 @@ export function normalizarInstagram(t) {
   const s = String(t ?? '').trim();
   const deLink = /instagram\.com\/([^/?#\s]+)/i.exec(s)?.[1];
   return (deLink || s).replace(/^@/, '');
+}
+
+/** Ficha de cliente (sección Clientes). Mismos topes que la tabla `clientes`. */
+export function validarCliente({ nombre, telefono, email, observaciones }, { conCuenta = false } = {}) {
+  if (vacio(nombre)) return problema('nombre', 'Poné el nombre del cliente.');
+  if (largo(nombre) > LIMITES.nombreCliente) return problema('nombre', `El nombre puede tener hasta ${LIMITES.nombreCliente} caracteres.`);
+  if (!esTelefono(telefono)) return problema('telefono', 'El teléfono no es válido: usá solo números, con código de área.');
+  if (!conCuenta && !esEmail(email)) return problema('email', 'Ingresá un email válido (ej: nombre@gmail.com).');
+  if (largo(observaciones) > LIMITES.observaciones) return problema('observaciones', `Las observaciones pueden tener hasta ${LIMITES.observaciones} caracteres.`);
+  return null;
 }

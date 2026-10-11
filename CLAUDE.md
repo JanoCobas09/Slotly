@@ -1230,6 +1230,26 @@ dominio de más autorizado no es un agujero de seguridad, solo ruido).
    `supabase/tests/test-cola-avisos.mjs` 19/19 (incluye Edge Functions caídas
    al reservar → el cron lo recupera). test-reminders ahora cuenta solo
    recordatorios (el turno de prueba también recibe la confirmación).
+5u. **Sección Clientes (11/10/2026, rama `feat/clientes`, SIN aplicar en
+   producción).** Diseño, decisiones y pasos para publicar en
+   `PLAN-CLIENTES.md`. Migración `20261023000000_clientes.sql`: `clientes`
+   (ficha POR negocio), `appointments.cliente_id` (FK compuesta con
+   business_id: no se puede apuntar a otro negocio), `turno_comentarios`,
+   `turno_adjuntos` (solo metadatos) y bucket PRIVADO `turno-adjuntos`.
+   Vínculo: solo los turnos `client` creados por el servidor con el uid de
+   quien reservó (trigger `appointments_vincular_cliente`); los `manual`
+   tienen el uid del STAFF en `user_id`, así que se vinculan a mano
+   (`vincular_turno_cliente`, `crear_cliente_desde_turno`). El nombre arranca
+   con el de Google y nunca se vuelve a pisar. Archivos: `iniciar_adjunto()`
+   reserva fila+ruta → URL firmada → PUT directo a Storage (XHR, progreso y
+   cancelar) → Edge Function `confirmar-adjunto` valida la firma real del
+   archivo leyendo 1 KB con Range. Borrar: `eliminar-adjunto`. Limpieza:
+   `limpiar-adjuntos` (cron diario, falta programarlo). Fotos optimizadas en
+   el navegador (`utils/archivos.js`). Consultas paginadas en el servidor:
+   `listar_clientes`, `ficha_cliente`, `historial_cliente`. Front:
+   `pages/admin/ClientesPage.jsx`, `ClienteFichaPage.jsx`,
+   `components/admin/clientes/*`, y `DetalleTurnoModal` suma ficha +
+   documentación. `supabase/tests/test-clientes.mjs` 83/83.
 6. **Abuso de reservas.** Hecho: un turno por día y tope de 3 a futuro por
    cuenta. Falta, por orden: bloquear cliente desde el panel (para la cuenta que
    se porta mal), y App Check con reCAPTCHA v3 sobre los callables para frenar

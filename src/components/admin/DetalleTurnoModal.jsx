@@ -2,19 +2,13 @@ import { useTenant } from '../../hooks/useTenantData';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
 import { formatDate, formatPrice } from '../../utils/dateUtils';
 import { capitalize } from '../../utils/text';
-import { esReservaDelCliente } from '../../utils/turnos';
+import { esReservaDelCliente, ESTADOS_TURNO as ESTADOS } from '../../utils/turnos';
 import { datosDe, hayVariasSucursales, nombreSucursal } from '../../utils/sucursales';
 import AvisoWhatsApp from './AvisoWhatsApp';
 import SenaTurno from './SenaTurno';
+import ClienteDelTurno from './clientes/ClienteDelTurno';
+import DocumentacionTurno from './clientes/DocumentacionTurno';
 import Icon from '../Icon';
-
-const ESTADOS = {
-  pendiente:  { label: 'Pendiente',  clase: 'badge-warning' },
-  confirmada: { label: 'Confirmada', clase: 'badge-success' },
-  completada: { label: 'Completada', clase: 'badge-primary' },
-  cancelada:  { label: 'Cancelada',  clase: 'badge-danger' },
-  no_asistio: { label: 'No asistió', clase: 'badge-danger' },
-};
 
 const fechaHora = (iso) => new Date(iso).toLocaleString('es-AR', {
   day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit',
@@ -66,7 +60,7 @@ export default function DetalleTurnoModal({ aptId, onClose, acciones = null, isO
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content detalle-turno" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 460 }}>
+      <div className="modal-content detalle-turno" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 560 }}>
         <div className="modal-header">
           <div>
             <h3 style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -108,6 +102,8 @@ export default function DetalleTurnoModal({ aptId, onClose, acciones = null, isO
             )}
           </dl>
 
+          <ClienteDelTurno apt={apt} onNavegar={onClose} />
+
           {apt.depositStatus && <div style={{ marginTop: 'var(--space-sm)' }}><SenaTurno apt={apt} isOwner={isOwner} /></div>}
 
           {cancelada && (
@@ -128,6 +124,8 @@ export default function DetalleTurnoModal({ aptId, onClose, acciones = null, isO
               )}
             </div>
           )}
+
+          <DocumentacionTurno apt={apt} />
         </div>
 
         {/* Las acciones (editar, completar, cancelar...) son solo de un turno

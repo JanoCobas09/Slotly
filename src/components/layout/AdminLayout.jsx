@@ -23,6 +23,7 @@ const ownerNavItems = [
   { to: '/admin/servicios',     icon: 'services',   label: 'Servicios' },
   { to: '/admin/promociones',   icon: 'tag',        label: 'Promociones' },
   { to: '/admin/citas',         icon: 'calendar',   label: 'Citas' },
+  { to: '/admin/clientes',      icon: 'user',       label: 'Clientes' },
   { to: '/admin/dias-bloqueados', icon: 'lock',     label: 'Días bloqueados' },
   { to: '/admin/admins',        icon: 'shield',     label: 'Administradores' },
   { to: '/admin/configuracion', icon: 'settings',   label: 'Configuración' },
@@ -35,6 +36,7 @@ const adminNavItems = [
   // La tabla con confirmar / completar / no asistió / cancelar y "Agendar
   // turno". Sin esta entrada el staff no tenía forma de llegar.
   { to: '/admin/citas',   icon: 'calendar', label: 'Mi Agenda' },
+  { to: '/admin/clientes', icon: 'user',     label: 'Mis clientes' },
   { to: '/admin/dias-bloqueados', icon: 'lock', label: 'Mis días libres' },
   { to: '/admin/ajustes', icon: 'settings', label: 'Mi Configuración' },
   { to: '/admin/soporte', icon: 'chat',     label: 'Soporte' },
@@ -44,6 +46,7 @@ const adminNavItems = [
 const managerNavItems = [
   { to: '/admin',                 icon: 'home',     label: 'Inicio', end: true },
   { to: '/admin/citas',           icon: 'calendar', label: 'Citas' },
+  { to: '/admin/clientes',        icon: 'user',     label: 'Clientes' },
   { to: '/admin/equipo',          icon: 'users',    label: 'Equipo' },
   { to: '/admin/dias-bloqueados', icon: 'lock',     label: 'Días bloqueados' },
   { to: '/admin/mi-sucursal',     icon: 'building', label: 'Mi sucursal' },

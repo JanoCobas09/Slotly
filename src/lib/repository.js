@@ -132,6 +132,10 @@ const MENSAJES_VALIDACION = {
   businesses_extras_validos: 'Los extras tienen que ser un número entre 0 y 50.',
   avisos_plataforma_titulo_valido: 'El título del aviso tiene que tener entre 1 y 120 caracteres.',
   avisos_plataforma_mensaje_valido: 'El mensaje del aviso tiene que tener entre 1 y 2000 caracteres.',
+  clientes_nombre_valido: 'El nombre del cliente tiene que tener entre 1 y 120 caracteres.',
+  clientes_contacto_valido: 'Revisá el contacto: el email tiene que ser válido y el teléfono solo números (con código de área).',
+  clientes_observaciones_validas: 'Las observaciones pueden tener hasta 2000 caracteres.',
+  turno_comentarios_texto_valido: 'El comentario no puede estar vacío ni pasar los 4000 caracteres.',
 };
 
 function traducirError(error) {
@@ -1198,4 +1202,207 @@ export async function savePlatformConfig(name, data) {
   const nuevo = { ...(actual?.data || {}), [name]: { ...(actual?.data?.[name] || {}), ...data } };
   const { error } = await supabase.from('platform_config').upsert({ id: true, data: nuevo });
   if (error) throw traducirError(error);
+}
+
+// ============================================================================
+// CLIENTES — ficha por negocio, historial, comentarios y archivos por turno
+// ============================================================================
+// Todo se pide a demanda y paginado del lado del servidor (no hay
+// suscripciones en vivo para esto: la ficha de un cliente no cambia mientras
+// se mira, y el historial puede tener miles de turnos). Los permisos los
+// decide la base (RLS + funciones en 20261023000000_clientes.sql); acá solo
+// se arman las consultas. Diseño en PLAN-CLIENTES.md.
+
+export const CLIENTES_POR_PAGINA = 25;
+export const TURNOS_POR_PAGINA = 20;
+export const COMENTARIOS_POR_PAGINA = 30;
+export const BUCKET_ADJUNTOS = 'turno-adjuntos';
+
+/** Página de fichas con búsqueda, filtro y orden. Devuelve `{ clientes, total }`. */
+export async function listarClientes(businessId, { busqueda = '', filtro = 'todos', orden = 'reciente', pagina = 0, porPagina = CLIENTES_POR_PAGINA } = {}) {
+  const { data, error } = await supabase.rpc('listar_clientes', {
+    p_business_id: businessId,
+    p_busqueda: busqueda.trim() || null,
+    p_filtro: filtro,
+    p_orden: orden,
+    p_limite: porPagina,
+    p_offset: pagina * porPagina,
+  });
+  if (error) throw traducirError(error);
+  return { clientes: rows('clientes', data), total: Number(data?.[0]?.total || 0) };
+}
+
+/** Ficha con sus métricas (total, último y próximo turno...). null si no se puede ver. */
+export async function getFichaCliente(clienteId) {
+  const { data, error } = await supabase.rpc('ficha_cliente', { p_cliente_id: clienteId });
+  if (error) throw traducirError(error);
+  return data ? fromRow('clientes', data) : null;
+}
+
+/** Ficha nueva sin cuenta (solo el dueño). Devuelve el id. */
+export async function crearCliente(businessId, { nombre, telefono = '', email = '', observaciones = '' }) {
+  const { data, error } = await supabase
+    .from('clientes')
+    .insert({
+      business_id: businessId,
+      nombre: nombre.trim(),
+      telefono: telefono.trim() || null,
+      email: email.trim() || null,
+      observaciones: observaciones.trim() || null,
+    })
+    .select('id')
+    .single();
+  if (error) throw traducirError(error);
+  return data.id;
+}
+
+/** Edita lo editable de la ficha (el mail solo en fichas sin cuenta: lo frena la base). */
+export async function actualizarCliente(clienteId, cambios) {
+  const fila = {};
+  if (cambios.nombre !== undefined) fila.nombre = cambios.nombre.trim();
+  if (cambios.telefono !== undefined) fila.telefono = cambios.telefono.trim() || null;
+  if (cambios.email !== undefined) fila.email = cambios.email.trim() || null;
+  if (cambios.observaciones !== undefined) fila.observaciones = cambios.observaciones.trim() || null;
+  const { data, error } = await supabase.from('clientes').update(fila).eq('id', clienteId).select('id');
+  if (error) throw traducirError(error);
+  if (!data?.length) throw new Error('No tenés permiso para editar esta ficha.');
+}
+
+/**
+ * Historial paginado (más reciente primero). Cada turno trae cuántos
+ * comentarios y archivos tiene. Devuelve `{ turnos, total }`.
+ */
+export async function getHistorialCliente(clienteId, { desde = null, hasta = null, estado = null, servicioId = null, pagina = 0, porPagina = TURNOS_POR_PAGINA } = {}) {
+  const { data, error } = await supabase.rpc('historial_cliente', {
+    p_cliente_id: clienteId,
+    p_desde: desde || null,
+    p_hasta: hasta || null,
+    p_estado: estado || null,
+    p_servicio_id: servicioId || null,
+    p_limite: porPagina,
+    p_offset: pagina * porPagina,
+  });
+  if (error) throw traducirError(error);
+  return { turnos: rows('appointments', data), total: Number(data?.[0]?.total || 0) };
+}
+
+/** Vincula un turno cargado a mano a una ficha (o lo desvincula con `null`). */
+export async function vincularTurnoCliente(appointmentId, clienteId) {
+  const { error } = await supabase.rpc('vincular_turno_cliente', { p_appointment_id: appointmentId, p_cliente_id: clienteId });
+  if (error) throw traducirError(error);
+}
+
+/** Crea una ficha con los datos de un turno cargado a mano y se lo vincula. Devuelve el id. */
+export async function crearClienteDesdeTurno(appointmentId, { nombre = null, telefono = null, email = null } = {}) {
+  const { data, error } = await supabase.rpc('crear_cliente_desde_turno', {
+    p_appointment_id: appointmentId, p_nombre: nombre, p_telefono: telefono, p_email: email,
+  });
+  if (error) throw traducirError(error);
+  return data;
+}
+
+// ── Comentarios del turno ──────────────────────────────────────────────────
+
+const COLUMNAS_COMENTARIO = 'id, appointment_id, autor_id, autor_nombre, texto, created_at, updated_at';
+
+/** Página de comentarios, más nuevos primero. `antesDe`: created_at del último que ya se tiene. */
+export async function listarComentarios(appointmentId, { antesDe = null, limite = COMENTARIOS_POR_PAGINA } = {}) {
+  let q = supabase
+    .from('turno_comentarios')
+    .select(COLUMNAS_COMENTARIO)
+    .eq('appointment_id', appointmentId)
+    .order('created_at', { ascending: false })
+    .limit(limite + 1);
+  if (antesDe) q = q.lt('created_at', antesDe);
+  const { data, error } = await q;
+  if (error) throw traducirError(error);
+  const lista = rows('turno_comentarios', data);
+  return { comentarios: lista.slice(0, limite), hayMas: lista.length > limite };
+}
+
+/** El negocio y el autor los completa la base (trigger): no se mandan. */
+export async function crearComentario(appointmentId, texto) {
+  const { data, error } = await supabase
+    .from('turno_comentarios')
+    .insert({ appointment_id: appointmentId, texto: texto.trim() })
+    .select(COLUMNAS_COMENTARIO)
+    .single();
+  if (error) throw traducirError(error);
+  return fromRow('turno_comentarios', data);
+}
+
+export async function editarComentario(id, texto) {
+  const { data, error } = await supabase
+    .from('turno_comentarios')
+    .update({ texto: texto.trim() })
+    .eq('id', id)
+    .select(COLUMNAS_COMENTARIO);
+  if (error) throw traducirError(error);
+  if (!data?.length) throw new Error('Solo quien escribió el comentario lo puede editar.');
+  return fromRow('turno_comentarios', data[0]);
+}
+
+export async function borrarComentario(id) {
+  const { data, error } = await supabase.from('turno_comentarios').delete().eq('id', id).select('id');
+  if (error) throw traducirError(error);
+  if (!data?.length) throw new Error('No podés borrar este comentario.');
+}
+
+// ── Archivos del turno ─────────────────────────────────────────────────────
+
+let limitesAdjuntos = null;
+/** Límites de tamaño y tipos (una sola fuente: adjuntos_limites() en la base). */
+export async function getLimitesAdjuntos() {
+  if (limitesAdjuntos) return limitesAdjuntos;
+  const { data, error } = await supabase.rpc('adjuntos_limites');
+  if (error) throw traducirError(error);
+  limitesAdjuntos = data;
+  return data;
+}
+
+/** Archivos ya validados del turno (solo metadatos: nada de contenido). */
+export async function listarAdjuntos(appointmentId) {
+  const { data, error } = await supabase
+    .from('turno_adjuntos')
+    .select('id, appointment_id, subido_por, subido_por_nombre, nombre_original, categoria, mime, tamano_bytes, ruta_objeto, ruta_miniatura, ancho, alto, created_at')
+    .eq('appointment_id', appointmentId)
+    .eq('estado', 'listo')
+    .order('created_at', { ascending: false })
+    .limit(100);
+  if (error) throw traducirError(error);
+  return rows('turno_adjuntos', data);
+}
+
+/** Paso 1 de la subida: reserva la fila y la ruta. Devuelve `{ id, ruta, rutaMiniatura }`. */
+export async function iniciarAdjunto(appointmentId, { nombre, mime, tamano, conMiniatura = false, ancho = null, alto = null }) {
+  const { data, error } = await supabase.rpc('iniciar_adjunto', {
+    p_appointment_id: appointmentId, p_nombre: nombre, p_mime: mime, p_tamano: tamano,
+    p_con_miniatura: conMiniatura, p_ancho: ancho, p_alto: alto,
+  });
+  if (error) throw traducirError(error);
+  return data;
+}
+
+/** URL firmada para subir directo a Storage (la policy exige la fila pendiente propia). */
+export async function urlDeSubida(ruta) {
+  const { data, error } = await supabase.storage.from(BUCKET_ADJUNTOS).createSignedUploadUrl(ruta);
+  if (error) throw traducirError(error);
+  return data.signedUrl;
+}
+
+/** URLs firmadas de varias miniaturas en una sola petición. Devuelve `{ ruta: url }`. */
+export async function urlsDeMiniaturas(rutas, segundos = 600) {
+  if (!rutas.length) return {};
+  const { data, error } = await supabase.storage.from(BUCKET_ADJUNTOS).createSignedUrls(rutas, segundos);
+  if (error) throw traducirError(error);
+  return Object.fromEntries((data || []).filter((d) => d.signedUrl).map((d) => [d.path, d.signedUrl]));
+}
+
+/** URL firmada de 60 s para ver o bajar un archivo. Con `nombre`, fuerza la descarga con ese nombre. */
+export async function urlDeAdjunto(ruta, { nombre = null } = {}) {
+  const { data, error } = await supabase.storage
+    .from(BUCKET_ADJUNTOS)
+    .createSignedUrl(ruta, 60, nombre ? { download: nombre } : undefined);
+  if (error) throw traducirError(error);
+  return data.signedUrl;
 }

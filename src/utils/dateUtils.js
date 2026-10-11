@@ -40,6 +40,13 @@ export function formatDateShort(dateStr) {
   return `${day} ${month}`;
 }
 
+/** '2025-03-07' → '7 mar 2025'; sin el año si es el actual ('7 mar'). */
+export function formatFechaCorta(dateStr) {
+  const anio = String(dateStr).slice(0, 4);
+  const corta = formatDateShort(dateStr);
+  return anio === String(new Date().getFullYear()) ? corta : `${corta} ${anio}`;
+}
+
 export function formatPrice(price, currency = 'ARS') {
   return new Intl.NumberFormat('es-AR', {
     style: 'currency',
