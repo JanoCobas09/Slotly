@@ -116,25 +116,28 @@
         var ctx;
         try { ctx = new AC(); } catch (e) { return; }
         var cerrar = function () { try { ctx.close(); } catch (e) { /* nada */ } };
-        var NOTAS = [[1046.5, .42], [1318.5, .54], [1568, .66]]; // [Hz, segundo de la animación]
+        // Una octava abajo de la primera versión (do6-mi6-sol6), que en el
+        // parlante del celular sonaba aguda.
+        var NOTAS = [[523.25, .42], [659.25, .54], [784, .66]]; // [Hz, segundo de la animación]
         var tocar = function () {
           var transcurrido = (performance.now() - inicio) / 1000;
           var salida = ctx.createGain();
-          salida.gain.value = .9;
+          salida.gain.value = .8;
           salida.connect(ctx.destination);
           NOTAS.forEach(function (n, i) {
             var t = ctx.currentTime + n[1] - transcurrido;
             if (t < ctx.currentTime) return;
-            var dur = i === NOTAS.length - 1 ? 1.1 : .7;
-            // Fundamental + dos armónicos que se apagan antes: suena a
-            // campanita y no a pitido.
-            [[1, .13], [2, .025], [3, .012]].forEach(function (armonico) {
+            var dur = i === NOTAS.length - 1 ? 1.4 : .9;
+            // Fundamental + un armónico apenas audible que se apaga antes:
+            // redondo, sin brillo de campanita. Entrada lenta (35 ms) para
+            // que la nota no "golpee".
+            [[1, .11], [2, .012]].forEach(function (armonico) {
               var osc = ctx.createOscillator();
               var vol = ctx.createGain();
               osc.type = 'sine';
               osc.frequency.value = n[0] * armonico[0];
               vol.gain.setValueAtTime(0, t);
-              vol.gain.linearRampToValueAtTime(armonico[1], t + .008);
+              vol.gain.linearRampToValueAtTime(armonico[1], t + .035);
               vol.gain.exponentialRampToValueAtTime(.0001, t + dur / armonico[0]);
               osc.connect(vol);
               vol.connect(salida);
