@@ -262,7 +262,7 @@ export default function AdminLayout() {
               <h3 id="salir-app-titulo">¿Querés salir de la aplicación?</h3>
               {salida.noSeCerro && (
                 <p className="text-sm text-muted" style={{ marginTop: 8 }}>
-                  Tu teléfono no deja cerrarla desde acá. Para salir, tocá el botón de inicio o el de apps recientes.
+                  Esta vez el teléfono no deja cerrarla desde acá (pasa justo después de iniciar sesión). Para salir, tocá el botón de inicio o el de apps recientes; la próxima vez que abras la app, «Salir» la va a cerrar.
                 </p>
               )}
             </div>
