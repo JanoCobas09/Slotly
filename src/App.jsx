@@ -5,6 +5,7 @@ import { useBusiness } from './contexts/BusinessContext';
 import BusinessSync from './contexts/BusinessSync';
 import { isPlatformOwner } from './config/platform';
 import { esMisCitasDeNegocio, leerDestinoLogin } from './lib/destinoLogin';
+import { avisarAppLista } from './lib/splash';
 import Header from './components/layout/Header';
 import Footer from './components/layout/Footer';
 
@@ -140,6 +141,19 @@ function CargandoNegocio() {
   );
 }
 
+/**
+ * Saca la bienvenida de la app instalada (index.html) cuando ya hay algo que
+ * mostrar: sesión resuelta y la página de la ruta descargada (vive dentro del
+ * Suspense, así que su efecto no corre mientras se ve el fallback).
+ */
+function AvisarAppLista() {
+  const { loading } = useAuth();
+  useEffect(() => {
+    if (!loading) avisarAppLista();
+  }, [loading]);
+  return null;
+}
+
 /** Placeholder mientras Firebase resuelve si hay sesión abierta. */
 function SessionLoading() {
   return (
@@ -245,6 +259,7 @@ export default function App() {
       {/* Suspense envuelve todo el ruteo: sin esto, cualquier ruta diferida
           lanza al montar y rompe el árbol entero. */}
       <Suspense fallback={<SessionLoading />}>
+      <AvisarAppLista />
       <Routes>
 
         {/* ── Raíz ────────────────────────────────────────────────── */}

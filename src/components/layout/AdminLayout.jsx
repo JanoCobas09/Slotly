@@ -12,6 +12,7 @@ import ActivarNotificaciones from '../admin/ActivarNotificaciones';
 import FlujoPrimerosPasos from '../admin/FlujoPrimerosPasos';
 import AvisoPlataforma from '../admin/AvisoPlataforma';
 import { topeSucursales } from '../../config/plans';
+import { abiertaComoApp, sonidoAlAbrirActivado, guardarSonidoAlAbrir } from '../../lib/splash';
 
 // Items visibles solo para el dueño (owner)
 const ownerNavItems = [
@@ -77,6 +78,7 @@ function diasDePruebaRestantes(trialEndsAt) {
 export default function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mostrarPasosIOS, setMostrarPasosIOS] = useState(false);
+  const [sonidoAlAbrir, setSonidoAlAbrir] = useState(sonidoAlAbrirActivado);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { business, isPlatformOwner: platformOwner } = useCurrentBusiness();
@@ -174,6 +176,21 @@ export default function AdminLayout() {
             <button className="admin-nav-item" onClick={handleInstalarSidebar}>
               <span className="nav-icon"><Icon name="download" /></span>
               Instalar app
+            </button>
+          )}
+          {/* El sonido de la bienvenida (index.html) solo suena en la app
+              instalada: en el navegador este botón no tendría efecto. */}
+          {abiertaComoApp() && (
+            <button
+              className="admin-nav-item"
+              onClick={() => {
+                guardarSonidoAlAbrir(!sonidoAlAbrir);
+                setSonidoAlAbrir(!sonidoAlAbrir);
+              }}
+              aria-pressed={sonidoAlAbrir}
+            >
+              <span className="nav-icon"><Icon name={sonidoAlAbrir ? 'volume' : 'volume-off'} /></span>
+              Sonido al abrir: {sonidoAlAbrir ? 'sí' : 'no'}
             </button>
           )}
           <button className="admin-nav-item" onClick={handleLogout}>

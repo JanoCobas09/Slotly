@@ -20,8 +20,160 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Slotly" />
+
+    <!-- Bienvenida al abrir la app INSTALADA (no en el navegador). La pantalla
+         que Android muestra primero la arma el sistema con el manifest (ícono,
+         nombre, background_color) y no admite animación ni sonido; esta va
+         justo después, con el mismo fondo, así se ven como una sola intro.
+         Vive acá y no en React para pintarse antes de que baje el bundle.
+         React avisa cuándo está listo con window.__slotlySplashListo()
+         (src/lib/splash.js); se va recién pasado el mínimo de la animación. -->
+    <style>
+      #splash { display: none; }
+      html.con-splash #splash {
+        position: fixed; inset: 0; z-index: 2147483647;
+        display: flex; align-items: center; justify-content: center;
+        background: #171717;
+        transition: opacity .45s ease, transform .45s ease;
+      }
+      html.con-splash body { background: #171717; }
+      #splash.sp-saliendo { opacity: 0; transform: scale(1.06); pointer-events: none; }
+      .sp-centro { position: relative; display: flex; flex-direction: column; align-items: center; gap: 30px; margin-top: -4vh; }
+      .sp-halo {
+        position: absolute; top: 58px; left: 50%; width: 280px; height: 280px;
+        margin: -140px 0 0 -140px; border-radius: 50%;
+        background: radial-gradient(closest-side, rgba(255,255,255,.13), rgba(255,255,255,0));
+        opacity: 0; transform: scale(.6);
+        animation: sp-halo 1.3s .35s ease-out forwards;
+      }
+      .sp-glifo { position: relative; width: 132px; height: 117px; overflow: visible; }
+      .sp-barra {
+        transform-box: fill-box; transform-origin: left center;
+        transform: scaleX(0); opacity: 0;
+        animation: sp-barra .55s cubic-bezier(.2, 1.5, .45, 1) forwards;
+      }
+      .sp-barra:nth-child(1) { animation-delay: .15s; }
+      .sp-barra:nth-child(2) { animation-delay: .27s; }
+      .sp-barra:nth-child(3) { animation-delay: .39s; }
+      .sp-marca {
+        position: relative; width: 132px; height: auto;
+        opacity: 0; transform: translateY(10px); filter: blur(6px);
+        animation: sp-marca .6s .62s cubic-bezier(.2, .8, .3, 1) forwards;
+      }
+      @keyframes sp-barra { 0% { transform: scaleX(0); opacity: 0; } 35% { opacity: 1; } 100% { transform: scaleX(1); opacity: 1; } }
+      @keyframes sp-marca { to { opacity: 1; transform: none; filter: none; } }
+      @keyframes sp-halo { 40% { opacity: 1; } 100% { opacity: .55; transform: scale(1); } }
+      @media (prefers-reduced-motion: reduce) {
+        .sp-barra, .sp-marca, .sp-halo { animation: none; opacity: 1; transform: none; filter: none; }
+        #splash { transition: opacity .2s ease; }
+        #splash.sp-saliendo { transform: none; }
+      }
+    </style>
+    <script>
+      (function () {
+        var MINIMO_MS = 1500;   // lo que dura la animación entera
+        var TOPE_MS = 7000;     // si React nunca avisa, no tapar la app para siempre
+        var inicio = performance.now();
+        var standalone = false;
+        try {
+          standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+        } catch (e) { /* navegador viejo: sin bienvenida */ }
+        // Una vez por apertura: arrastrar para recargar no la repite.
+        var yaVista = false;
+        try { yaVista = sessionStorage.getItem('slotly:splashVisto') === '1'; } catch (e) { /* nada */ }
+        var mostrar = standalone && !yaVista;
+
+        var listo = false;
+        window.__slotlySplashListo = function () {
+          if (listo) return;
+          listo = true;
+          var el = document.getElementById('splash');
+          if (!el) return;
+          if (!mostrar) { el.remove(); return; }
+          setTimeout(function () {
+            el.classList.add('sp-saliendo');
+            setTimeout(function () {
+              el.remove();
+              document.documentElement.classList.remove('con-splash');
+            }, 460);
+          }, Math.max(0, MINIMO_MS - (performance.now() - inicio)));
+        };
+
+        if (!mostrar) return;
+        try { sessionStorage.setItem('slotly:splashVisto', '1'); } catch (e) { /* nada */ }
+        document.documentElement.classList.add('con-splash');
+        setTimeout(window.__slotlySplashListo, TOPE_MS);
+
+        // Sonido: tres notas suaves (do-mi-sol), una por barra que llega.
+        // Sintetizado (no hay archivo que bajar). Android deja sonar sin un
+        // toque previo a las apps instaladas en la pantalla de inicio; donde
+        // no lo permite (iPhone), el contexto queda suspendido y no suena —
+        // nunca se reproduce tarde, al primer toque. Se apaga desde el menú
+        // del panel ("Sonido al abrir", clave slotly:sonidoAlAbrir).
+        try { if (localStorage.getItem('slotly:sonidoAlAbrir') === 'off') return; } catch (e) { /* nada */ }
+        var AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        var ctx;
+        try { ctx = new AC(); } catch (e) { return; }
+        var cerrar = function () { try { ctx.close(); } catch (e) { /* nada */ } };
+        var NOTAS = [[1046.5, .42], [1318.5, .54], [1568, .66]]; // [Hz, segundo de la animación]
+        var tocar = function () {
+          var transcurrido = (performance.now() - inicio) / 1000;
+          var salida = ctx.createGain();
+          salida.gain.value = .9;
+          salida.connect(ctx.destination);
+          NOTAS.forEach(function (n, i) {
+            var t = ctx.currentTime + n[1] - transcurrido;
+            if (t < ctx.currentTime) return;
+            var dur = i === NOTAS.length - 1 ? 1.1 : .7;
+            // Fundamental + dos armónicos que se apagan antes: suena a
+            // campanita y no a pitido.
+            [[1, .13], [2, .025], [3, .012]].forEach(function (armonico) {
+              var osc = ctx.createOscillator();
+              var vol = ctx.createGain();
+              osc.type = 'sine';
+              osc.frequency.value = n[0] * armonico[0];
+              vol.gain.setValueAtTime(0, t);
+              vol.gain.linearRampToValueAtTime(armonico[1], t + .008);
+              vol.gain.exponentialRampToValueAtTime(.0001, t + dur / armonico[0]);
+              osc.connect(vol);
+              vol.connect(salida);
+              osc.start(t);
+              osc.stop(t + dur);
+            });
+          });
+          setTimeout(cerrar, 2500);
+        };
+        if (ctx.state === 'running') { tocar(); return; }
+        // Sin permiso para sonar, resume() queda pendiente hasta el primer
+        // toque: pasados 300 ms ya llega tarde y se descarta.
+        var resuelto = false;
+        ctx.resume().then(function () {
+          if (resuelto) return;
+          resuelto = true;
+          if (ctx.state === 'running') tocar(); else cerrar();
+        }, function () { resuelto = true; cerrar(); });
+        setTimeout(function () { if (!resuelto) { resuelto = true; cerrar(); } }, 300);
+      })();
+    </script>
   </head>
   <body>
+    <div id="splash" aria-hidden="true">
+      <div class="sp-centro">
+        <div class="sp-halo"></div>
+        <svg class="sp-glifo" viewBox="15 17 34 30" xmlns="http://www.w3.org/2000/svg">
+          <rect class="sp-barra" x="15" y="17" width="34" height="8" rx="4" fill="#ffffff" />
+          <rect class="sp-barra" x="15" y="28" width="26" height="8" rx="4" fill="#ffffff" fill-opacity="0.72" />
+          <rect class="sp-barra" x="15" y="39" width="18" height="8" rx="4" fill="#ffffff" fill-opacity="0.44" />
+        </svg>
+        <!-- "Slotly" en Plus Jakarta Sans 800 (la letra del panel) pasada a
+             trazo: se ve nítida en cualquier pantalla y no espera a que baje
+             la fuente de Google Fonts. -->
+        <svg class="sp-marca" viewBox="0 0 268.7 97.7" xmlns="http://www.w3.org/2000/svg">
+          <path fill="#ffffff" d="M30.4 76.9L30.4 76.9Q23.4 76.9 17.3 74.4Q11.1 71.8 6.7 67.1Q2.2 62.4 0 56L0 56L12.7 50.3Q15.5 56.4 20.4 59.9Q25.4 63.4 31.4 63.4L31.4 63.4Q34.6 63.4 36.9 62.4Q39.2 61.4 40.5 59.7Q41.8 57.9 41.8 55.5L41.8 55.5Q41.8 52.9 40.2 51.0Q38.6 49.2 35.2 48.1L35.2 48.1L20.6 43.3Q11.7 40.4 7.2 35.0Q2.7 29.7 2.7 22.2L2.7 22.2Q2.7 15.6 5.9 10.6Q9.2 5.6 15.1 2.8Q20.9 0 28.5 0L28.5 0Q35.2 0 40.9 2.3Q46.6 4.6 50.8 8.8Q54.9 13 57.0 18.9L57.0 18.9L44.4 24.6Q42.3 19.4 38.1 16.5Q33.9 13.5 28.5 13.5L28.5 13.5Q25.4 13.5 23 14.5Q20.6 15.5 19.3 17.4Q18 19.2 18 21.6L18 21.6Q18 24.2 19.7 26.1Q21.4 28.1 24.8 29.2L24.8 29.2L39.1 33.8Q48.1 36.7 52.6 41.9Q57.0 47.1 57.0 54.6L57.0 54.6Q57.0 61.1 53.6 66.2Q50.2 71.2 44.3 74.0Q38.3 76.9 30.4 76.9ZM79.9 75.7L64.9 75.7L64.9 0L79.9 0L79.9 75.7ZM116 76.9L116 76.9Q107.9 76.9 101.3 73.2Q94.6 69.5 90.7 63.1Q86.7 56.6 86.7 48.4L86.7 48.4Q86.7 40.1 90.7 33.7Q94.6 27.3 101.3 23.6Q107.9 19.9 116 19.9L116 19.9Q124.1 19.9 130.7 23.6Q137.3 27.3 141.3 33.7Q145.2 40.1 145.2 48.4L145.2 48.4Q145.2 56.6 141.3 63.1Q137.3 69.5 130.7 73.2Q124.1 76.9 116 76.9ZM116 63.4L116 63.4Q120.1 63.4 123.2 61.5Q126.2 59.6 128.0 56.2Q129.7 52.8 129.7 48.4L129.7 48.4Q129.7 44 128.0 40.6Q126.2 37.3 123.2 35.4Q120.1 33.4 116 33.4L116 33.4Q111.9 33.4 108.8 35.4Q105.7 37.3 104.0 40.6Q102.2 44 102.2 48.4L102.2 48.4Q102.2 52.8 104.0 56.2Q105.7 59.6 108.8 61.5Q111.9 63.4 116 63.4ZM177.3 76.3L177.3 76.3Q167.4 76.3 161.9 71.0Q156.5 65.6 156.5 56L156.5 56L156.5 34.1L147.3 34.1L147.3 21.1L147.8 21.1Q152 21.1 154.3 19Q156.5 16.9 156.5 12.7L156.5 12.7L156.5 8.7L171.5 8.7L171.5 21.1L184.3 21.1L184.3 34.1L171.5 34.1L171.5 55Q171.5 57.8 172.5 59.7Q173.5 61.5 175.6 62.4Q177.7 63.3 180.8 63.3L180.8 63.3Q181.5 63.3 182.4 63.2Q183.3 63.1 184.3 63L184.3 63L184.3 75.7Q182.8 75.9 180.9 76.1Q179 76.3 177.3 76.3ZM206.1 75.7L191.1 75.7L191.1 0L206.1 0L206.1 75.7ZM223.6 97.7L223.6 97.7Q221.2 97.7 218.9 97.3Q216.7 96.9 215 96L215 96L215 83.7Q216.4 84.1 218.3 84.4Q220.2 84.7 221.8 84.7L221.8 84.7Q226.2 84.7 228.1 82.7Q230 80.6 231.2 78L231.2 78L232.2 75.7L210.7 21.1L226.8 21.1L239.7 56.2L252.6 21.1L268.7 21.1L245.3 80.8Q243.1 86.4 239.9 90.2Q236.7 94 232.7 95.9Q228.6 97.7 223.6 97.7Z" />
+        </svg>
+      </div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

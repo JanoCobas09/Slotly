@@ -1,11 +1,11 @@
 {
-  "name": "Slotly — Panel de turnos",
+  "name": "Slotly",
   "short_name": "Slotly",
   "description": "Agenda de turnos: gestioná tu negocio y recibí avisos de reservas nuevas.",
   "start_url": "/admin",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#0a0a0a",
+  "background_color": "#171717",
   "theme_color": "#171717",
   "orientation": "portrait-primary",
   "icons": [
