@@ -5162,3 +5162,9 @@ button.mapa-celda:hover, button.mapa-celda:focus-visible { outline: 2px solid va
   .clientes-tabla th, .clientes-tabla td { padding-left: 10px; padding-right: 10px; }
   .clientes-tabla td:nth-child(3) { white-space: nowrap; }
 }
+
+/* "¿Querés salir de la aplicación?" (botón atrás en la app instalada). */
+.salir-app { max-width: 340px; }
+.salir-app h3 { font-size: 1.0625rem; }
+/* Arriba de cualquier otro cartel (por ejemplo "Activá las notificaciones"). */
+.salir-app-fondo { z-index: 1200; }

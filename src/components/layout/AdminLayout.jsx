@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useCurrentBusiness } from '../../hooks/useCurrentBusiness';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
 import { useInstallPrompt } from '../../hooks/useInstallPrompt';
+import { useSalidaDeLaApp } from '../../hooks/useSalidaDeLaApp';
 import { capitalize } from '../../utils/text';
 import Icon from '../Icon';
 import ActivarNotificaciones from '../admin/ActivarNotificaciones';
@@ -117,6 +118,8 @@ export default function AdminLayout() {
   // Solo el dueño instala el panel — el cliente reserva desde el navegador,
   // el barbero/staff usa el celular del negocio o el suyo sin necesitarlo.
   const { instalable, conPromptNativo, esIOS, instalar } = useInstallPrompt();
+  // Botón atrás del celular: no vuelve al login de Google, pregunta si salir.
+  const salida = useSalidaDeLaApp();
 
   const isOwner = user?.role === 'owner';
   const navItems = isOwner ? ownerNavItems : user?.role === 'manager' ? managerNavItems : adminNavItems;
@@ -247,6 +250,25 @@ export default function AdminLayout() {
             </div>
             <div className="modal-footer">
               <button className="btn btn-primary" onClick={() => setMostrarPasosIOS(false)}>Entendido</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {salida.preguntando && (
+        <div className="modal-overlay salir-app-fondo" onClick={salida.quedarse}>
+          <div className="modal-content salir-app" role="alertdialog" aria-labelledby="salir-app-titulo" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-body">
+              <h3 id="salir-app-titulo">¿Querés salir de la aplicación?</h3>
+              {salida.noSeCerro && (
+                <p className="text-sm text-muted" style={{ marginTop: 8 }}>
+                  Tu teléfono no deja cerrarla desde acá. Para salir, tocá el botón de inicio o el de apps recientes.
+                </p>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-ghost" onClick={salida.quedarse} autoFocus>Quedarme</button>
+              {!salida.noSeCerro && <button className="btn btn-primary" onClick={salida.salir}>Salir</button>}
             </div>
           </div>
         </div>
