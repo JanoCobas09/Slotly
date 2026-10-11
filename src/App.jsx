@@ -156,9 +156,12 @@ function AvisarAppLista() {
 
 /** Placeholder mientras Firebase resuelve si hay sesión abierta. */
 function SessionLoading() {
+  // La rueda aparece recién a los 150 ms (index.css, .mov-cargando): si la
+  // carga es rápida no se llega a ver y no hay parpadeo.
   return (
-    <div className="empty-state" style={{ padding: 'var(--space-2xl)' }}>
-      <p>Cargando…</p>
+    <div className="mov-cargando" role="status">
+      <div className="spinner" aria-hidden="true" />
+      <span className="sr-only">Cargando…</span>
     </div>
   );
 }
@@ -242,10 +245,15 @@ function SoloManager({ children }) {
 }
 
 function ClientLayout({ children }) {
+  const { pathname } = useLocation();
   return (
     <>
       <Header />
-      {children}
+      {/* Fundido al cambiar de página. Solo opacidad: la landing tiene un
+          botón flotante fijo que un transform correría de lugar. */}
+      <div key={pathname} className="mov-pagina">
+        {children}
+      </div>
       <Footer />
     </>
   );

@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import CampanaNotificaciones from '../admin/CampanaNotificaciones';
 import InstalarAppBanner from '../admin/InstalarAppBanner';
-import { NavLink, Outlet, useNavigate, Link } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCurrentBusiness } from '../../hooks/useCurrentBusiness';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
@@ -49,6 +49,32 @@ const managerNavItems = [
   { to: '/admin/mi-sucursal',     icon: 'building', label: 'Mi sucursal' },
 ];
 
+// Todas las secciones del panel, para bajarlas en segundo plano (ver
+// usePrecargarSecciones). Son los mismos módulos que App.jsx carga con lazy():
+// Vite los resuelve al mismo archivo, así que no se descarga nada dos veces.
+const SECCIONES_DEL_PANEL = import.meta.glob('../../pages/admin/*.jsx');
+
+/**
+ * Con el panel ya en pantalla, baja el resto de las secciones cuando el
+ * navegador está libre. Sin esto, la primera vez que se toca cada ítem del
+ * menú hay que esperar a que baje su archivo y el toque parece no responder.
+ * No lo hace con "ahorro de datos" activado.
+ */
+function usePrecargarSecciones() {
+  useEffect(() => {
+    if (navigator.connection?.saveData) return;
+    const precargar = () => {
+      Object.values(SECCIONES_DEL_PANEL).forEach((cargar) => cargar().catch(() => {}));
+    };
+    if ('requestIdleCallback' in window) {
+      const id = window.requestIdleCallback(precargar, { timeout: 4000 });
+      return () => window.cancelIdleCallback(id);
+    }
+    const t = setTimeout(precargar, 2000);
+    return () => clearTimeout(t);
+  }, []);
+}
+
 const ROLE_COLORS = {
   owner: 'var(--primary)',
   admin: 'var(--success)',
@@ -81,6 +107,8 @@ export default function AdminLayout() {
   const [sonidoAlAbrir, setSonidoAlAbrir] = useState(sonidoAlAbrirActivado);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  usePrecargarSecciones();
   const { business, isPlatformOwner: platformOwner } = useCurrentBusiness();
   const { terminology, icon: rubroIcon } = useBusinessContext();
   // Solo el dueño instala el panel — el cliente reserva desde el navegador,
@@ -335,7 +363,11 @@ export default function AdminLayout() {
 
         <div className="admin-content">
           {business ? (
-            <Outlet />
+            // key: cada cambio de sección vuelve a montar el envoltorio y
+            // dispara la animación de entrada (index.css, .mov-pantalla).
+            <div key={pathname} className="mov-pantalla">
+              <Outlet />
+            </div>
           ) : (
             // Punto único de control: ninguna página de admin se renderiza sin
             // un negocio resuelto, así no hay que defenderse de `business` nulo

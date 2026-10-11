@@ -12,6 +12,9 @@ import { registerServiceWorker } from './lib/push';
 // (ver el comentario en el archivo) apenas carga el bundle, no recién cuando
 // se monte algún componente del panel de admin.
 import './lib/installPrompt';
+// Efecto secundario a propósito: vibración corta en los botones importantes
+// de la app instalada (ver el comentario en el archivo).
+import './lib/haptica';
 
 // El login pasa por Supabase Auth (signInWithOAuth/signInWithPassword), que
 // crea la sesión que necesita RLS para saber quién sos. La config se

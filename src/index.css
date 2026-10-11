@@ -4660,3 +4660,136 @@ button.mapa-celda:hover, button.mapa-celda:focus-visible { outline: 2px solid va
 .spinner { width: 40px; height: 40px; border-radius: 50%; border: 3px solid var(--border); border-top-color: var(--primary); animation: spinner-giro 0.8s linear infinite; }
 @keyframes spinner-giro { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.4s; } }
+
+/* ============================================
+   MOVIMIENTO E INTERACCIÓN
+   ============================================
+   Respuesta al tocar y transiciones entre pantallas, para que el sistema se
+   sienta fluido en el celular. Ojo con `transform` en contenedores: hace que
+   los hijos con position: fixed (modales, barra de confirmar, botón flotante)
+   se ubiquen respecto del contenedor y no de la pantalla. Por eso:
+   - las animaciones de entrada usan fill-mode `backwards` (el transform deja
+     de aplicarse apenas terminan, ~250 ms);
+   - donde hay algo fijo desde el primer cuadro (landing con botón flotante,
+     paso 6 de la reserva con la barra de confirmar) se usa solo opacidad. */
+
+/* Sin el recuadro celeste de Android al tocar: cada botón tiene su propia
+   respuesta. */
+.btn, .admin-nav-item, .tab, .vista-tab, .timeslot, .calendar-day,
+.service-card, .prof-card, .professional-card, .card-selectable, .modal-close {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* En pantallas táctiles el :hover queda "pegado" después del toque: el botón
+   quedaba levantado con sombra hasta tocar otra cosa. */
+@media (hover: none) {
+  .btn-primary:hover:not(:disabled),
+  .btn-danger:hover:not(:disabled) {
+    transform: none;
+    box-shadow: none;
+  }
+}
+
+/* Al apretar: se hunde un poco. Va después de los :hover para ganarles. */
+.btn:active:not(:disabled) {
+  transform: scale(0.96);
+  transition-duration: 60ms;
+}
+.admin-nav-item:active,
+.tab:active,
+.vista-tab:active {
+  transform: scale(0.98);
+  transition-duration: 60ms;
+}
+.timeslot:active:not(:disabled),
+.calendar-day:active:not(:disabled),
+.service-card:active,
+.prof-card:active,
+.professional-card:active,
+.card-selectable:active {
+  transform: scale(0.97);
+  transition: transform 60ms ease;
+}
+
+/* Al elegir algo (horario, día, servicio, profesional): un "pop" corto que
+   confirma la selección. */
+.timeslot.selected,
+.calendar-day.selected,
+.service-card.selected,
+.prof-card.selected,
+.card-selected {
+  animation: mov-elegido 280ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes mov-elegido {
+  0% { transform: scale(0.95); }
+  60% { transform: scale(1.03); }
+  100% { transform: scale(1); }
+}
+
+/* Cambio de sección en el panel: la nueva entra subiendo apenas. */
+.mov-pantalla {
+  animation: mov-pantalla 260ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+@keyframes mov-pantalla {
+  from { opacity: 0; transform: translateY(10px); }
+}
+
+/* Páginas públicas (landing, login, reserva): solo fundido, ver arriba. */
+/* El envoltorio de cada página pública. #root es una columna flex: con
+   flex 1 ocupa el alto libre y el pie queda abajo como antes. */
+.mov-pagina {
+  flex: 1 0 auto;
+  min-width: 0;
+  animation: mov-fundido 240ms ease-out backwards;
+}
+.mov-fundido {
+  animation: mov-fundido 240ms ease-out backwards;
+}
+@keyframes mov-fundido {
+  from { opacity: 0; }
+}
+
+/* Pasos de la reserva: "Siguiente" entra desde la derecha, "Atrás" desde la
+   izquierda, como pasar de página. */
+.mov-paso-adelante {
+  animation: mov-paso-adelante 280ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+.mov-paso-atras {
+  animation: mov-paso-atras 280ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+@keyframes mov-paso-adelante {
+  from { opacity: 0; transform: translateX(28px); }
+}
+@keyframes mov-paso-atras {
+  from { opacity: 0; transform: translateX(-28px); }
+}
+
+/* Menú lateral en el celular: el fondo oscuro aparece de a poco en vez de
+   golpe (el menú ya se deslizaba). */
+.sidebar-overlay {
+  animation: fadeIn 200ms ease;
+}
+
+/* Carga entre pantallas: rueda centrada en vez de un "Cargando…" suelto. */
+.mov-cargando {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 40vh;
+  animation: mov-fundido 300ms 150ms ease-out backwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn:active:not(:disabled),
+  .admin-nav-item:active, .tab:active, .vista-tab:active,
+  .timeslot:active:not(:disabled), .calendar-day:active:not(:disabled),
+  .service-card:active, .prof-card:active, .professional-card:active,
+  .card-selectable:active {
+    transform: none;
+  }
+  .timeslot.selected, .calendar-day.selected, .service-card.selected,
+  .prof-card.selected, .card-selected,
+  .mov-pantalla, .mov-paso-adelante, .mov-paso-atras {
+    animation: mov-fundido 150ms ease-out backwards;
+  }
+}

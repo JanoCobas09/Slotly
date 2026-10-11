@@ -799,6 +799,16 @@ export default function BookingPage() {
   const { customerFields } = useBusinessContext();
   const { step, professionalId, serviceId, date, timeSlot, personalInfo, customFieldValues } = booking;
 
+  // Para qué lado entra el paso nuevo: "Siguiente" desde la derecha, "Atrás"
+  // desde la izquierda (index.css, .mov-paso-*). Se ajusta durante el render
+  // comparando con el paso anterior (patrón de React para derivar de un cambio).
+  const [pasoAnterior, setPasoAnterior] = useState(step);
+  const [haciaAtras, setHaciaAtras] = useState(false);
+  if (step !== pasoAnterior) {
+    setPasoAnterior(step);
+    setHaciaAtras(step < pasoAnterior);
+  }
+
   // ── Sucursales ──
   // Con más de una, el cliente elige primero dónde (o llega con
   // ?sucursal=<id>, el link directo de una sucursal). A partir de ahí todo lo
@@ -1196,6 +1206,13 @@ export default function BookingPage() {
         </div>
       )}
 
+      {/* key: cada paso vuelve a montar el envoltorio y anima su entrada. El
+          6 solo con fundido: su barra de confirmar es fija a la pantalla y
+          un transform la correría de lugar mientras dura la animación. */}
+      <div
+        key={step}
+        className={step === 6 ? 'mov-fundido' : haciaAtras ? 'mov-paso-atras' : 'mov-paso-adelante'}
+      >
       {step === 1 && (
         <ServiceSelect
           services={services}
@@ -1276,6 +1293,7 @@ export default function BookingPage() {
           onBack={handleBack}
         />
       )}
+      </div>
 
       {step < 6 && (
         <div className="booking-nav">
