@@ -5168,3 +5168,37 @@ button.mapa-celda:hover, button.mapa-celda:focus-visible { outline: 2px solid va
 .salir-app h3 { font-size: 1.0625rem; }
 /* Arriba de cualquier otro cartel (por ejemplo "Activá las notificaciones"). */
 .salir-app-fondo { z-index: 1200; }
+
+/* ── Ficha: pestaña "Archivos" (todos los archivos del cliente por turno) ── */
+.ficha-historial .vista-tab { display: inline-flex; align-items: center; gap: 6px; }
+.archivos-cliente { display: flex; flex-direction: column; gap: var(--space-md); }
+.archivos-cliente-filtros { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.chip-filtro {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+  -webkit-tap-highlight-color: transparent;
+}
+.chip-filtro:hover { border-color: var(--border-hover); color: var(--text); }
+.chip-filtro.activo { background: var(--primary-light); border-color: var(--primary); color: var(--primary); }
+.chip-filtro:active { transform: scale(0.96); }
+.archivos-cliente-filtros .text-xs { margin-left: auto; }
+.archivos-grupos { display: flex; flex-direction: column; gap: var(--space-md); }
+.archivos-grupo {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+.archivos-grupo-cabecera { display: flex; align-items: center; gap: var(--space-sm); flex-wrap: wrap; }
+.archivos-grupo-turno { flex: 1; min-width: 160px; display: flex; flex-direction: column; gap: 2px; }
+.archivos-grupo-turno strong { display: inline-flex; align-items: center; gap: 6px; font-size: 0.9375rem; }

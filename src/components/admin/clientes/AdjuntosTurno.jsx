@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
-import { listarAdjuntos, getLimitesAdjuntos, urlsDeMiniaturas, urlDeAdjunto } from '../../../lib/repository';
+import { listarAdjuntos, getLimitesAdjuntos, urlsDeMiniaturas } from '../../../lib/repository';
+import { seVeEnVisor, urlParaVisor, abrirEnPestana, descargarAdjunto } from '../../../lib/verAdjunto';
+import VisorImagen from './VisorImagen';
 import { eliminarAdjunto } from '../../../lib/functions';
 import { subirAdjunto, SubidaCancelada } from '../../../lib/subirAdjunto';
 import { esImagen, formatearTamano, etiquetaTipo } from '../../../utils/archivos';
@@ -95,22 +97,10 @@ export default function AdjuntosTurno({ appointmentId, puedeEscribir, esDueno, o
 
   const abrir = async (a) => {
     setError('');
-    if (esImagen(a.mime) && a.mime !== 'image/heic' && a.mime !== 'image/heif') {
-      try {
-        setVisor({ nombre: a.nombreOriginal, url: await urlDeAdjunto(a.rutaObjeto) });
-      } catch (e) {
-        setError(mensajeDeError(e, 'No se pudo abrir el archivo.'));
-      }
-      return;
-    }
-    // Pestaña abierta en el mismo toque (si no, el navegador la bloquea) y
-    // después se le pone la URL firmada.
-    const pestana = window.open('', '_blank');
     try {
-      const url = await urlDeAdjunto(a.rutaObjeto);
-      if (pestana) { pestana.opener = null; pestana.location.href = url; } else window.location.assign(url);
+      if (seVeEnVisor(a)) setVisor({ nombre: a.nombreOriginal, url: await urlParaVisor(a) });
+      else await abrirEnPestana(a);
     } catch (e) {
-      pestana?.close();
       setError(mensajeDeError(e, 'No se pudo abrir el archivo.'));
     }
   };
@@ -118,13 +108,7 @@ export default function AdjuntosTurno({ appointmentId, puedeEscribir, esDueno, o
   const descargar = async (a) => {
     setError('');
     try {
-      const url = await urlDeAdjunto(a.rutaObjeto, { nombre: a.nombreOriginal });
-      const link = document.createElement('a');
-      link.href = url;
-      link.rel = 'noopener';
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      await descargarAdjunto(a);
     } catch (e) {
       setError(mensajeDeError(e, 'No se pudo descargar el archivo.'));
     }
@@ -270,13 +254,7 @@ export default function AdjuntosTurno({ appointmentId, puedeEscribir, esDueno, o
         </div>
       )}
 
-      {visor && (
-        <div className="doc-visor" role="dialog" aria-label={visor.nombre} onClick={() => setVisor(null)}>
-          <button type="button" className="doc-visor-cerrar" onClick={() => setVisor(null)} aria-label="Cerrar"><Icon name="x" /></button>
-          <img src={visor.url} alt={visor.nombre} onClick={(e) => e.stopPropagation()} />
-          <span className="doc-visor-nombre">{visor.nombre}</span>
-        </div>
-      )}
+      {visor && <VisorImagen nombre={visor.nombre} url={visor.url} onClose={() => setVisor(null)} />}
     </section>
   );
 }

@@ -1406,3 +1406,48 @@ export async function urlDeAdjunto(ruta, { nombre = null } = {}) {
   if (error) throw traducirError(error);
   return data.signedUrl;
 }
+
+// ── Todos los archivos de un cliente (vista "Archivos" de la ficha) ────────
+// Cada archivo trae el turno al que pertenece (fecha, hora, servicio,
+// profesional) en la misma consulta: sin N+1. Ordenados por la fecha del
+// turno, más reciente primero, y paginados en el servidor. La RLS de las
+// dos tablas se sigue aplicando: un profesional ve solo los de sus turnos.
+const COLUMNAS_ARCHIVO_CLIENTE = `id, appointment_id, subido_por, subido_por_nombre, nombre_original, categoria, mime,
+  tamano_bytes, ruta_objeto, ruta_miniatura, created_at,
+  turno:appointments!inner(id, cliente_id, business_id, appointment_date, start_time, end_time, status, type,
+    service_id, service_name, professional_id, branch_id, price, notes, cancelled_by, cancellation_reason,
+    profesional:professionals(name))`;
+export const ARCHIVOS_POR_PAGINA = 24;
+
+export async function listarArchivosCliente(clienteId, { categoria = null, pagina = 0, porPagina = ARCHIVOS_POR_PAGINA } = {}) {
+  let q = supabase
+    .from('turno_adjuntos')
+    .select(COLUMNAS_ARCHIVO_CLIENTE, { count: 'exact' })
+    .eq('estado', 'listo')
+    .eq('turno.cliente_id', clienteId)
+    .order('turno(appointment_date)', { ascending: false })
+    .order('turno(start_time)', { ascending: false })
+    .order('created_at', { ascending: false })
+    .range(pagina * porPagina, pagina * porPagina + porPagina - 1);
+  if (categoria) q = q.eq('categoria', categoria);
+  const { data, error, count } = await q;
+  if (error) throw traducirError(error);
+  const archivos = (data || []).map((fila) => {
+    const { turno, ...resto } = fila;
+    const t = fromRow('appointments', { ...turno, profesional: undefined });
+    t.professionalName = turno?.profesional?.name || null;
+    return { ...fromRow('turno_adjuntos', resto), turno: t };
+  });
+  return { archivos, total: count || 0 };
+}
+
+/** Cuántos archivos tiene el cliente (para la pestaña), sin traerlos. */
+export async function contarArchivosCliente(clienteId) {
+  const { count, error } = await supabase
+    .from('turno_adjuntos')
+    .select('id, turno:appointments!inner(cliente_id)', { count: 'exact', head: true })
+    .eq('estado', 'listo')
+    .eq('turno.cliente_id', clienteId);
+  if (error) throw traducirError(error);
+  return count || 0;
+}

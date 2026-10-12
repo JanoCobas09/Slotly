@@ -344,6 +344,47 @@ async function main() {
   const { data: cancelar, error: errCancel } = await clienteX.db.from('appointments').update({ status: 'cancelada', cancellation_reason: 'no llego' }).eq('id', t3.id).select('status, cliente_id');
   ok(!errCancel && cancelar?.[0]?.status === 'cancelada' && cancelar[0].cliente_id === fichaX.id, 'el cliente sigue pudiendo cancelar su turno y el vínculo no cambia');
 
+  console.log('\nArchivos del cliente (todos sus turnos juntos):');
+  const adjuntoListo = async (apt, cat, mime, nombre) => {
+    const id = crypto.randomUUID();
+    const ruta = `${A.id}/${apt.id}/${id}/original.${cat === 'imagen' ? 'png' : 'pdf'}`;
+    await admin.storage.from(BUCKET).upload(ruta, cat === 'imagen' ? PNG : PDF, { contentType: mime });
+    const { error } = await admin.from('turno_adjuntos').insert({
+      id, appointment_id: apt.id, business_id: A.id, nombre_original: nombre, categoria: cat, mime,
+      tamano_bytes: 100, ruta_objeto: ruta, estado: 'listo',
+    });
+    if (error) throw error;
+  };
+  await adjuntoListo(t1, 'documento', 'application/pdf', 'estudio-viejo.pdf');
+  await adjuntoListo(t2, 'imagen', 'image/png', 'antes.png');
+  await adjuntoListo(t2, 'documento', 'application/pdf', 'receta.pdf');
+  await adjuntoListo(t3, 'imagen', 'image/png', 'proximo.png');
+  // Misma consulta que listarArchivosCliente() en src/lib/repository.js.
+  const archivosDe = (db, extra = (q) => q) => extra(db.from('turno_adjuntos')
+    .select('id, nombre_original, categoria, turno:appointments!inner(id, cliente_id, appointment_date, start_time, professional_id)', { count: 'exact' })
+    .eq('estado', 'listo')
+    .eq('turno.cliente_id', fichaX.id)
+    .order('turno(appointment_date)', { ascending: false })
+    .order('turno(start_time)', { ascending: false })
+    .order('created_at', { ascending: false }));
+  const todos = await archivosDe(duenoA.db);
+  if (todos.error) console.log('   ', todos.error.message);
+  const fechasArch = (todos.data || []).map((a) => a.turno.appointment_date);
+  ok(!todos.error && todos.count === 4 && fechasArch.every((f, i) => i === 0 || fechasArch[i - 1] >= f), 'todos los archivos del cliente, ordenados por la fecha del turno');
+  ok(todos.data?.[0]?.turno.id === t3.id && todos.data?.[3]?.turno.id === t1.id, 'cada archivo sabe de qué turno es');
+  const soloFotos = await archivosDe(duenoA.db, (q) => q.eq('categoria', 'imagen'));
+  ok(soloFotos.count === 2 && soloFotos.data.every((a) => a.categoria === 'imagen'), 'filtro por fotos');
+  const pag = await archivosDe(duenoA.db, (q) => q.range(0, 1));
+  ok(pag.data?.length === 2 && pag.count === 4, 'paginado en el servidor con el total');
+  const deStaff1 = await archivosDe(staff1.db);
+  ok(deStaff1.count === 3 && deStaff1.data.every((a) => a.turno.professional_id === p1.id), 'el profesional ve solo los archivos de sus turnos');
+  const deStaff2 = await archivosDe(staff2.db);
+  ok(deStaff2.count === 1 && deStaff2.data[0].turno.id === t3.id, 'y el otro profesional, solo los del suyo');
+  const deOtroNegocio = await archivosDe(duenoB.db);
+  ok((deOtroNegocio.count || 0) === 0, '10. otro negocio no ve ninguno');
+  const deCliente = await archivosDe(clienteX.db);
+  ok((deCliente.count || 0) === 0, 'el cliente tampoco');
+
   console.log(`\n${pasaron} ok, ${fallaron} fallas`);
   process.exit(fallaron ? 1 : 0);
 }

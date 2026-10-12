@@ -1249,7 +1249,10 @@ dominio de más autorizado no es un agujero de seguridad, solo ruido).
    `listar_clientes`, `ficha_cliente`, `historial_cliente`. Front:
    `pages/admin/ClientesPage.jsx`, `ClienteFichaPage.jsx`,
    `components/admin/clientes/*`, y `DetalleTurnoModal` suma ficha +
-   documentación. `supabase/tests/test-clientes.mjs` 83/83.
+   documentación. Pestaña "Archivos" en la ficha (`ArchivosCliente.jsx`,
+   `listarArchivosCliente`): todos los archivos del cliente agrupados por turno,
+   con un join `turno:appointments!inner` ordenado por la fecha del turno — sin
+   migración. `supabase/tests/test-clientes.mjs` 91/91.
 6. **Abuso de reservas.** Hecho: un turno por día y tope de 3 a futuro por
    cuenta. Falta, por orden: bloquear cliente desde el panel (para la cuenta que
    se porta mal), y App Check con reCAPTCHA v3 sobre los callables para frenar

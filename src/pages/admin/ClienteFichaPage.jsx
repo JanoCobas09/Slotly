@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useTenant } from '../../hooks/useTenantData';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
-import { getFichaCliente, getHistorialCliente, TURNOS_POR_PAGINA } from '../../lib/repository';
+import { getFichaCliente, getHistorialCliente, contarArchivosCliente, TURNOS_POR_PAGINA } from '../../lib/repository';
 import { formatDate, formatFechaCorta, formatPrice } from '../../utils/dateUtils';
 import { capitalize } from '../../utils/text';
 import { ESTADOS_TURNO } from '../../utils/turnos';
 import ClienteFormModal from '../../components/admin/clientes/ClienteFormModal';
 import DocumentacionTurno from '../../components/admin/clientes/DocumentacionTurno';
+import ArchivosCliente from '../../components/admin/clientes/ArchivosCliente';
 import Icon from '../../components/Icon';
 import { mensajeDeError } from '../../utils/errores';
 
@@ -86,6 +87,23 @@ export default function ClienteFichaPage() {
   const cambioEnTurno = useRef(false);
   const pedido = useRef(0);
 
+  // Pestaña Historial / Archivos, en la URL: volver a la ficha deja la misma.
+  const [params, setParams] = useSearchParams();
+  const vista = params.get('vista') === 'archivos' ? 'archivos' : 'historial';
+  const cambiarVista = (v) => {
+    const siguiente = new URLSearchParams(params);
+    if (v === 'archivos') siguiente.set('vista', 'archivos'); else siguiente.delete('vista');
+    setParams(siguiente, { replace: true });
+  };
+  const [cantArchivos, setCantArchivos] = useState(null);
+  const [recargarArchivos, setRecargarArchivos] = useState(0);
+
+  useEffect(() => {
+    let vigente = true;
+    contarArchivosCliente(id).then((n) => { if (vigente) setCantArchivos(n); }).catch(() => {});
+    return () => { vigente = false; };
+  }, [id, recargarArchivos]);
+
   const cargarFicha = useCallback(async () => {
     setEstadoFicha('cargando');
     try {
@@ -125,6 +143,7 @@ export default function ClienteFichaPage() {
     if (cambioEnTurno.current) {
       cambioEnTurno.current = false;
       cargarHistorial(0, filtros);
+      setRecargarArchivos((n) => n + 1);
     }
   };
 
@@ -219,10 +238,24 @@ export default function ClienteFichaPage() {
 
       <section className="card ficha-historial" aria-labelledby="titulo-historial">
         <div className="ficha-seccion-titulo">
-          <h3 id="titulo-historial"><Icon name="calendar" /> Historial</h3>
-          <span className="text-xs text-muted">{total} {total === 1 ? terminology.appointmentNoun : `${terminology.appointmentNoun}s`}{filtrando ? ' con estos filtros' : ''}</span>
+          <h3 id="titulo-historial" className="sr-only">Historial y archivos</h3>
+          <div className="vista-tabs" role="tablist" aria-label="Historial y archivos del cliente">
+            <button type="button" role="tab" aria-selected={vista === 'historial'} className={`vista-tab ${vista === 'historial' ? 'activa' : ''}`} onClick={() => cambiarVista('historial')}>
+              <Icon name="calendar" /> Historial
+            </button>
+            <button type="button" role="tab" aria-selected={vista === 'archivos'} className={`vista-tab ${vista === 'archivos' ? 'activa' : ''}`} onClick={() => cambiarVista('archivos')}>
+              <Icon name="clip" /> Archivos{cantArchivos ? ` (${cantArchivos})` : ''}
+            </button>
+          </div>
+          {vista === 'historial' && (
+            <span className="text-xs text-muted">{total} {total === 1 ? terminology.appointmentNoun : `${terminology.appointmentNoun}s`}{filtrando ? ' con estos filtros' : ''}</span>
+          )}
         </div>
 
+        {vista === 'archivos' ? (
+          <ArchivosCliente clienteId={id} onAbrirTurno={setAbierto} recargar={recargarArchivos} />
+        ) : (
+        <>
         <div className="ficha-filtros">
           <label className="form-group">
             <span className="form-label text-xs">Desde</span>
@@ -296,6 +329,8 @@ export default function ClienteFichaPage() {
         )}
         {turnos.length > 0 && turnos.length < total && (
           <p className="text-xs text-muted text-center">Mostrando {turnos.length} de {total} · de a {TURNOS_POR_PAGINA}</p>
+        )}
+        </>
         )}
       </section>
 
