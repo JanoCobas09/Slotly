@@ -100,9 +100,18 @@ export default function GoogleCalendarCard({ businessId, profesionales, volverA 
         <div className="notice notice-info mb-md text-sm">
           Google todavía está revisando Slotly. Si al conectar te dice
           {' '}<strong>"Google no verificó esta app"</strong>, tocá <strong>Configuración avanzada</strong> y
-          después <strong>Ir a Slotly</strong>.
+          después <strong>Ir a slotly-turnos.vercel.app</strong>. Lo de "no seguro" lo dice solo porque la revisión no terminó.
         </div>
       )}
+
+      {/* Google manda SIEMPRE un mail de seguridad cuando alguien conecta una
+          app a su cuenta (no se puede apagar). Sin avisarlo antes, asusta:
+          mientras la marca no esté verificada ni siquiera dice "Slotly". */}
+      <p className="text-sm text-secondary mb-md">
+        <Icon name="bell" /> Después de conectar, Google te va a mandar un mail avisando que una app tiene
+        acceso a tu cuenta. Es normal: pasa con cualquier app que conectes. Slotly solo usa tu calendario
+        (nada de tu correo, contactos ni archivos), y lo podés desconectar cuando quieras desde acá.
+      </p>
 
       {estado === undefined ? (
         <p className="text-sm text-muted">Revisando…</p>
