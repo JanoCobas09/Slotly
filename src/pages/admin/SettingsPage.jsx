@@ -387,6 +387,26 @@ export default function SettingsPage() {
                 </p>
               </div>
               <div className="form-group">
+                <label className="form-label">Quién elige al profesional</label>
+                {/* modo_profesional (utils/asignacionProfesional.js). Cuando no
+                    elige el cliente, se asigna el que tiene menos turnos ese
+                    día entre los libres en el horario elegido. */}
+                <select
+                  className="form-input"
+                  value={form.modoProfesional || 'elige'}
+                  onChange={e => editar({ modoProfesional: e.target.value })}
+                >
+                  <option value="elige">El {terminology.customerNoun} lo elige</option>
+                  <option value="elige_o_cualquiera">El {terminology.customerNoun} lo elige, o pone &quot;Cualquiera&quot;</option>
+                  <option value="automatico">Se asigna solo (el {terminology.customerNoun} elige solo el servicio)</option>
+                </select>
+                <p className="text-sm text-muted" style={{ marginTop: 6 }}>
+                  {(form.modoProfesional || 'elige') === 'elige'
+                    ? `El ${terminology.customerNoun} ve la lista de profesionales y elige con quién atenderse.`
+                    : `Cuando no elige el ${terminology.customerNoun}, ve todos los horarios libres de quienes hacen ese servicio y le asignamos al que tenga menos ${terminology.appointmentNoun}s ese día, para repartir el trabajo. Antes de confirmar ve quién lo va a atender.`}
+                </p>
+              </div>
+              <div className="form-group">
                 <label className="form-label">Teléfono</label>
                 <input className="form-input" type="tel" {...errorCampo.campo('phone')} value={form.phone || ''} maxLength={LIMITES.telefono} onChange={e => editar({ phone: e.target.value })} />
                 <ErrorDeCampo error={errorCampo} campo="phone" />

@@ -1253,6 +1253,23 @@ dominio de más autorizado no es un agujero de seguridad, solo ruido).
    `listarArchivosCliente`): todos los archivos del cliente agrupados por turno,
    con un join `turno:appointments!inner` ordenado por la fecha del turno — sin
    migración. `supabase/tests/test-clientes.mjs` 91/91.
+5v. **"Cualquier profesional" y asignación automática (14/10/2026).** Migración
+   `20261024000000_modo_profesional.sql`: `businesses.modo_profesional`
+   ('elige' por defecto | 'elige_o_cualquiera' | 'automatico'), en
+   Configuración → "Quién elige al profesional". Con 'elige_o_cualquiera' la
+   primera tarjeta del paso 2 es "Cualquier profesional" (solo si hay más de
+   uno para ese servicio); con 'automatico' el paso 2 no existe (el stepper
+   renumera, Siguiente/Atrás saltan 1↔3, el login se pide al salir del 1).
+   En los dos, `professionalId = CUALQUIERA` hasta elegir horario: se piden los
+   ocupados de cada candidato a `get-busy-slots` en paralelo (una llamada por
+   profesional, sin tocar la función), `calculateAvailableSlots` corre por
+   cada uno y `juntarGrillas` (`utils/asignacionProfesional.js`) arma una
+   grilla donde cada horario trae el asignado: entre los libres, el de menos
+   turnos ese día (decisión del usuario), desempate estable por hash. El
+   cliente ve "Te atiende: X" y SU precio en el resumen. Al confirmar se manda
+   un profesional concreto (create_appointment sin cambios); si dio "horario
+   ya fue tomado", prueba con los otros libres de ese horario con el mismo
+   precio. El calendario habilita un día si atiende al menos uno.
 6. **Abuso de reservas.** Hecho: un turno por día y tope de 3 a futuro por
    cuenta. Falta, por orden: bloquear cliente desde el panel (para la cuenta que
    se porta mal), y App Check con reCAPTCHA v3 sobre los callables para frenar

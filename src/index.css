@@ -5202,3 +5202,9 @@ button.mapa-celda:hover, button.mapa-celda:focus-visible { outline: 2px solid va
 .archivos-grupo-cabecera { display: flex; align-items: center; gap: var(--space-sm); flex-wrap: wrap; }
 .archivos-grupo-turno { flex: 1; min-width: 160px; display: flex; flex-direction: column; gap: 2px; }
 .archivos-grupo-turno strong { display: inline-flex; align-items: center; gap: 6px; font-size: 0.9375rem; }
+
+/* "Cualquier profesional" (modo_profesional): el ícono en lugar de iniciales. */
+.professional-card-cualquiera .avatar svg {
+  width: 1.75rem;
+  height: 1.75rem;
+}

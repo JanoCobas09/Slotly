@@ -15,16 +15,21 @@ import { esTelefono, problema, LIMITES } from '../../utils/validaciones';
 import ErrorDeCampo from '../../components/ErrorDeCampo';
 import { useErrorDeCampo } from '../../hooks/useErrorDeCampo';
 import { sucursalesActivas, profesionalesDeSucursal, schedulesDeSucursal, precioEn, horarioDe, datosDe } from '../../utils/sucursales';
+import { CUALQUIERA, modoProfesional, candidatosDelServicio, juntarGrillas, esHorarioTomado } from '../../utils/asignacionProfesional';
 
 // ---- STEPPER ----
-function Stepper({ step }) {
-  const labels = ['Servicio', 'Profesional', 'Datos', 'Fecha', 'Horario', 'Confirmar'];
+// `step` sigue siendo el número interno (1 a 6) aunque el negocio asigne el
+// profesional solo: ahí el paso 2 no se muestra y los círculos se renumeran.
+function Stepper({ step, saltearProfesional }) {
+  const pasos = ['Servicio', 'Profesional', 'Datos', 'Fecha', 'Horario', 'Confirmar']
+    .map((label, idx) => ({ label, paso: idx + 1 }))
+    .filter(({ paso }) => !(saltearProfesional && paso === 2));
   return (
     <div className="stepper">
-      {labels.map((label, idx) => {
+      {pasos.map(({ label, paso }, idx) => {
         const num = idx + 1;
-        const completed = num < step;
-        const active = num === step;
+        const completed = paso < step;
+        const active = paso === step;
         return (
           <div key={num} className="stepper-step">
             {idx > 0 && <div className={`stepper-line ${completed ? 'completed' : ''}`} />}
@@ -310,7 +315,9 @@ function ServiceSelect({ services, professionals, professionalServices, selected
 // ---- PROFESSIONAL SELECT ----
 // Segundo paso: quién. Solo los profesionales que hacen el servicio elegido.
 // Si el precio cambia según quién lo haga, cada tarjeta muestra el suyo.
-function ProfessionalSelect({ professionals, professionalServices, service, selectedId, onSelect, currency }) {
+// Con `ofrecerCualquiera` (modo 'elige_o_cualquiera' y más de uno para
+// elegir) la primera tarjeta es "Cualquier profesional".
+function ProfessionalSelect({ professionals, professionalServices, service, selectedId, onSelect, currency, ofrecerCualquiera }) {
   const disponibles = useMemo(() => professionals
     .filter((p) => p.isActive)
     .map((p) => {
@@ -325,6 +332,22 @@ function ProfessionalSelect({ professionals, professionalServices, service, sele
       <h2 className="booking-step-title">Seleccioná tu profesional</h2>
       <p className="booking-step-subtitle">Elegí con quién querés atenderte</p>
       <div className="professionals-grid">
+        {ofrecerCualquiera && disponibles.length > 1 && (
+          <div
+            className={`card card-selectable professional-card professional-card-cualquiera ${selectedId === CUALQUIERA ? 'card-selected' : ''}`}
+            onClick={() => onSelect(CUALQUIERA)}
+          >
+            <div className="avatar avatar-lg"><Icon name="users" /></div>
+            <h3>Cualquier profesional</h3>
+            <p className="specialty">Te mostramos todos los horarios libres</p>
+            {variaPrecio && (
+              <p className="professional-card-precio">
+                <span className="service-price-desde">Desde </span>
+                {formatPrice(Math.min(...disponibles.map((p) => p.precio)), currency)}
+              </p>
+            )}
+          </div>
+        )}
         {disponibles.map((prof) => (
           <div
             key={prof.id}
@@ -358,10 +381,17 @@ function ultimoDiaReservable(maxAdvanceDays) {
   return toDateString(d);
 }
 
-function DatePicker({ selectedDate, onSelect, professionalId, schedules: allSchedules, businessHours, maxAdvanceDays, blockedDays = [] }) {
-  // Días que el negocio bloqueó ENTEROS (feriados, vacaciones). Los que solo
-  // tienen un rango bloqueado se ofrecen igual: esas horas las saca la grilla.
-  const bloqueados = new Set(blockedDays.filter(esDiaEntero).map((b) => b.date));
+function DatePicker({ selectedDate, onSelect, professionalIds, schedules: allSchedules, businessHours, maxAdvanceDays, blockedDays = [] }) {
+  // Días bloqueados ENTEROS (feriados, vacaciones) para cada profesional: los
+  // de todo el negocio y los suyos. Los que solo tienen un rango bloqueado se
+  // ofrecen igual: esas horas las saca la grilla. Con "Cualquier
+  // profesional" llegan varios y el día se ofrece si al menos uno atiende.
+  const bloqueadosDe = useMemo(() => new Map(professionalIds.map((id) => [
+    id,
+    new Set(bloqueosQueAplican(blockedDays, { professionalId: id }).filter(esDiaEntero).map((b) => b.date)),
+  ])), [professionalIds, blockedDays]);
+  const atiende = (dateStr) => professionalIds.some((id) =>
+    professionalWorksOnDate(id, dateStr, allSchedules, businessHours) && !bloqueadosDe.get(id).has(dateStr));
   const [viewDate, setViewDate] = useState(() => {
     if (selectedDate) return new Date(selectedDate + 'T00:00:00');
     return new Date();
@@ -413,7 +443,7 @@ function DatePicker({ selectedDate, onSelect, professionalId, schedules: allSche
             if (day === null) return <div key={`empty-${idx}`} className="calendar-day empty" />;
             const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
             const isPastDate = dateStr < today || (hasta !== null && dateStr > hasta);
-            const works = professionalWorksOnDate(professionalId, dateStr, allSchedules, businessHours) && !bloqueados.has(dateStr);
+            const works = atiende(dateStr);
             const isSelected = dateStr === selectedDate;
             const isToday = dateStr === today;
 
@@ -645,7 +675,7 @@ function PersonalInfoStep({ user, name, phone, onNameChange, onPhoneChange, tele
 }
 
 // ---- SUMMARY ----
-function BookingSummary({ professional, service, date, timeSlot, price, originalPrice, currency, promo, sena, onConfirm, confirming, onBack }) {
+function BookingSummary({ professional, asignadoSolo, service, date, timeSlot, price, originalPrice, currency, promo, sena, onConfirm, confirming, onBack }) {
   const { terminology } = useBusinessContext();
   return (
     <div>
@@ -659,6 +689,7 @@ function BookingSummary({ professional, service, date, timeSlot, price, original
                 ? <img src={professional.avatarUrl} alt={professional.name} />
                 : professional.name.split(' ').map(n => n[0]).join('')}
             </div>
+            {asignadoSolo && <p className="text-sm" style={{ opacity: 0.8 }}>Te atiende</p>}
             <h3>{professional.name}</h3>
             <p className="text-sm" style={{ opacity: 0.8 }}>{professional.specialty}</p>
           </div>
@@ -893,11 +924,39 @@ export default function BookingPage() {
     );
   }, [user, date, appointments]);
 
-  const selectedProfessional = professionals.find(p => p.id === professionalId);
+  // ── Quién elige al profesional (Configuración → modo_profesional) ──
+  // Con "Cualquier profesional" (o en modo automático, donde el cliente ni ve
+  // ese paso) `professionalId` queda en CUALQUIERA hasta elegir horario: la
+  // grilla junta a todos los que hacen el servicio y cada horario trae quién
+  // lo atendería. A partir de ahí, el que atiende es el del horario elegido.
+  const modo = modoProfesional(negocio);
+  const saltearProfesional = modo === 'automatico';
+  const esCualquiera = professionalId === CUALQUIERA;
+  const candidatos = useMemo(
+    () => (serviceId ? candidatosDelServicio(professionals, professionalServices, serviceId) : []),
+    [professionals, professionalServices, serviceId],
+  );
+  const idsAMirar = useMemo(
+    () => (esCualquiera ? candidatos.map((p) => p.id) : professionalId ? [professionalId] : []),
+    [esCualquiera, candidatos, professionalId],
+  );
+  const profesionalQueAtiende = esCualquiera ? timeSlot?.professionalId || null : professionalId;
+
+  useEffect(() => {
+    if (saltearProfesional && serviceId && !professionalId) {
+      dispatch({ type: 'SET_PROFESSIONAL', payload: CUALQUIERA });
+    }
+  }, [saltearProfesional, serviceId, professionalId, dispatch]);
+
+  const selectedProfessional = professionals.find(p => p.id === profesionalQueAtiende);
   const selectedService = services.find(s => s.id === serviceId);
+  const precioDe = (id) => {
+    const deEse = professionalServices.find(p => p.professionalId === id && p.serviceId === serviceId);
+    return deEse?.customPrice || selectedService?.price || 0;
+  };
 
   // Get customized price
-  const ps = professionalServices.find(p => p.professionalId === professionalId && p.serviceId === serviceId);
+  const ps = professionalServices.find(p => p.professionalId === profesionalQueAtiende && p.serviceId === serviceId);
   const finalPrice = ps?.customPrice || selectedService?.price || 0;
   const finalDuration = ps?.customDuration || selectedService?.durationMinutes || 30;
 
@@ -975,44 +1034,52 @@ export default function BookingPage() {
   // La respuesta se guarda junto con la clave que la pidió: si cambia el
   // profesional o el día, la que hay deja de valer sola, sin un setState
   // sincrónico en el efecto (que el compilador de React rechaza).
-  const claveOcupados = `${businessId}|${professionalId}|${date}`;
+  //
+  // Con "Cualquier profesional" se pide la de cada uno, en paralelo (son
+  // pocos por negocio). Si falla la de alguno, ese queda con la grilla
+  // optimista y el resto sigue normal.
+  const claveOcupados = `${businessId}|${idsAMirar.join(',')}|${date}`;
   const [ocupados, setOcupados] = useState({ clave: '', lista: [] });
   useEffect(() => {
-    if (!businessId || !professionalId || !date) return;
+    if (!businessId || idsAMirar.length === 0 || !date) return;
     let vigente = true;
-    getBusySlots({ businessId, professionalId, appointmentDate: date })
-      .then(({ ocupados }) => {
-        if (!vigente) return;
+    Promise.all(idsAMirar.map((id) =>
+      getBusySlots({ businessId, professionalId: id, appointmentDate: date })
         // Con la forma que espera availabilityEngine.
-        const lista = ocupados.map((o) => ({ ...o, professionalId, appointmentDate: date, status: 'confirmada' }));
-        setOcupados({ clave: claveOcupados, lista });
-      })
-      .catch((err) => {
-        console.error('[BookingPage] No se pudieron leer los horarios ocupados:', err);
-        // Mejor una grilla optimista que ninguna: la transacción del servidor
-        // sigue frenando el solapamiento.
-        if (vigente) setOcupados({ clave: claveOcupados, lista: [] });
+        .then(({ ocupados }) => ocupados.map((o) => ({ ...o, professionalId: id, appointmentDate: date, status: 'confirmada' })))
+        .catch((err) => {
+          console.error('[BookingPage] No se pudieron leer los horarios ocupados:', err);
+          // Mejor una grilla optimista que ninguna: la transacción del
+          // servidor sigue frenando el solapamiento.
+          return [];
+        })))
+      .then((listas) => {
+        if (vigente) setOcupados({ clave: claveOcupados, lista: listas.flat() });
       });
     return () => { vigente = false; };
-  }, [businessId, professionalId, date, claveOcupados]);
+  }, [businessId, idsAMirar, date, claveOcupados]);
   const cargandoOcupados = ocupados.clave !== claveOcupados;
 
   // Calculate available slots
   const availableSlots = useMemo(() => {
-    if (!professionalId || !serviceId || !date || cargandoOcupados) return [];
-    const slots = calculateAvailableSlots({
-      professionalId,
+    if (idsAMirar.length === 0 || !serviceId || !date || cargandoOcupados) return [];
+    const turnosDe = (id) => ocupados.lista.filter((o) => o.professionalId === id);
+    const slotsDe = (id) => calculateAvailableSlots({
+      professionalId: id,
       serviceId,
       date,
       schedules,
       // Los rangos bloqueados por el negocio ese día van como horarios
       // ocupados: el motor los saca de la grilla sin saber de bloqueos.
-      appointments: [...ocupados.lista, ...rangosComoOcupados(bloqueosQueAplican(blockedDays, { professionalId }), date, professionalId)],
+      appointments: [...turnosDe(id), ...rangosComoOcupados(bloqueosQueAplican(blockedDays, { professionalId: id }), date, id)],
       services,
       professionalServices,
       slotInterval: business.slotInterval,
       businessHours: business.businessHours,
     });
+    const slots = esCualquiera
+      ? juntarGrillas(idsAMirar.map((id) => ({ professionalId: id, slots: slotsDe(id), turnosDelDia: turnosDe(id).length })), date)
+      : slotsDe(idsAMirar[0]);
     // Anticipación mínima del negocio (Configuración): con 3 horas, a las
     // 14:00 el turno de las 16:00 ya no se ofrece. Se filtra acá y no en
     // availabilityEngine (que no se toca); la base lo vuelve a frenar con el
@@ -1021,7 +1088,7 @@ export default function BookingPage() {
     if (!minimo) return slots;
     const desde = Date.now() + minimo * 3600 * 1000;
     return slots.filter((s) => new Date(`${date}T${s.startTime}:00`).getTime() >= desde);
-  }, [professionalId, serviceId, date, schedules, ocupados, cargandoOcupados, services, professionalServices, business, blockedDays]);
+  }, [idsAMirar, esCualquiera, serviceId, date, schedules, ocupados, cargandoOcupados, services, professionalServices, business, blockedDays]);
 
   if (blockedReason) {
     return <BookingUnavailable reason={blockedReason} business={business} />;
@@ -1064,23 +1131,26 @@ export default function BookingPage() {
       setError('Ya tenés un turno reservado para este día.');
       return;
     }
+    // En modo automático el paso 2 no existe: del servicio va directo a "Tus datos".
+    const siguiente = step === 1 && saltearProfesional ? 3 : step + 1;
     // Hasta acá se puede mirar sin cuenta. Para poner sus datos y confirmar,
     // tiene que entrar. servicio y profesional se guardan porque el login
     // recarga la página entera (ver BOOKING_DRAFT_KEY más arriba) — sin
     // esto, volver de Google largaba de nuevo en "elegí un servicio".
-    if (step === 2 && !user) {
+    if (siguiente === 3 && !user) {
       setError('');
       try { sessionStorage.setItem(BOOKING_DRAFT_KEY, JSON.stringify({ professionalId, serviceId, branchId: booking.branchId })); } catch { /* sin storage, hay que re-elegir al volver */ }
       navigate('/login', { state: { from: `/${slug}` } });
       return;
     }
     setError('');
-    dispatch({ type: 'NEXT_STEP' });
+    dispatch({ type: 'SET_STEP', payload: siguiente });
   };
 
   const handleBack = () => {
     setError('');
-    dispatch({ type: 'PREV_STEP' });
+    if (step === 3 && saltearProfesional) dispatch({ type: 'SET_STEP', payload: 1 });
+    else dispatch({ type: 'PREV_STEP' });
   };
 
   const handleConfirm = async () => {
@@ -1110,7 +1180,7 @@ export default function BookingPage() {
       clientName: personalInfo.name,
       clientEmail: user.email,
       clientPhone: personalInfo.phone,
-      professionalId,
+      professionalId: profesionalQueAtiende,
       serviceId,
       appointmentDate: date,
       startTime: timeSlot.startTime,
@@ -1120,22 +1190,39 @@ export default function BookingPage() {
       adminNotes: '',
     };
 
+    // Asignado solo: si otro se queda con ese profesional en ese horario
+    // mientras el cliente confirma, se prueba con los otros libres en el
+    // mismo horario — solo los del mismo precio, para no cobrarle algo
+    // distinto de lo que vio en el resumen.
+    const aProbar = esCualquiera
+      ? [profesionalQueAtiende, ...(timeSlot.alternativas || []).map((a) => a.professionalId).filter((id) => precioDe(id) === finalPrice)]
+      : [profesionalQueAtiende];
+
     try {
       // El turno lo revalida enteró el servidor (Edge Function
       // create-appointment): el motor de disponibilidad de acá arriba pinta
       // la grilla, pero cualquiera con la consola abierta lo saltea. El
       // precio sale del servicio, no de este formulario.
-      const res = await createAppointment({
-        businessId,
-        professionalId,
-        serviceId,
-        appointmentDate: date,
-        startTime: timeSlot.startTime,
-        clientName: personalInfo.name,
-        clientPhone: personalInfo.phone,
-        clientEmail: user.email,
-        notes,
-      });
+      let res = null;
+      for (const [i, id] of aProbar.entries()) {
+        try {
+          res = await createAppointment({
+            businessId,
+            professionalId: id,
+            serviceId,
+            appointmentDate: date,
+            startTime: timeSlot.startTime,
+            clientName: personalInfo.name,
+            clientPhone: personalInfo.phone,
+            clientEmail: user.email,
+            notes,
+          });
+          datos.professionalId = id;
+          break;
+        } catch (err) {
+          if (i === aProbar.length - 1 || !esHorarioTomado(err)) throw err;
+        }
+      }
       // El negocio pide seña: el turno queda retenido y se paga en Mercado
       // Pago. Al terminar, MP vuelve a /:slug/pago (PagoSenaPage).
       if (res.status === 'pending_payment' && res.checkoutUrl) {
@@ -1199,7 +1286,7 @@ export default function BookingPage() {
           </button>
         </div>
       )}
-      <Stepper step={step} />
+      <Stepper step={step} saltearProfesional={saltearProfesional} />
       {error && (
         <div className="badge badge-danger mb-md" style={{ display: 'block', textAlign: 'center', padding: '12px', borderRadius: '8px', fontSize: '14px' }}>
           {error}
@@ -1233,6 +1320,7 @@ export default function BookingPage() {
           selectedId={professionalId}
           onSelect={id => dispatch({ type: 'SET_PROFESSIONAL', payload: id })}
           currency={business.currency}
+          ofrecerCualquiera={modo === 'elige_o_cualquiera'}
         />
       )}
 
@@ -1255,11 +1343,11 @@ export default function BookingPage() {
         <DatePicker
           selectedDate={date}
           onSelect={d => dispatch({ type: 'SET_DATE', payload: d })}
-          professionalId={professionalId}
+          professionalIds={idsAMirar}
           schedules={schedules}
           businessHours={business.businessHours}
           maxAdvanceDays={business.maxAdvanceDays}
-          blockedDays={bloqueosQueAplican(blockedDays, { professionalId })}
+          blockedDays={blockedDays}
         />
       )}
 
@@ -1280,6 +1368,7 @@ export default function BookingPage() {
       {step === 6 && selectedProfessional && selectedService && (
         <BookingSummary
           professional={selectedProfessional}
+          asignadoSolo={esCualquiera}
           service={{ ...selectedService, finalDuration }}
           date={date}
           timeSlot={timeSlot}
