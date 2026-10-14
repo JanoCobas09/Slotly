@@ -429,3 +429,10 @@ verify_jwt = false
 
 [functions.mp-oauth-callback]
 verify_jwt = false
+
+# Vuelta del permiso de Google Calendar: una navegación del browser, sin
+# sesión de Slotly. Se autentica con el `state` de un solo uso (igual que
+# mp-oauth-callback). Al desplegar a mano:
+#   supabase functions deploy gcal-oauth-callback --no-verify-jwt
+[functions.gcal-oauth-callback]
+verify_jwt = false

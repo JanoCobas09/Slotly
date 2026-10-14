@@ -193,6 +193,23 @@ export function desconectarMercadoPago({ businessId }) {
 }
 
 /**
+ * Google Calendar de un profesional (lo conecta él mismo o el dueño).
+ *
+ * `conectarGoogleCalendar` devuelve `{ url }`: el permiso de Google. Al
+ * terminar, Google lo devuelve a la pantalla de `volverA` ('configuracion' o
+ * 'ajustes') con ?gcal=conectado | cancelado | sin-permiso | error.
+ * `desconectarGoogleCalendar` saca de su calendario los turnos que vienen y
+ * borra la conexión.
+ */
+export function conectarGoogleCalendar({ businessId, professionalId, volverA = 'configuracion' }) {
+  return llamar('gcal-conexion', { action: 'conectar', businessId, professionalId, volverA });
+}
+
+export function desconectarGoogleCalendar({ businessId, professionalId }) {
+  return llamar('gcal-conexion', { action: 'desconectar', businessId, professionalId });
+}
+
+/**
  * Devuelve entera la seña pagada de un turno, desde la cuenta de MP del
  * negocio. Solo el dueño. Devuelve `{ status: 'devuelta' | 'ya-devuelta' }`.
  */

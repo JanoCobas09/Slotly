@@ -10,8 +10,12 @@
 //
 // Sin exigir sesión, a propósito: la grilla se mira antes de loguearse (el
 // login se pide recién al confirmar), y la respuesta no tiene PII.
+//
+// Si el profesional conectó su Google Calendar, también va lo ocupado ahí
+// (solo inicio y fin, nunca de qué se trata) — ver _shared/google.ts.
 import { corsHeaders } from '../_shared/cors.ts';
 import { supabaseAdmin, errorResponse, jsonResponse, invalidArgument } from '../_shared/auth.ts';
+import { ocupadoEnGoogle } from '../_shared/google.ts';
 
 const FORMATO_FECHA = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -38,10 +42,13 @@ Deno.serve(async (req) => {
 
     if (error) throw error;
 
-    const ocupados = (data || []).map((a) => ({
-      startTime: a.start_time,
-      endTime: a.end_time || a.start_time,
-    }));
+    const ocupados = [
+      ...(data || []).map((a) => ({
+        startTime: a.start_time,
+        endTime: a.end_time || a.start_time,
+      })),
+      ...(await ocupadoEnGoogle(admin, professionalId, appointmentDate)),
+    ];
 
     return jsonResponse({ ocupados }, corsHeaders);
   } catch (err) {

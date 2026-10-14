@@ -3,6 +3,7 @@
     { "path": "/api/keepalive", "schedule": "0 12 * * *" }
   ],
   "rewrites": [
+    { "source": "/api/google-calendar/callback", "destination": "https://pwigjpqiwzyakwwzwthz.supabase.co/functions/v1/gcal-oauth-callback" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
   "headers": [

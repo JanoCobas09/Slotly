@@ -33,6 +33,7 @@ const PagoSenaPage = lazy(() => import('./pages/client/PagoSenaPage'));
 const MyAppointments   = lazy(() => import('./pages/client/MyAppointments'));
 const MisTurnosPage    = lazy(() => import('./pages/client/MisTurnosPage'));
 const OnboardingPage   = lazy(() => import('./pages/client/OnboardingPage'));
+const PrivacidadPage   = lazy(() => import('./pages/PrivacidadPage'));
 
 // Panel del negocio
 const DashboardPage       = lazy(() => import('./pages/admin/DashboardPage'));
@@ -290,6 +291,10 @@ export default function App() {
             Ahora es el fallback de "prefiero que me lo armen"; el destino
             por defecto de ese login es /onboarding (ver LoginPage). */}
         <Route path="/cuenta" element={<ClientLayout><CuentaSinNegocio /></ClientLayout>} />
+
+        {/* Política de privacidad: pública, la pide Google para aprobar el
+            permiso de Google Calendar. */}
+        <Route path="/privacidad" element={<ClientLayout><PrivacidadPage /></ClientLayout>} />
 
         {/* "Verificá tu turno": los turnos de la cuenta en TODOS los
             negocios. Pide entrar con Google (nunca por un correo tipeado).

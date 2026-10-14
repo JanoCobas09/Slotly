@@ -1270,6 +1270,39 @@ dominio de más autorizado no es un agujero de seguridad, solo ruido).
    un profesional concreto (create_appointment sin cambios); si dio "horario
    ya fue tomado", prueba con los otros libres de ese horario con el mismo
    precio. El calendario habilita un día si atiende al menos uno.
+5w. **Google Calendar por profesional (14/10/2026).** Pedido: usar el
+   calendario del teléfono (una web no tiene acceso al del dispositivo → API
+   de Google Calendar, que se sincroniza con el celular). Puesta en marcha y
+   verificación de Google: `GOOGLE-CALENDAR.md`. Migración
+   `20261025000000_google_calendar.sql`: `google_calendar_conexiones` (por
+   `professional_id`, refresh/access token, `error` = permiso revocado; sin
+   acceso desde el browser), `google_oauth_states`, RPC
+   `google_calendar_estado` (dueño/plataforma: todo el equipo; staff 'admin':
+   solo el suyo), trigger `appointments_sincronizar_google` → cola de avisos
+   (`sincronizar-google`, agregada al CHECK de envios_pendientes) solo si el
+   profesional tiene conexión sin error, y `google_sincronizar_profesional`
+   (todos sus turnos que vienen al conectar, en UNA tarea). Edge Functions:
+   `gcal-conexion` (conectar → url de Google; desconectar → borra eventos
+   futuros, revoca, borra fila; lo puede el propio profesional o el dueño),
+   `gcal-oauth-callback` (sin JWT, state de un solo uso, vuelve con
+   ?gcal=conectado|cancelado|sin-permiso|error), `sincronizar-google`
+   (relee el turno y reconcilia: vivo → PUT/POST, si no → DELETE; relee
+   después de guardar por si lo cancelaron en el medio). Id del evento =
+   `sl` + uuid del turno sin guiones (idempotente, sin tabla de mapeo).
+   Lectura: `get-busy-slots` suma `ocupadoEnGoogle` (saltea eventos de
+   Slotly, "Disponible", cancelados, rechazados; todo el día = 00:00–24:00;
+   si Google falla devuelve [] y no frena), `create-appointment` lo vuelve a
+   mirar ANTES de crear el turno (crearlo y borrarlo dispararía avisos) con el
+   mismo "Ese horario ya fue tomado" (así "Cualquier profesional" reintenta).
+   Permiso pedido: solo `calendar.events` + `openid email`. Callback en
+   producción vía `vercel.json` (`/api/google-calendar/callback` →
+   gcal-oauth-callback, secret `GOOGLE_REDIRECT_URI`) para no depender de
+   supabase.co en la verificación. Página pública `/privacidad`
+   (PrivacidadPage, link en el Footer, slug reservado). Front:
+   `components/admin/GoogleCalendarCard.jsx` en Configuración y en Mi
+   configuración (`GOOGLE_VERIFICO_LA_APP` apaga el aviso de "app no
+   verificada"). `supabase/tests/test-google-calendar.mjs` 58/58 con un
+   Google falso en el puerto 55390 (env de functions serve: ver su encabezado).
 6. **Abuso de reservas.** Hecho: un turno por día y tope de 3 a futuro por
    cuenta. Falta, por orden: bloquear cliente desde el panel (para la cuenta que
    se porta mal), y App Check con reCAPTCHA v3 sobre los callables para frenar

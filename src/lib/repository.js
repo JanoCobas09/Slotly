@@ -382,6 +382,18 @@ export async function getMpConnectionStatus(businessId) {
 }
 
 /**
+ * Qué profesionales del negocio tienen Google Calendar conectado. El dueño ve
+ * a todo su equipo; un profesional, solo el suyo. Nunca trae los tokens.
+ * Devuelve [{ professionalId, googleEmail, conectadoAt, error }]: `error`
+ * con texto = Google dejó de dar acceso y hay que volver a conectarlo.
+ */
+export async function getEstadoGoogleCalendar(businessId) {
+  const { data, error } = await supabase.rpc('google_calendar_estado', { p_business_id: businessId });
+  if (error) throw traducirError(error);
+  return (data || []).map((fila) => fromRow('google_calendar_conexiones', fila));
+}
+
+/**
  * "Habilitar" del panel global: descongela, termina la prueba, pasa el
  * próximo cobro a un mes y no la vuelve a suspender hasta ese vencimiento
  * aunque tenga deuda (habilitar_cuenta en la base). Antes solo ponía

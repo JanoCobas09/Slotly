@@ -21,7 +21,9 @@ import {
   jsonResponse,
   errorDeFuncionSql,
   failedPrecondition,
+  alreadyExists,
 } from '../_shared/auth.ts';
+import { ocupadoEnGoogleEntre } from '../_shared/google.ts';
 import { tokenDeNegocio, crearPreferencia, origenPermitido } from '../_shared/mercadopago.ts';
 
 Deno.serve(async (req) => {
@@ -48,6 +50,31 @@ Deno.serve(async (req) => {
         .eq('user_id', caller.id)
         .eq('appointment_date', appointmentDate)
         .eq('deposit_status', 'pendiente');
+    }
+
+    // Google Calendar del profesional (si lo conectó): la grilla ya esconde lo
+    // ocupado ahí, esto frena a quien se la saltee o a un evento que la
+    // persona agregó mientras el cliente elegía. Va ANTES de crear el turno:
+    // crearlo y borrarlo después dispararía los avisos de turno nuevo. Mismo
+    // mensaje que el solapamiento de create_appointment, así la reserva con
+    // "Cualquier profesional" prueba con otro. Si Google no contesta, no frena.
+    if (professionalId && serviceId && appointmentDate && startTime) {
+      const { data: conectado } = await admin.from('google_calendar_conexiones').select('professional_id')
+        .eq('professional_id', professionalId).is('error', null).maybeSingle();
+      if (conectado) {
+        const [{ data: servicio }, { data: propio }] = await Promise.all([
+          admin.from('services').select('duration_minutes').eq('id', serviceId).maybeSingle(),
+          admin.from('professional_services').select('custom_duration')
+            .eq('professional_id', professionalId).eq('service_id', serviceId).maybeSingle(),
+        ]);
+        const duracion = Number(propio?.custom_duration || servicio?.duration_minutes || 0);
+        const [h, m] = String(startTime).split(':').map(Number);
+        const fin = h * 60 + m + duracion;
+        const finHora = `${String(Math.floor(fin / 60)).padStart(2, '0')}:${String(fin % 60).padStart(2, '0')}`;
+        if (duracion > 0 && await ocupadoEnGoogleEntre(admin, professionalId, appointmentDate, startTime, finHora)) {
+          throw alreadyExists('Ese horario ya fue tomado. Elegí otro.');
+        }
+      }
     }
 
     // clientEmail sale del token, nunca del cuerpo de la llamada — mismo

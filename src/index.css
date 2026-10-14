@@ -5208,3 +5208,41 @@ button.mapa-celda:hover, button.mapa-celda:focus-visible { outline: 2px solid va
   width: 1.75rem;
   height: 1.75rem;
 }
+
+/* Google Calendar (GoogleCalendarCard): una fila por profesional. */
+.gcal-fila {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--border);
+}
+.gcal-fila:last-child { border-bottom: 0; }
+.gcal-persona {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.gcal-persona .badge { white-space: normal; text-align: left; }
+.gcal-acciones { display: flex; gap: var(--space-xs, 6px); }
+
+.footer-link { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+
+/* Páginas legales (/privacidad): texto largo, ancho de lectura. */
+.legal-page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: var(--space-xl) var(--space-md);
+  line-height: 1.65;
+}
+.legal-page h1 { margin-bottom: var(--space-xs, 6px); }
+.legal-page h2 { font-size: 1.15rem; margin: var(--space-lg) 0 var(--space-sm); }
+.legal-page p, .legal-page li { color: var(--text-secondary); }
+.legal-page p { margin-bottom: var(--space-sm); }
+.legal-page ul { padding-left: 1.25rem; margin-bottom: var(--space-sm); }
+.legal-page li { margin-bottom: 6px; }
+.legal-page a { color: var(--primary); }

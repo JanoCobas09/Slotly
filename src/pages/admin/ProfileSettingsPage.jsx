@@ -15,6 +15,7 @@ import { validarProfesional, validarSemana, LIMITES } from '../../utils/validaci
 import ErrorDeCampo from '../../components/ErrorDeCampo';
 import { useErrorDeCampo } from '../../hooks/useErrorDeCampo';
 import HorarioSemanal from '../../components/admin/HorarioSemanal';
+import GoogleCalendarCard from '../../components/admin/GoogleCalendarCard';
 import { diasDesdeSchedules, schedulesDesdeDias } from '../../utils/horarioSemanal';
 import { sucursalesActivas, sucursalPrincipal } from '../../utils/sucursales';
 
@@ -234,6 +235,13 @@ export default function ProfileSettingsPage() {
               <Icon name="save" /> Guardar Mi Configuración
             </button>
           </div>
+
+          <GoogleCalendarCard
+            businessId={businessId}
+            profesionales={[professional]}
+            volverA="ajustes"
+            terminology={terminology}
+          />
         </div>
       </div>
     </div>

@@ -6,6 +6,8 @@ import { useBusinessContext } from '../../hooks/useBusinessContext';
 import { applyTheme } from '../../config/theme';
 import Icon from '../../components/Icon';
 import SenaMercadoPagoCard from '../../components/admin/SenaMercadoPagoCard';
+import GoogleCalendarCard from '../../components/admin/GoogleCalendarCard';
+import { useTenant } from '../../hooks/useTenantData';
 import { validarNegocio, normalizarInstagram, problema, LIMITES } from '../../utils/validaciones';
 import PrimerosPasos from '../../components/admin/PrimerosPasos';
 import HorarioAtencion from '../../components/admin/HorarioAtencion';
@@ -29,6 +31,7 @@ export default function SettingsPage() {
   const { business, businessId } = useCurrentBusiness();
   const { terminology, theme: resolvedTheme } = useBusinessContext();
   const { dispatch } = useBusiness();
+  const { professionals } = useTenant();
   const errorCampo = useErrorDeCampo();
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
@@ -514,6 +517,8 @@ export default function SettingsPage() {
           </div>
 
           <SenaMercadoPagoCard form={form} editar={editar} businessId={businessId} terminology={terminology} errorCampo={errorCampo} />
+
+          <GoogleCalendarCard businessId={businessId} profesionales={professionals} terminology={terminology} />
         </div>
       </div>
 
