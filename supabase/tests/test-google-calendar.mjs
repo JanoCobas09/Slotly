@@ -286,6 +286,17 @@ async function main() {
     const r5 = await callFn('gcal-oauth-callback', null, null, { method: 'GET', redirect: 'manual', query: `?state=${stateDe(r4.data.url)}&error=access_denied` });
     ok(r5.location?.includes('gcal=cancelado'), 'si cancela en Google: ?gcal=cancelado');
 
+    // El dueño toca "Conectar" en Beto pero tiene abierta la cuenta de Ana.
+    const r6 = await callFn('gcal-conexion', dueno.token, { action: 'conectar', businessId: bizId, professionalId: beto });
+    const revocadosAntes = google.revocados.length;
+    const r7 = await callFn('gcal-oauth-callback', null, null, { method: 'GET', redirect: 'manual', query: `?state=${stateDe(r6.data.url)}&code=codigo-ok` });
+    ok(r7.location?.includes('gcal=cuenta-en-uso'), `la cuenta de Ana NO se puede conectar también a Beto — ${r7.location}`);
+    const { data: cb2 } = await admin.from('google_calendar_conexiones').select('*').eq('professional_id', beto).maybeSingle();
+    ok(!cb2, 'Beto sigue sin conexión');
+    ok(google.revocados.length > revocadosAntes, 'y se devuelve ese permiso a Google');
+    const { data: ca } = await admin.from('google_calendar_conexiones').select('google_email').eq('professional_id', ana).single();
+    ok(ca.google_email === 'ana@gmail.test', 'la conexión de Ana no se toca');
+
     const { data: estado } = await dueno.db.rpc('google_calendar_estado', { p_business_id: bizId });
     ok(estado?.length === 1 && estado[0].professional_id === ana && estado[0].google_email === 'ana@gmail.test' && estado[0].error === null, 'el dueño ve a Ana conectada');
     const { data: estadoBeto } = await staffBeto.db.rpc('google_calendar_estado', { p_business_id: bizId });
@@ -421,6 +432,42 @@ async function main() {
       clientName: 'Pedro', clientPhone: '1198765432',
     });
     ok(r2.status === 200, `a las 16:00, cuando ya terminó: OK (${r2.status})`);
+  }
+
+  console.log('Cada profesional elige si sus actividades bloquean turnos:');
+  {
+    const { data: e0 } = await dueno.db.rpc('google_calendar_estado', { p_business_id: bizId });
+    ok(e0?.[0]?.bloquea === true, 'por defecto bloquean (que no haya solapamiento)');
+
+    const r0 = await callFn('gcal-conexion', staffBeto.token, { action: 'preferencias', businessId: bizId, professionalId: ana, bloquea: false });
+    ok(r0.status === 403, `Beto no puede cambiar la de Ana (${r0.status})`);
+    const r00 = await callFn('gcal-conexion', cliente.token, { action: 'preferencias', businessId: bizId, professionalId: ana, bloquea: false });
+    ok(r00.status === 403, `un cliente tampoco (${r00.status})`);
+    const r01 = await callFn('gcal-conexion', staffBeto.token, { action: 'preferencias', businessId: bizId, professionalId: beto, bloquea: false });
+    ok(r01.status === 404, `Beto sin Google conectado: no hay nada que cambiar (${r01.status})`);
+
+    const r1 = await callFn('gcal-conexion', dueno.token, { action: 'preferencias', businessId: bizId, professionalId: ana, bloquea: false });
+    ok(r1.status === 200, `el dueño (o la propia Ana) la apaga (${r1.status})`);
+    const { data: libre } = await callFn('get-busy-slots', null, { businessId: bizId, professionalId: ana, appointmentDate: fecha });
+    ok(!(libre.ocupados || []).some((x) => x.startTime === '15:00') && (libre.ocupados || []).some((x) => x.startTime === '09:00'),
+      'apagada: el dentista ya NO saca horarios de la reserva (los turnos de Slotly sí)');
+    const c3 = await usuario('cliente3-gcal');
+    const r2 = await callFn('create-appointment', c3.token, {
+      businessId: bizId, professionalId: ana, serviceId: srvId, appointmentDate: fecha, startTime: '15:00',
+      clientName: 'Marta', clientPhone: '1198765432',
+    });
+    ok(r2.status === 200, `y se puede reservar encima (${r2.status})`);
+    const rp = await callFn('ocupado-google', dueno.token, { businessId: bizId, professionalIds: [ana], fecha });
+    ok(rp.data.ocupados?.[ana]?.some((x) => x.startTime === '15:00') && rp.data.bloquea?.[ana] === false,
+      'el panel igual lo ve, marcado como que no bloquea');
+    if (r2.data?.id) await admin.from('appointments').delete().eq('id', r2.data.id);
+
+    const r3 = await callFn('gcal-conexion', dueno.token, { action: 'preferencias', businessId: bizId, professionalId: ana, bloquea: true });
+    ok(r3.status === 200, 'se vuelve a prender');
+    const { data: otraVez } = await callFn('get-busy-slots', null, { businessId: bizId, professionalId: ana, appointmentDate: fecha });
+    ok((otraVez.ocupados || []).some((x) => x.startTime === '15:00'), 'prendida: el dentista vuelve a bloquear');
+    const rp2 = await callFn('ocupado-google', dueno.token, { businessId: bizId, professionalIds: [ana], fecha });
+    ok(rp2.data.bloquea?.[ana] === true, 'y el panel lo sabe (no deja elegir esos horarios)');
   }
 
   console.log('Google revoca el permiso:');

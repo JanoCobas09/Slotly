@@ -11,8 +11,9 @@
 // Sin exigir sesión, a propósito: la grilla se mira antes de loguearse (el
 // login se pide recién al confirmar), y la respuesta no tiene PII.
 //
-// Si el profesional conectó su Google Calendar, también va lo ocupado ahí
-// (solo inicio y fin, nunca de qué se trata) — ver _shared/google.ts.
+// Si el profesional conectó su Google Calendar y eligió que sus actividades
+// bloqueen turnos, también va lo ocupado ahí (solo inicio y fin, nunca de qué
+// se trata) — ver _shared/google.ts.
 import { corsHeaders } from '../_shared/cors.ts';
 import { supabaseAdmin, errorResponse, jsonResponse, invalidArgument } from '../_shared/auth.ts';
 import { ocupadoEnGoogle } from '../_shared/google.ts';
@@ -47,7 +48,8 @@ Deno.serve(async (req) => {
         startTime: a.start_time,
         endTime: a.end_time || a.start_time,
       })),
-      ...(await ocupadoEnGoogle(admin, professionalId, appointmentDate)),
+      // Solo si el profesional eligió que sus actividades bloqueen turnos.
+      ...(await ocupadoEnGoogle(admin, professionalId, appointmentDate, { soloSiBloquea: true })),
     ];
 
     return jsonResponse({ ocupados }, corsHeaders);

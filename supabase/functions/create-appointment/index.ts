@@ -52,7 +52,8 @@ Deno.serve(async (req) => {
         .eq('deposit_status', 'pendiente');
     }
 
-    // Google Calendar del profesional (si lo conectó): la grilla ya esconde lo
+    // Google Calendar del profesional (si lo conectó y eligió que sus
+    // actividades bloqueen turnos): la grilla ya esconde lo
     // ocupado ahí, esto frena a quien se la saltee o a un evento que la
     // persona agregó mientras el cliente elegía. Va ANTES de crear el turno:
     // crearlo y borrarlo después dispararía los avisos de turno nuevo. Mismo
@@ -60,7 +61,7 @@ Deno.serve(async (req) => {
     // "Cualquier profesional" prueba con otro. Si Google no contesta, no frena.
     if (professionalId && serviceId && appointmentDate && startTime) {
       const { data: conectado } = await admin.from('google_calendar_conexiones').select('professional_id')
-        .eq('professional_id', professionalId).is('error', null).maybeSingle();
+        .eq('professional_id', professionalId).is('error', null).eq('bloquea', true).maybeSingle();
       if (conectado) {
         const [{ data: servicio }, { data: propio }] = await Promise.all([
           admin.from('services').select('duration_minutes').eq('id', serviceId).maybeSingle(),

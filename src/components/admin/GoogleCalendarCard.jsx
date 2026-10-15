@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { getEstadoGoogleCalendar } from '../../lib/repository';
-import { conectarGoogleCalendar, desconectarGoogleCalendar } from '../../lib/functions';
+import { conectarGoogleCalendar, desconectarGoogleCalendar, preferenciasGoogleCalendar } from '../../lib/functions';
 import Icon from '../Icon';
 
 // Mientras Google no termine de verificar la app (permiso de calendario =
@@ -15,6 +15,7 @@ const AVISO_VUELTA = {
   conectado: { clase: 'notice-info', texto: 'Listo: el calendario quedó conectado. En unos minutos aparecen los turnos que ya estaban agendados.' },
   cancelado: { clase: 'notice-warn', texto: 'No se conectó Google Calendar: cancelaste el permiso.' },
   'sin-permiso': { clase: 'notice-warn', texto: 'No se conectó: en la pantalla de Google hay que dejar tildado el permiso para ver y editar los eventos del calendario.' },
+  'cuenta-en-uso': { clase: 'notice-warn', texto: 'No se conectó: esa cuenta de Google ya está conectada a otro profesional del negocio. Cada profesional conecta la suya, así las actividades de uno no bloquean la agenda de otro.' },
   error: { clase: 'notice-danger', texto: 'No se pudo conectar Google Calendar. Probá de nuevo.' },
 };
 
@@ -82,6 +83,22 @@ export default function GoogleCalendarCard({ businessId, profesionales, volverA 
     }
   };
 
+  // Al toque, sin "Guardar Cambios" (igual que conectar). Optimista: si
+  // falla, vuelve a como estaba.
+  const cambiarBloquea = async (professionalId, bloquea) => {
+    setTrabajando(professionalId);
+    setError('');
+    setEstado((e) => ({ ...e, [professionalId]: { ...e[professionalId], bloquea } }));
+    try {
+      await preferenciasGoogleCalendar({ businessId, professionalId, bloquea });
+    } catch (err) {
+      setError(err.message);
+      setEstado((e) => ({ ...e, [professionalId]: { ...e[professionalId], bloquea: !bloquea } }));
+    } finally {
+      setTrabajando(null);
+    }
+  };
+
   const propio = volverA === 'ajustes';
   const { appointmentNoun: turno, customerNoun: cliente } = terminology;
 
@@ -134,6 +151,24 @@ export default function GoogleCalendarCard({ businessId, profesionales, volverA 
                     <span className="badge badge-danger"><Icon name="warning" /> {c.error}</span>
                   )}
                   {!c && <span className="text-sm text-muted">Sin conectar</span>}
+                  {c && !c.error && (
+                    <label className="gcal-bloquea">
+                      <input
+                        type="checkbox"
+                        checked={c.bloquea !== false}
+                        disabled={Boolean(trabajando)}
+                        onChange={(e) => cambiarBloquea(p.id, e.target.checked)}
+                      />
+                      <span>
+                        <strong>{propio ? 'Mis actividades de Google bloquean turnos' : 'Sus actividades de Google bloquean turnos'}</strong>
+                        <span className="text-xs text-muted" style={{ display: 'block' }}>
+                          {c.bloquea !== false
+                            ? `Si ${propio ? 'tenés' : 'tiene'} algo anotado, ese horario no se ofrece para reservar ni se puede elegir al cargar un ${turno} a mano. Así no se pisan.`
+                            : `${propio ? 'Tus' : 'Sus'} actividades se ven en la agenda pero no frenan nada: se puede reservar encima.`}
+                        </span>
+                      </span>
+                    </label>
+                  )}
                   {soloPrincipal && (
                     <span className="text-xs text-muted gcal-nota">
                       {propio

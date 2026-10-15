@@ -210,9 +210,19 @@ export function desconectarGoogleCalendar({ businessId, professionalId }) {
 }
 
 /**
+ * Si las actividades del Google Calendar de ese profesional BLOQUEAN turnos
+ * (`true`: no se ofrecen online ni se pueden elegir en el panel) o solo se
+ * muestran (`false`). Lo cambia el propio profesional o el dueño.
+ */
+export function preferenciasGoogleCalendar({ businessId, professionalId, bloquea }) {
+  return llamar('gcal-conexion', { action: 'preferencias', businessId, professionalId, bloquea });
+}
+
+/**
  * Para el panel: lo ocupado en el Google Calendar de cada profesional ese día
- * (solo inicio y fin). Devuelve `{ ocupados: { [professionalId]: [{ startTime, endTime }] } }`;
- * los que no tienen Google conectado vienen con [].
+ * (solo inicio y fin). Devuelve `{ ocupados: { [professionalId]: [{ startTime, endTime }] },
+ * bloquea: { [professionalId]: boolean } }`; los que no tienen Google conectado
+ * vienen con [] y sin `bloquea`.
  */
 export function getOcupadoGoogle({ businessId, professionalIds, fecha }) {
   return llamar('ocupado-google', { businessId, professionalIds, fecha });

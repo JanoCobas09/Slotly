@@ -1313,8 +1313,17 @@ dominio de más autorizado no es un agujero de seguridad, solo ruido).
    `ocupado-google` (equipo del negocio; un 'admin' solo lo suyo) +
    `hooks/useOcupadoGoogle.js`: AgendaDelDia muestra "Ocupado en Google
    Calendar" (sin título; esas franjas no se colapsan como libres) y
-   NuevoTurnoModal marca los horarios que chocan, avisa y pide confirmar
-   (decisión del usuario: avisar y dejar cargar). Test: 70/70.
+   NuevoTurnoModal marca los horarios que chocan. Después (15/10/2026), a
+   pedido: cada profesional elige si sus actividades de Google BLOQUEAN
+   turnos (`google_calendar_conexiones.bloquea`, por defecto true; casilla en
+   GoogleCalendarCard, acción 'preferencias' de gcal-conexion — el propio
+   profesional o el dueño). Bloquea → get-busy-slots y create-appointment las
+   cuentan (`ocupadoEnGoogle(..., { soloSiBloquea: true })`) y el modal
+   deshabilita esos horarios (salvo el horario original de un turno que se
+   edita); no bloquea → nada las frena, la agenda las muestra punteadas y el
+   modal avisa y pide confirmar. Encapsulamiento: gcal-oauth-callback rechaza
+   (`?gcal=cuenta-en-uso`) una cuenta de Google ya conectada a OTRO
+   profesional del negocio. Test: 85/85.
 6. **Abuso de reservas.** Hecho: un turno por día y tope de 3 a futuro por
    cuenta. Falta, por orden: bloquear cliente desde el panel (para la cuenta que
    se porta mal), y App Check con reCAPTCHA v3 sobre los callables para frenar

@@ -139,10 +139,19 @@ export default function NuevoTurnoModal({ onClose, turno = null }) {
   const diaBloqueado = slot
     ? turnoBloqueado(bloqueosDelTurno, form.date, slot.startTime, slot.endTime)
     : diaEnteroBloqueado(bloqueosDelTurno, form.date);
-  // Lo que el profesional tiene en su Google Calendar ese día. Se avisa y se
-  // deja cargar igual (decisión del usuario): el negocio puede tener motivos
-  // para pisarlo. Online, en cambio, esos horarios no se ofrecen.
-  const ocupadoGoogle = useOcupadoGoogle(businessId, [form.professionalId], form.date)[form.professionalId] || [];
+  // Lo que el profesional tiene en su Google Calendar ese día. Él elige
+  // (tarjeta de Google Calendar) si sus actividades BLOQUEAN turnos: entonces
+  // esos horarios no se pueden elegir acá tampoco — que no haya solapamiento.
+  // Si no bloquean, se avisa y se deja cargar.
+  const google = useOcupadoGoogle(businessId, [form.professionalId], form.date);
+  const ocupadoGoogle = google.ocupados[form.professionalId] || [];
+  const googleBloquea = google.bloquea[form.professionalId] === true;
+  // Al editar, el horario que el turno ya tenía se puede mantener aunque
+  // después le hayan anotado algo encima en Google (si no, no se podría ni
+  // corregirle el nombre).
+  const esSuHorarioOriginal = (s) => editando && form.professionalId === turno.professionalId
+    && form.date === turno.appointmentDate && s.startTime === turno.startTime;
+  const bloqueadoPorGoogle = (s) => googleBloquea && !esSuHorarioOriginal(s) && chocaCon(ocupadoGoogle, s.startTime, s.endTime);
   const chocaGoogle = Boolean(slot) && chocaCon(ocupadoGoogle, slot.startTime, slot.endTime);
   const nombreDelProfesional = professionals.find((p) => p.id === form.professionalId)?.name;
   const digitos = form.clientPhone.replace(/\D/g, '');
@@ -156,7 +165,11 @@ export default function NuevoTurnoModal({ onClose, turno = null }) {
       || (!form.clientName.trim() && problema('clientName', 'Poné el nombre del cliente.'))
       || (!telefonoOk && problema('clientPhone', 'Tiene que tener entre 10 y 13 dígitos, o dejalo vacío.'));
     if (errorCampo.marcar(falla)) return;
-    if (chocaGoogle && !window.confirm(`${nombreDelProfesional || 'El profesional'} tiene algo anotado en su Google Calendar en ese horario. ¿Agendar el turno igual?`)) return;
+    if (bloqueadoPorGoogle(slot)) {
+      errorCampo.marcar(problema('startTime', 'Ese horario está ocupado en su Google Calendar. Elegí otro.'));
+      return;
+    }
+    if (chocaGoogle && !googleBloquea && !window.confirm(`${nombreDelProfesional || 'El profesional'} tiene algo anotado en su Google Calendar en ese horario. ¿Agendar el turno igual?`)) return;
     setGuardando(true);
     setError('');
     try {
@@ -281,7 +294,7 @@ export default function NuevoTurnoModal({ onClose, turno = null }) {
               >
                 <option value="">{!form.serviceId ? 'Primero el servicio' : slots.length === 0 ? 'Sin horarios libres' : 'Elegí un horario'}</option>
                 {slots.map((s) => (
-                  <option key={s.startTime} value={s.startTime}>
+                  <option key={s.startTime} value={s.startTime} disabled={bloqueadoPorGoogle(s)}>
                     {s.startTime} — {s.endTime}{varias && s.branchId ? ` · ${nombreSucursal(branches, s.branchId)}` : ''}
                     {chocaCon(ocupadoGoogle, s.startTime, s.endTime) ? ' · ocupado en Google' : ''}
                   </option>
@@ -297,10 +310,24 @@ export default function NuevoTurnoModal({ onClose, turno = null }) {
             </div>
           )}
 
-          {chocaGoogle && (
+          {googleBloquea && ocupadoGoogle.length > 0 && !chocaGoogle && (
+            <p className="text-sm text-muted" style={{ marginTop: -6, marginBottom: 'var(--space-md)' }}>
+              <Icon name="calendar" /> Los horarios ocupados en el Google Calendar de {nombreDelProfesional || 'este profesional'} no
+              se pueden elegir: así lo configuró en su tarjeta de Google Calendar.
+            </p>
+          )}
+
+          {chocaGoogle && !googleBloquea && (
             <div className="notice notice-warn" style={{ marginBottom: 'var(--space-md)', fontSize: 14 }}>
               <Icon name="calendar" /> {nombreDelProfesional || 'El profesional'} tiene algo anotado en su <strong>Google Calendar</strong> en
-              este horario. Podés agendar igual, pero online este horario no se ofrece.
+              este horario. Eligió que sus actividades no bloqueen turnos, así que podés agendar igual.
+            </div>
+          )}
+
+          {chocaGoogle && googleBloquea && (
+            <div className="notice notice-info" style={{ marginBottom: 'var(--space-md)', fontSize: 14 }}>
+              <Icon name="calendar" /> Este turno quedó encima de algo que {nombreDelProfesional || 'el profesional'} anotó
+              después en su <strong>Google Calendar</strong>. Podés dejarlo en este horario o moverlo a otro libre.
             </div>
           )}
 

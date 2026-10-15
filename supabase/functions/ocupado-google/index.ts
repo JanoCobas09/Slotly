@@ -3,11 +3,15 @@
 // ============================================================================
 // Para el PANEL: qué tiene ocupado en su Google Calendar cada profesional un
 // día, solo inicio y fin (nunca de qué se trata). Lo usan la agenda del día
-// (bloques "Ocupado en Google Calendar") y el modal de turno nuevo (avisa si
-// el horario elegido choca, y deja cargarlo igual: decisión del usuario).
+// (bloques "Ocupado en Google Calendar") y el modal de turno nuevo (si el
+// profesional eligió que sus actividades bloqueen, esos horarios no se pueden
+// elegir; si no, avisa y deja cargarlo).
 //
 //   { businessId, professionalIds: [ids], fecha: 'YYYY-MM-DD' }
-//     → { ocupados: { [professionalId]: [{ startTime, endTime }] } }
+//     → { ocupados: { [professionalId]: [{ startTime, endTime }] },
+//         bloquea:  { [professionalId]: boolean } }   (su preferencia; ver
+//         google_calendar_conexiones.bloquea — el panel no deja elegir esos
+//         horarios si bloquea, y si no, avisa)
 //
 // Quién: el equipo del negocio (dueño, administrador de sucursal) y la
 // plataforma; un profesional ('admin'), solo lo suyo. Los profesionales sin
@@ -40,14 +44,15 @@ Deno.serve(async (req) => {
     const admin = supabaseAdmin();
     // Solo los de ESTE negocio con Google conectado (y sin error).
     const { data: conectados } = ids.length
-      ? await admin.from('google_calendar_conexiones').select('professional_id')
+      ? await admin.from('google_calendar_conexiones').select('professional_id, bloquea')
         .eq('business_id', businessId).in('professional_id', ids).is('error', null)
       : { data: [] };
     const conGoogle = (conectados || []).map((c) => c.professional_id as string);
+    const bloquea = Object.fromEntries((conectados || []).map((c) => [c.professional_id, c.bloquea !== false]));
 
     const ocupados = await ocupadoEnGoogleDeVarios(admin, conGoogle, fecha);
     for (const id of ids) if (!ocupados[id]) ocupados[id] = [];
-    return jsonResponse({ ocupados }, corsHeaders);
+    return jsonResponse({ ocupados, bloquea }, corsHeaders);
   } catch (err) {
     return errorResponse(err, corsHeaders);
   }

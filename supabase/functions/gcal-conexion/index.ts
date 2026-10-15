@@ -9,6 +9,9 @@
 //       → { url } del permiso de Google. Google lo devuelve a
 //         gcal-oauth-callback, que guarda la conexión. `volverA`:
 //         'ajustes' (Mi configuración) o 'configuracion' (por defecto).
+//   { action: 'preferencias', businessId, professionalId, bloquea }
+//       → si las actividades de su Google BLOQUEAN turnos (true, por
+//         defecto) o solo se muestran en el panel (false).
 //   { action: 'desconectar', businessId, professionalId }
 //       → borra de su calendario los eventos de los turnos que vienen, le
 //         avisa a Google que Slotly deja el permiso y borra la conexión.
@@ -37,7 +40,7 @@ Deno.serve(async (req) => {
 
   try {
     const caller = await getCaller(req);
-    const { action, businessId, professionalId, volverA } = await req.json();
+    const { action, businessId, professionalId, volverA, bloquea } = await req.json();
     if (!businessId || !professionalId) throw invalidArgument('Faltan datos.');
     if (!puedeConectar(caller, businessId, professionalId)) {
       throw permissionDenied('Solo el profesional o el dueño del negocio pueden conectar este calendario.');
@@ -47,6 +50,15 @@ Deno.serve(async (req) => {
     const { data: prof } = await admin.from('professionals').select('id')
       .eq('id', professionalId).eq('business_id', businessId).maybeSingle();
     if (!prof) throw notFound('No existe ese profesional en este negocio.');
+
+    if (action === 'preferencias') {
+      if (typeof bloquea !== 'boolean') throw invalidArgument('Falta elegir si bloquea.');
+      const { data, error } = await admin.from('google_calendar_conexiones').update({ bloquea })
+        .eq('professional_id', professionalId).eq('business_id', businessId).select('professional_id');
+      if (error) throw error;
+      if (!data?.length) throw notFound('Ese profesional no tiene Google Calendar conectado.');
+      return jsonResponse({ status: 'ok', bloquea }, corsHeaders);
+    }
 
     if (action === 'desconectar') {
       const { data: c } = await admin.from('google_calendar_conexiones').select('*')

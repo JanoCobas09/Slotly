@@ -105,9 +105,9 @@ export default function AgendaDelDia({
 
   // Google Calendar: de los profesionales que se están mirando.
   const idsVistos = professionalId ? [professionalId] : profActivo ? [profActivo] : professionals.map((p) => p.id);
-  const ocupadoPorProf = useOcupadoGoogle(business?.id, idsVistos, fecha);
-  const googleDelDia = useMemo(() => Object.entries(ocupadoPorProf).flatMap(([pid, lista]) =>
-    lista.map((o) => ({ ...o, professionalId: pid }))), [ocupadoPorProf]);
+  const delGoogle = useOcupadoGoogle(business?.id, idsVistos, fecha);
+  const googleDelDia = useMemo(() => Object.entries(delGoogle.ocupados).flatMap(([pid, lista]) =>
+    lista.map((o) => ({ ...o, professionalId: pid, bloquea: delGoogle.bloquea[pid] !== false }))), [delGoogle]);
 
   const delDia = useMemo(() => {
     return appointments
@@ -275,8 +275,10 @@ export default function AgendaDelDia({
                       ? <span className="agenda-libre agenda-sigue">↑ sigue {enCurso.type === 'walkin' ? 'servicio sin turno' : (enCurso.clientName || 'cliente')}</span>
                       : google.length > 0
                         ? (
-                          <span className="agenda-google">
-                            <Icon name="calendar" /> Ocupado en Google Calendar
+                          <span className={`agenda-google ${google.some((o) => o.bloquea) ? '' : 'no-bloquea'}`}>
+                            <Icon name="calendar" />{' '}
+                            {/* Cada profesional elige si sus actividades bloquean turnos. */}
+                            {google.some((o) => o.bloquea) ? 'Ocupado en Google Calendar' : 'Actividad en Google Calendar (no bloquea turnos)'}
                             {varios && !profActivo && ` · ${[...new Set(google.map((o) => nombreProf(o.professionalId)))].join(', ')}`}
                           </span>
                         )

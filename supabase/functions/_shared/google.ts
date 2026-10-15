@@ -152,6 +152,8 @@ export interface Conexion {
   lee_todos?: boolean;
   calendarios?: string[] | null;
   calendarios_at?: string | null;
+  /** Sus actividades de Google bloquean turnos (si no, solo se muestran en el panel). */
+  bloquea?: boolean;
 }
 
 /** La conexión del profesional, solo si anda (sin error pendiente). */
@@ -334,10 +336,17 @@ function siguienteDia(fecha: string): string {
  *
  * Sin conexión, o si Google falla, devuelve [] — mejor ofrecer la grilla de
  * Slotly que dejar al negocio sin reservas porque Google no contestó.
+ *
+ * `soloSiBloquea`: para la reserva (get-busy-slots, create-appointment). Si
+ * el profesional eligió que sus actividades NO bloqueen turnos, devuelve []
+ * sin preguntarle nada a Google. El panel las pide igual, para mostrarlas.
  */
-export async function ocupadoEnGoogle(admin: SupabaseClient, professionalId: string, fecha: string): Promise<{ startTime: string; endTime: string }[]> {
+export async function ocupadoEnGoogle(
+  admin: SupabaseClient, professionalId: string, fecha: string, { soloSiBloquea = false } = {},
+): Promise<{ startTime: string; endTime: string }[]> {
   const c = await conexionDe(admin, professionalId);
   if (!c) return [];
+  if (soloSiBloquea && c.bloquea === false) return [];
   try {
     const params = new URLSearchParams({
       timeMin: `${fecha}T00:00:00${DESFASE}`,
@@ -392,8 +401,8 @@ export async function ocupadoEnGoogleDeVarios(admin: SupabaseClient, professiona
   return Object.fromEntries(professionalIds.map((id, i) => [id, listas[i]]));
 }
 
-/** ¿Choca [inicio, fin) ('HH:MM') con algo de su calendario ese día? */
+/** ¿Choca [inicio, fin) ('HH:MM') con algo que BLOQUEA de su calendario ese día? */
 export async function ocupadoEnGoogleEntre(admin: SupabaseClient, professionalId: string, fecha: string, inicio: string, fin: string): Promise<boolean> {
-  const ocupado = await ocupadoEnGoogle(admin, professionalId, fecha);
+  const ocupado = await ocupadoEnGoogle(admin, professionalId, fecha, { soloSiBloquea: true });
   return ocupado.some((o) => inicio < o.endTime && fin > o.startTime);
 }

@@ -5259,3 +5259,14 @@ button.mapa-celda:hover, button.mapa-celda:focus-visible { outline: 2px solid va
   padding: 3px 8px;
 }
 .gcal-nota { flex-basis: 100%; }
+.agenda-google.no-bloquea { background: transparent; border: 1px dashed var(--border); }
+.gcal-bloquea {
+  flex-basis: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  font-size: 0.875rem;
+  cursor: pointer;
+  margin-top: 4px;
+}
+.gcal-bloquea input { margin-top: 3px; }

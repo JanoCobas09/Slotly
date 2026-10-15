@@ -10,7 +10,13 @@
 // una sola vez y vence a los 15 minutos. Mismo esquema que mp-oauth-callback.
 //
 // Vuelve a la pantalla de donde salió con ?gcal=conectado | cancelado |
-// sin-permiso (destildó el permiso del calendario) | error.
+// sin-permiso (destildó el permiso del calendario) | cuenta-en-uso | error.
+//
+// Encapsulamiento: una cuenta de Google se conecta a UN solo profesional del
+// negocio. Si ya está en otro (el dueño tocó "Conectar" en Beto con su propia
+// cuenta abierta, o con la de Ana), se rechaza: si no, las actividades de una
+// persona bloquearían la agenda de otra y los turnos de los dos irían al
+// mismo calendario.
 import { supabaseAdmin } from '../_shared/auth.ts';
 import { appUrl } from '../_shared/mercadopago.ts';
 import { canjearCodigo, emailDeIdToken, revocar, SCOPE_CALENDARIO, SCOPE_LISTA } from '../_shared/google.ts';
@@ -50,10 +56,21 @@ Deno.serve(async (req) => {
     }
     if (!token.refresh_token) throw new Error('Google no devolvió refresh_token.');
 
+    const email = emailDeIdToken(token.id_token)?.toLowerCase() || null;
+    if (email) {
+      const { data: otro } = await admin.from('google_calendar_conexiones').select('professional_id')
+        .eq('business_id', pedido.business_id).eq('google_email', email)
+        .neq('professional_id', pedido.professional_id).limit(1);
+      if (otro?.length) {
+        await revocar(token.refresh_token);
+        return volver(destino, 'cuenta-en-uso');
+      }
+    }
+
     const { error } = await admin.from('google_calendar_conexiones').upsert({
       professional_id: pedido.professional_id,
       business_id: pedido.business_id,
-      google_email: emailDeIdToken(token.id_token),
+      google_email: email,
       refresh_token: token.refresh_token,
       access_token: token.access_token,
       access_expires_at: new Date(Date.now() + (token.expires_in || 3600) * 1000).toISOString(),
