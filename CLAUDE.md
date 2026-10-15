@@ -1374,6 +1374,38 @@ dominio de más autorizado no es un agujero de seguridad, solo ruido).
    celular va ABAJO de los campos (pedido del usuario) con un botón arriba
    "Ver cómo te ve tu cliente ↓" que baja hasta ella. Si cambia BusinessHero, cambia en los dos
    lados (VitrinaComercio de la landing sigue siendo una copia aparte).
+5y. **Turnos fijos y feriados (15/10/2026)** — migración
+   `20261027000000_turnos_fijos_y_feriados.sql`, test
+   `supabase/tests/test-turnos-fijos.mjs`. TURNO FIJO = un cliente "todos los
+   miércoles a las 18" (semanal, quincenal, cada_3_semanas o mensual = el
+   mismo día de la semana en la misma semana del mes; 5ta semana = "el
+   último"), sin fin, por N meses o hasta una fecha. Solo lo carga el negocio
+   (NuevoTurnoModal → "Repetir", al crear). La serie vive en `turnos_fijos` y
+   cada fecha es un turno NORMAL (`type 'manual'`, confirmado,
+   `appointments.turno_fijo_id`), así le aplican todas las reglas de siempre:
+   se materializan las próximas 8 semanas (`horizonte_turnos_fijos`) y el cron
+   `extender-turnos-fijos` (diario) agrega las que entran. Una fecha que cae en
+   día bloqueado/feriado cerrado, fuera del horario del profesional o pisando
+   otro turno NO se agenda: queda en `turnos_fijos_saltados` (no se reintenta)
+   y, si la generó el cron, avisa con una notificación `turno_fijo_saltado`.
+   Al crearla, el modal muestra las salteadas. Faltar una vez = cancelar ese
+   turno (la cancelada no revive: índice único turno_fijo_id+fecha).
+   "Terminar el turno fijo desde este día" (`TurnoFijoDelTurno` en el detalle)
+   = `terminar_turno_fijo`: borra ese y los siguientes. Permisos:
+   `puede_ver_turno_fijo` (dueño; profesional, solo los suyos; admin. de
+   sucursal, los de profesionales de su sucursal). El modal suma "Mail
+   (opcional)" para el recordatorio por mail.
+   FERIADOS: tabla `feriados` (nacionales; la llena el cron mensual
+   `actualizar-feriados` → Edge Function `actualizar-feriados` →
+   api.argentinadatos.com, año actual y siguiente). Cada negocio elige en
+   Configuración → Horarios (`businesses.feriados`): 'atiende' (por defecto;
+   solo se marcan en Días bloqueados) o 'cierra' (`aplicar_feriados` los
+   vuelve días bloqueados enteros con `feriado_auto`; cron diario
+   `aplicar-feriados`). Borrar uno de esos = "Abrir" ese feriado: queda en
+   `feriados_abiertos` y no vuelve. Cerrar a mano un feriado (tarjeta
+   "Próximos feriados") es un bloqueo común que lleva el nombre (trigger).
+   Los `feriado_auto` no se listan en "Próximos bloqueos" (irían todos los
+   del año): están en "Próximos feriados".
 6. **Abuso de reservas.** Hecho: un turno por día y tope de 3 a futuro por
    cuenta. Falta, por orden: bloquear cliente desde el panel (para la cuenta que
    se porta mal), y App Check con reCAPTCHA v3 sobre los callables para frenar

@@ -1,9 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useTenant } from '../../hooks/useTenantData';
 import { useAuth } from '../../contexts/AuthContext';
 import { hayVariasSucursales, sucursalesActivas, nombreSucursal } from '../../utils/sucursales';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
-import { blockDays, removeBlocks } from '../../lib/repository';
+import { useCurrentBusiness } from '../../hooks/useCurrentBusiness';
+import { blockDays, removeBlocks, getFeriados } from '../../lib/repository';
 import { formatDate, toDateString, getMonthName } from '../../utils/dateUtils';
 import { esDiaEntero, diaEnteroBloqueado, rangosDelDia } from '../../utils/bloqueos';
 import Icon from '../../components/Icon';
@@ -21,6 +23,12 @@ import { problema } from '../../utils/validaciones';
  * Un día puede tener varios rangos. Para varios días seguidos (vacaciones)
  * está el "desde / hasta", con la misma opción. La base lo hace cumplir
  * también (trigger enforce_blocked_days).
+ *
+ * Feriados (tabla `feriados`, 20261027000000_turnos_fijos_y_feriados.sql):
+ * se marcan en el calendario con su nombre. Si el negocio los cierra
+ * (Configuración → Horarios), la base los vuelve días bloqueados enteros
+ * (feriado_auto); "Abrir" borra ese bloqueo y la base se acuerda de no
+ * volver a ponerlo. Si los atiende, el dueño puede cerrar uno puntual.
  */
 
 /** Todas las fechas 'YYYY-MM-DD' entre dos, inclusive. */
@@ -75,13 +83,40 @@ const problemaAlcance = (a, nombre) => {
   return null;
 };
 const rangoDe = (a) => (a.modo === 'dia' ? null : { startTime: a.desde, endTime: a.hasta });
-const textoBloqueo = (b) => (esDiaEntero(b) ? 'Todo el día' : `${b.startTime} a ${b.endTime}`);
+const textoBloqueo = (b) => (esDiaEntero(b)
+  ? (b.feriado ? `Todo el día · Feriado: ${b.feriado}` : 'Todo el día')
+  : `${b.startTime} a ${b.endTime}`);
+/** Liberar un feriado que el sistema cerró solo es "abrirlo". */
+const textoLiberar = (b) => (b.feriadoAuto ? 'Abrir este feriado' : 'Liberar');
+/** El bloqueo de todo el negocio, del día entero, de esa fecha (si hay). */
+const cierreDelNegocio = (bloqueos, fecha) => bloqueos.find((b) =>
+  b.date === fecha && !b.branchId && !b.professionalId && esDiaEntero(b));
+
+/** "+N días" desde una fecha 'YYYY-MM-DD'. */
+function sumarDias(iso, n) {
+  const d = new Date(`${iso}T12:00:00`);
+  d.setDate(d.getDate() + n);
+  return toDateString(d);
+}
 
 export default function BlockedDaysPage() {
   const { user } = useAuth();
   const { blockedDays: todosLosBloqueos, appointments, businessId, branches } = useTenant();
   const { terminology } = useBusinessContext();
+  const { business } = useCurrentBusiness();
   const hoy = toDateString(new Date());
+  const cierraFeriados = business?.feriados === 'cierra';
+
+  // Feriados nacionales del próximo año (los carga la base).
+  const [feriados, setFeriados] = useState([]);
+  useEffect(() => {
+    let vigente = true;
+    getFeriados(hoy, sumarDias(hoy, 400))
+      .then((lista) => { if (vigente) setFeriados(lista); })
+      .catch((err) => console.error('[BlockedDaysPage] No se pudieron leer los feriados:', err));
+    return () => { vigente = false; };
+  }, [hoy]);
+  const feriadoDe = useMemo(() => new Map(feriados.map((x) => [x.fecha, x.nombre])), [feriados]);
 
   // Tres alcances, según quién entra (la base hace cumplir lo mismo):
   //   dueño       → todo el negocio o una sucursal (elige arriba)
@@ -99,6 +134,7 @@ export default function BlockedDaysPage() {
     return sucursal === null ? !b.branchId : (!b.branchId || b.branchId === sucursal);
   });
   const puedeLiberar = (b) => (esProfesional ? b.professionalId === miProfesional : !(esManager && !b.branchId));
+  const manejaFeriados = !esManager && !esProfesional;
   const etiqueta = (b) => (
     (esProfesional ? !b.professionalId : sucursal !== null && !b.branchId) ? ' · todo el negocio' : ''
   );
@@ -109,6 +145,7 @@ export default function BlockedDaysPage() {
   const [rango, setRango] = useState({ desde: '', hasta: '' });
   const [alcanceRango, setAlcanceRango] = useState(ALCANCE_INICIAL);
   const [ocupado, setOcupado] = useState(false);
+  const [todosLosFeriados, setTodosLosFeriados] = useState(false);
   const [error, setError] = useState('');
   const errorCampo = useErrorDeCampo();
 
@@ -179,11 +216,13 @@ export default function BlockedDaysPage() {
   const bloqueosDelSeleccionado = seleccionado ? blockedDays.filter((b) => b.date === seleccionado) : [];
   const seleccionadoEntero = bloqueosDelSeleccionado.some(esDiaEntero);
 
-  // Próximos, agrupados por día (un día puede tener varios rangos).
+  // Próximos, agrupados por día (un día puede tener varios rangos). Los
+  // feriados que cerró el sistema van aparte, en "Próximos feriados": si no,
+  // con "Cierro los feriados" esta lista se llenaba con los del año.
   const proximos = useMemo(() => {
     const porDia = new Map();
     for (const b of blockedDays) {
-      if (b.date < hoy) continue;
+      if (b.date < hoy || b.feriadoAuto) continue;
       if (!porDia.has(b.date)) porDia.set(b.date, []);
       porDia.get(b.date).push(b);
     }
@@ -257,10 +296,13 @@ export default function BlockedDaysPage() {
                 const entero = diaEnteroBloqueado(blockedDays, fecha);
                 const parcial = !entero && rangosDelDia(blockedDays, fecha).length > 0;
                 const tieneTurnos = vivos.some((a) => a.appointmentDate === fecha);
+                const feriado = feriadoDe.get(fecha);
                 return (
                   <button
                     key={fecha}
-                    className={`calendar-day ${entero ? 'bloqueado' : ''} ${parcial ? 'parcial' : ''} ${fecha === seleccionado ? 'elegido' : ''} ${fecha === hoy ? 'today' : ''}`}
+                    className={`calendar-day ${entero ? 'bloqueado' : ''} ${parcial ? 'parcial' : ''} ${feriado ? 'feriado' : ''} ${fecha === seleccionado ? 'elegido' : ''} ${fecha === hoy ? 'today' : ''}`}
+                    title={feriado ? `Feriado: ${feriado}` : undefined}
+                    aria-label={feriado ? `${dia}, feriado: ${feriado}` : undefined}
                     disabled={fecha < hoy}
                     onClick={() => { setSeleccionado(fecha); setAlcanceDia(ALCANCE_INICIAL); }}
                   >
@@ -275,6 +317,7 @@ export default function BlockedDaysPage() {
             <span><span className="leyenda-bloqueado" /> Todo el día</span>
             <span><span className="leyenda-parcial" /> Parte del día</span>
             <span><span className="calendar-day-dot" /> Tiene {terminology.appointmentNoun}s</span>
+            <span><span className="leyenda-feriado" /> Feriado</span>
           </div>
 
           {/* ── Detalle del día elegido ── */}
@@ -284,6 +327,14 @@ export default function BlockedDaysPage() {
                 <strong>{formatDate(seleccionado)}</strong>
                 <button className="btn btn-ghost btn-sm" onClick={() => setSeleccionado(null)} aria-label="Cerrar"><Icon name="x" /></button>
               </div>
+              {feriadoDe.get(seleccionado) && (
+                <div className="notice notice-info bloqueo-feriado-aviso">
+                  <strong>Feriado: {feriadoDe.get(seleccionado)}.</strong>{' '}
+                  {cierreDelNegocio(todosLosBloqueos, seleccionado)
+                    ? 'El negocio está cerrado ese día.'
+                    : 'El negocio atiende. Si no vas a abrir, bloquealo.'}
+                </div>
+              )}
 
               {bloqueosDelSeleccionado.length > 0 && (
                 <ul className="bloqueos-lista">
@@ -293,7 +344,7 @@ export default function BlockedDaysPage() {
                         <div style={{ fontWeight: 600 }}><Icon name="lock" /> {textoBloqueo(b)}{etiqueta(b)}</div>
                         {avisoTurnos(b)}
                       </div>
-                      {puedeLiberar(b) && <button className="btn btn-ghost btn-sm" onClick={() => ejecutar(() => removeBlocks(businessId, [b.id]))} disabled={ocupado}>Liberar</button>}
+                      {puedeLiberar(b) && <button className="btn btn-ghost btn-sm" onClick={() => ejecutar(() => removeBlocks(businessId, [b.id]))} disabled={ocupado}>{textoLiberar(b)}</button>}
                     </li>
                   ))}
                 </ul>
@@ -343,10 +394,44 @@ export default function BlockedDaysPage() {
             </button>
           </div>
 
+          {feriados.length > 0 && (
+            <div className="card">
+              <h3 style={{ marginBottom: 'var(--space-sm)' }}>Próximos feriados</h3>
+              <p className="text-sm text-secondary" style={{ marginBottom: 'var(--space-md)' }}>
+                {cierraFeriados
+                  ? 'Cerrás los feriados: se bloquean solos. Si alguno abrís, tocá "Abrir".'
+                  : 'Atendés los feriados: solo se marcan en el calendario. Si alguno no abrís, tocá "Cerrar".'}
+                {manejaFeriados && <> Lo cambiás en <Link to="/admin/configuracion?seccion=horarios">Configuración → Horarios</Link>.</>}
+              </p>
+              <ul className="bloqueos-lista">
+                {(todosLosFeriados ? feriados : feriados.slice(0, 6)).map((x) => {
+                  const cierre = cierreDelNegocio(todosLosBloqueos, x.fecha);
+                  return (
+                    <li key={x.fecha}>
+                      <div>
+                        <div style={{ fontWeight: 600 }}>{formatDate(x.fecha)}</div>
+                        <div className="text-sm text-secondary">{x.nombre}</div>
+                        <div className={`text-xs ${cierre ? 'feriado-cerrado' : 'text-muted'}`}>{cierre ? 'Cerrado' : 'Se atiende'}</div>
+                      </div>
+                      {manejaFeriados && (cierre
+                        ? <button className="btn btn-outline btn-sm" onClick={() => ejecutar(() => removeBlocks(businessId, [cierre.id]))} disabled={ocupado}>Abrir</button>
+                        : <button className="btn btn-outline btn-sm" onClick={() => ejecutar(() => blockDays(businessId, [x.fecha], null, null))} disabled={ocupado}>Cerrar</button>)}
+                    </li>
+                  );
+                })}
+              </ul>
+              {feriados.length > 6 && (
+                <button className="btn btn-outline btn-sm btn-full" style={{ marginTop: 'var(--space-sm)' }} onClick={() => setTodosLosFeriados((v) => !v)}>
+                  {todosLosFeriados ? 'Ver menos' : `Ver todos los feriados (${feriados.length})`}
+                </button>
+              )}
+            </div>
+          )}
+
           <div className="card">
             <h3 style={{ marginBottom: 'var(--space-md)' }}>Próximos bloqueos</h3>
             {proximos.length === 0 ? (
-              <p className="text-sm text-muted">No tenés días bloqueados.</p>
+              <p className="text-sm text-muted">{cierraFeriados ? 'Fuera de los feriados, no tenés días bloqueados.' : 'No tenés días bloqueados.'}</p>
             ) : (
               <ul className="bloqueos-lista">
                 {proximos.map(({ date, bloques }) => (
@@ -361,7 +446,7 @@ export default function BlockedDaysPage() {
                           </div>
                           {puedeLiberar(b) && (
                             <button className="btn btn-ghost btn-sm" onClick={() => ejecutar(() => removeBlocks(businessId, [b.id]))} disabled={ocupado}>
-                              Liberar
+                              {textoLiberar(b)}
                             </button>
                           )}
                         </div>

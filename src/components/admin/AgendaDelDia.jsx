@@ -296,6 +296,7 @@ export default function AgendaDelDia({
                         <div className="agenda-turno-principal">
                           <div className="agenda-turno-cliente">
                             {walkin ? <><Icon name="clipboard" /> Servicio sin turno</> : (a.clientName || 'Cliente')}
+                            {a.turnoFijoId && <span className="badge badge-neutral agenda-fijo" title="Turno fijo: se repite">Fijo</span>}
                           </div>
                           <div className="agenda-turno-detalle">
                             {a.startTime}–{a.endTime || '?'} · {nombreSrv(a)}

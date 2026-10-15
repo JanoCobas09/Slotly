@@ -8,6 +8,7 @@ import AvisoWhatsApp from './AvisoWhatsApp';
 import SenaTurno from './SenaTurno';
 import ClienteDelTurno from './clientes/ClienteDelTurno';
 import DocumentacionTurno from './clientes/DocumentacionTurno';
+import TurnoFijoDelTurno from './TurnoFijoDelTurno';
 import Icon from '../Icon';
 
 const fechaHora = (iso) => new Date(iso).toLocaleString('es-AR', {
@@ -68,7 +69,7 @@ export default function DetalleTurnoModal({ aptId, onClose, acciones = null, isO
               <span className={`badge ${est.clase}`}>{est.label}</span>
             </h3>
             <p className="text-xs text-muted" style={{ marginTop: 2 }}>
-              {walkin ? 'Registrado en el momento' : esReservaDelCliente(apt) ? 'Lo reservó el cliente desde tu link' : 'Lo cargó el negocio'}
+              {walkin ? 'Registrado en el momento' : esReservaDelCliente(apt) ? 'Lo reservó el cliente desde tu link' : apt.turnoFijoId ? 'Turno fijo, lo cargó el negocio' : 'Lo cargó el negocio'}
             </p>
           </div>
           <button className="modal-close" onClick={onClose} aria-label="Cerrar"><Icon name="x" /></button>
@@ -101,6 +102,8 @@ export default function DetalleTurnoModal({ aptId, onClose, acciones = null, isO
               </div>
             )}
           </dl>
+
+          {apt.turnoFijoId && <TurnoFijoDelTurno apt={apt} onTerminado={onClose} />}
 
           <ClienteDelTurno apt={apt} onNavegar={onClose} />
 

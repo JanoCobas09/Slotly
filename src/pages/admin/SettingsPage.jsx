@@ -53,9 +53,9 @@ const SECCIONES = [
   },
   {
     id: 'horarios', titulo: 'Horarios', icono: 'clock',
-    resumen: 'Qué días y a qué hora está abierto',
-    descripcion: () => 'Qué días y en qué horario está abierto el local.',
-    campos: ['businessHours'],
+    resumen: 'Qué días y a qué hora está abierto, y los feriados',
+    descripcion: () => 'Qué días y en qué horario está abierto el local, y si abrís los feriados.',
+    campos: ['businessHours', 'feriados'],
   },
   {
     id: 'reservas', titulo: 'Reservas', icono: 'calendar',
@@ -524,8 +524,23 @@ export default function SettingsPage() {
         />
         <ErrorDeCampo error={errorCampo} prefijo="horario-" />
         <p className="text-xs text-muted" style={{ marginTop: 'var(--space-md)' }}>
-          Es el horario del local. El de cada profesional se carga en Profesionales, y los feriados o vacaciones en Días bloqueados.
+          Es el horario del local. El de cada profesional se carga en Profesionales, y las vacaciones en Días bloqueados.
         </p>
+
+        <div className="form-group" style={{ marginTop: 'var(--space-lg)' }}>
+          <label className="form-label">Feriados nacionales</label>
+          {/* businesses.feriados (20261027000000_turnos_fijos_y_feriados.sql):
+              con 'cierra' la base los vuelve días bloqueados solos. */}
+          <select className="form-input" value={form.feriados || 'atiende'} onChange={e => editar({ feriados: e.target.value })}>
+            <option value="atiende">Atiendo los feriados</option>
+            <option value="cierra">Cierro los feriados</option>
+          </select>
+          <p className="text-sm text-muted" style={{ marginTop: 6 }}>
+            {(form.feriados || 'atiende') === 'cierra'
+              ? 'Cada feriado se bloquea solo: nadie puede reservar y los turnos fijos se saltean. Si alguno querés abrir, lo abrís en Días bloqueados.'
+              : 'Se atiende como un día normal; los feriados solo se marcan en el calendario de Días bloqueados. Si alguno no abrís, lo cerrás ahí.'}
+          </p>
+        </div>
       </div>
     ),
 

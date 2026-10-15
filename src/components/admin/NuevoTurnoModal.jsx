@@ -1,12 +1,13 @@
 import { useState, useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../hooks/useTenantData';
-import { createAppointment, updateAppointment } from '../../lib/repository';
+import { createAppointment, updateAppointment, crearTurnoFijo } from '../../lib/repository';
 import { horariosLibresPorSucursal, profesionalesDeSucursal, hayVariasSucursales, nombreSucursal, precioEn } from '../../utils/sucursales';
 import { formatPrice, toDateString } from '../../utils/dateUtils';
 import Icon from '../Icon';
 import { esReservaDelCliente } from '../../utils/turnos';
-import { esTelefono, problema } from '../../utils/validaciones';
+import { esTelefono, esEmail, problema } from '../../utils/validaciones';
+import { opcionesFrecuencia, describirTurnoFijo, finEnMeses, ddmm } from '../../utils/turnosFijos';
 import ErrorDeCampo from '../ErrorDeCampo';
 import { useErrorDeCampo } from '../../hooks/useErrorDeCampo';
 import { turnoBloqueado, diaEnteroBloqueado, bloqueosQueAplican } from '../../utils/bloqueos';
@@ -55,6 +56,7 @@ export default function NuevoTurnoModal({ onClose, turno = null }) {
         startTime: turno.startTime,
         clientName: turno.clientName || '',
         clientPhone: turno.clientPhone || '',
+        clientEmail: turno.clientEmail || '',
         notes: turno.notes || '',
       }
     : {
@@ -64,18 +66,26 @@ export default function NuevoTurnoModal({ onClose, turno = null }) {
         startTime: '',
         clientName: '',
         clientPhone: '',
+        clientEmail: '',
         notes: '',
       });
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
   const errorCampo = useErrorDeCampo();
+  // Turno fijo (solo al crear): '' = no se repite. Ver utils/turnosFijos.js
+  // y crear_turno_fijo en la base.
+  const [repetir, setRepetir] = useState('');
+  const [hasta, setHasta] = useState('siempre'); // siempre | meses | fecha
+  const [meses, setMeses] = useState(3);
+  const [fechaFin, setFechaFin] = useState('');
+  const [resultadoFijo, setResultadoFijo] = useState(null); // { creados, saltados, descripcion }
 
   const set = (campo) => (ev) => {
     const valor = ev.target.value;
     setForm((f) => {
       const nuevo = { ...f, [campo]: valor };
       // Cambiar de profesional, servicio o día invalida el horario elegido.
-      if (campo !== 'startTime' && campo !== 'clientName' && campo !== 'clientPhone' && campo !== 'notes') {
+      if (!['startTime', 'clientName', 'clientPhone', 'clientEmail', 'notes'].includes(campo)) {
         nuevo.startTime = '';
       }
       if (campo === 'professionalId') nuevo.serviceId = '';
@@ -163,7 +173,9 @@ export default function NuevoTurnoModal({ onClose, turno = null }) {
     const falla = (!form.serviceId && problema('serviceId', 'Elegí un servicio.'))
       || (!slot && problema('startTime', slots.length === 0 ? 'Ese día no hay horarios libres: probá con otro.' : 'Elegí un horario.'))
       || (!form.clientName.trim() && problema('clientName', 'Poné el nombre del cliente.'))
-      || (!telefonoOk && problema('clientPhone', 'Tiene que tener entre 10 y 13 dígitos, o dejalo vacío.'));
+      || (!telefonoOk && problema('clientPhone', 'Tiene que tener entre 10 y 13 dígitos, o dejalo vacío.'))
+      || (form.clientEmail.trim() && !esEmail(form.clientEmail.trim()) && problema('clientEmail', 'Ese mail no parece válido, o dejalo vacío.'))
+      || (repetir && hasta === 'fecha' && (!fechaFin || fechaFin < form.date) && problema('fechaFin', 'Elegí hasta cuándo (después del primer turno).'));
     if (errorCampo.marcar(falla)) return;
     if (bloqueadoPorGoogle(slot)) {
       errorCampo.marcar(problema('startTime', 'Ese horario está ocupado en su Google Calendar. Elegí otro.'));
@@ -187,12 +199,34 @@ export default function NuevoTurnoModal({ onClose, turno = null }) {
           serviceName: servicio?.name || '',
           clientName: form.clientName.trim().slice(0, 120),
           clientPhone: form.clientPhone.trim().slice(0, 40),
+          clientEmail: form.clientEmail.trim(),
           notes: form.notes.trim().slice(0, 500),
           // Si se movió de día u hora, el recordatorio tiene que volver a
           // salir para el horario nuevo.
           ...(cambioHorario ? { reminderSentAt: null } : {}),
         });
         onClose();
+        return;
+      }
+      // Turno fijo: lo agenda la base (este primero y las próximas 8
+      // semanas), con las mismas reglas que un turno a mano, y devuelve las
+      // fechas que tuvo que saltear.
+      if (repetir) {
+        const res = await crearTurnoFijo({
+          businessId,
+          professionalId: form.professionalId,
+          serviceId: form.serviceId,
+          fechaInicio: form.date,
+          hora: slot.startTime,
+          frecuencia: repetir,
+          fechaFin: hasta === 'meses' ? finEnMeses(form.date, meses) : hasta === 'fecha' ? fechaFin : null,
+          clientName: form.clientName.trim().slice(0, 120),
+          clientPhone: form.clientPhone.trim().slice(0, 40),
+          clientEmail: form.clientEmail.trim(),
+          notes: form.notes.trim().slice(0, 500),
+        });
+        setResultadoFijo({ ...res, descripcion: describirTurnoFijo({ frecuencia: repetir, fechaInicio: form.date, hora: slot.startTime }) });
+        setGuardando(false);
         return;
       }
       await createAppointment(businessId, {
@@ -207,7 +241,7 @@ export default function NuevoTurnoModal({ onClose, turno = null }) {
         serviceName: servicio?.name || '',
         clientName: form.clientName.trim().slice(0, 120),
         clientPhone: form.clientPhone.trim().slice(0, 40),
-        clientEmail: '',
+        clientEmail: form.clientEmail.trim(),
         notes: form.notes.trim().slice(0, 500),
         // Quién lo cargó. No es el cliente: el turno no le aparece a nadie en
         // "Mis citas", vive solo en la agenda del negocio.
@@ -229,6 +263,32 @@ export default function NuevoTurnoModal({ onClose, turno = null }) {
           <h3><Icon name={editando ? 'edit' : 'calendar'} /> {editando ? 'Editar turno' : 'Agendar turno'}</h3>
           <button className="modal-close" onClick={onClose}><Icon name="x" /></button>
         </div>
+        {resultadoFijo ? (
+          <>
+            <div className="modal-body">
+              <div className="notice doc-guardado" role="status">
+                <Icon name="check-circle" /> <strong>Turno fijo agendado:</strong> {form.clientName.trim()}, {resultadoFijo.descripcion}.
+              </div>
+              <p className="text-secondary" style={{ marginTop: 'var(--space-md)', fontSize: 14 }}>
+                Ya quedaron {resultadoFijo.creados === 1 ? '1 turno' : `${resultadoFijo.creados} turnos`} en la agenda (las próximas 8 semanas).
+                Los que siguen se van agendando solos.
+              </p>
+              {resultadoFijo.saltados?.length > 0 && (
+                <div className="notice notice-warn" style={{ marginTop: 'var(--space-md)', fontSize: 14 }}>
+                  <strong>No se pudieron agendar:</strong>
+                  <ul className="turno-fijo-saltados">
+                    {resultadoFijo.saltados.map((x) => <li key={x.fecha}>{ddmm(x.fecha)} — {x.motivo}</li>)}
+                  </ul>
+                  Hablalo con el cliente y, si quieren, cargá esos días a mano en otro horario.
+                </div>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-primary" onClick={onClose}>Listo</button>
+            </div>
+          </>
+        ) : (
+        <>
         <div className="modal-body">
           <p className="text-secondary" style={{ marginBottom: 'var(--space-md)', fontSize: 14 }}>
             {editando
@@ -331,6 +391,43 @@ export default function NuevoTurnoModal({ onClose, turno = null }) {
             </div>
           )}
 
+          {!editando && (
+            <div className="form-group turno-fijo-opciones">
+              <label className="form-label"><Icon name="calendar" /> Repetir</label>
+              <select className="form-input" value={repetir} onChange={(e) => setRepetir(e.target.value)}>
+                <option value="">No se repite (un solo turno)</option>
+                {opcionesFrecuencia(form.date).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+              {repetir && (
+                <>
+                  <div className="turno-fijo-hasta">
+                    <select className="form-input" value={hasta} onChange={(e) => setHasta(e.target.value)} aria-label="Hasta cuándo">
+                      <option value="siempre">Sin fecha de fin</option>
+                      <option value="meses">Durante un tiempo…</option>
+                      <option value="fecha">Hasta una fecha…</option>
+                    </select>
+                    {hasta === 'meses' && (
+                      <select className="form-input" value={meses} onChange={(e) => setMeses(Number(e.target.value))} aria-label="Cuántos meses">
+                        {[1, 2, 3, 4, 6, 9, 12].map((m) => <option key={m} value={m}>{m === 1 ? '1 mes' : `${m} meses`}</option>)}
+                      </select>
+                    )}
+                    {hasta === 'fecha' && (
+                      <input type="date" className="form-input" {...errorCampo.campo('fechaFin')} min={form.date} value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} aria-label="Hasta qué fecha" />
+                    )}
+                  </div>
+                  <ErrorDeCampo error={errorCampo} campo="fechaFin" />
+                  <p className="text-xs text-muted" style={{ marginTop: 6 }}>
+                    {slot
+                      ? <>Queda <strong>{describirTurnoFijo({ frecuencia: repetir, fechaInicio: form.date, hora: slot.startTime })}</strong>. </>
+                      : null}
+                    Se agendan las próximas 8 semanas y el resto se va sumando solo. Si una fecha cae en un día bloqueado,
+                    un feriado que cerrás o un horario ocupado, se saltea y te avisamos.
+                  </p>
+                </>
+              )}
+            </div>
+          )}
+
           <div className="form-group">
             <label className="form-label">Nombre del cliente</label>
             <input className="form-input" {...errorCampo.campo('clientName')} value={form.clientName} onChange={set('clientName')} placeholder="Juan Pérez" maxLength={120} />
@@ -357,6 +454,22 @@ export default function NuevoTurnoModal({ onClose, turno = null }) {
           </div>
 
           <div className="form-group">
+            <label className="form-label">Mail (opcional)</label>
+            <input
+              className="form-input"
+              type="email"
+              inputMode="email"
+              {...errorCampo.campo('clientEmail')}
+              value={form.clientEmail}
+              onChange={set('clientEmail')}
+              placeholder="cliente@gmail.com"
+              maxLength={120}
+            />
+            <ErrorDeCampo error={errorCampo} campo="clientEmail" />
+            <p className="text-xs text-muted" style={{ marginTop: 4 }}>Si lo cargás, le llega un recordatorio por mail unas horas antes del turno.</p>
+          </div>
+
+          <div className="form-group">
             <label className="form-label">Nota (opcional)</label>
             <input className="form-input" value={form.notes} onChange={set('notes')} placeholder="Viene con el hijo" maxLength={500} />
           </div>
@@ -366,9 +479,13 @@ export default function NuevoTurnoModal({ onClose, turno = null }) {
           <button className="btn btn-primary" onClick={guardar} disabled={guardando}>
             {editando
               ? (guardando ? 'Guardando…' : 'Guardar cambios')
-              : (guardando ? 'Agendando…' : slot ? `Agendar ${slot.startTime}` : 'Agendar')}
+              : guardando
+                ? 'Agendando…'
+                : repetir ? 'Agendar turno fijo' : slot ? `Agendar ${slot.startTime}` : 'Agendar'}
           </button>
         </div>
+        </>
+        )}
       </div>
     </div>
   );

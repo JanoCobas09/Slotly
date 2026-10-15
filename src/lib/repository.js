@@ -142,7 +142,7 @@ function traducirError(error) {
   const restriccion = /constraint "([^"]+)"/.exec(error?.message || '')?.[1];
   // Los triggers escriben sus errores como 'codigo: mensaje para la persona'
   // (mismo formato que create_appointment): se muestra solo el mensaje.
-  const deTrigger = /^(invalid-argument|failed-precondition|not-found|already-exists|resource-exhausted): (.+)$/s.exec(error?.message || '')?.[2];
+  const deTrigger = /^(invalid-argument|failed-precondition|not-found|already-exists|resource-exhausted|permission-denied): (.+)$/s.exec(error?.message || '')?.[2];
   const mensaje = (restriccion && MENSAJES_VALIDACION[restriccion]) || deTrigger;
   if (!mensaje) return error;
   const traducido = new Error(mensaje);
@@ -374,6 +374,54 @@ export async function updateBusiness(businessId, cambios, { esPlataforma = false
  * y con qué cuenta. Devuelve `null` si no está conectado, o
  * `{ nickname, liveMode, connectedAt }`.
  */
+// ── Turnos fijos y feriados (20261027000000_turnos_fijos_y_feriados.sql) ───
+
+/**
+ * Alta de un turno fijo: el mismo cliente, con el mismo profesional, cada
+ * semana / 2 semanas / 3 semanas / mes, sin fin o hasta `fechaFin`. La base
+ * agenda ya las próximas 8 semanas (y el cron sigue). Devuelve
+ * `{ id, creados, saltados: [{ fecha, motivo }] }`: las fechas que no se
+ * pudieron agendar (bloqueadas, feriado, ocupadas...).
+ */
+export async function crearTurnoFijo({
+  businessId, professionalId, serviceId, fechaInicio, hora, frecuencia, fechaFin = null,
+  clientName, clientPhone = '', clientEmail = '', notes = '', clienteId = null,
+}) {
+  const { data, error } = await supabase.rpc('crear_turno_fijo', {
+    p_business_id: businessId, p_professional_id: professionalId, p_service_id: serviceId,
+    p_fecha_inicio: fechaInicio, p_hora: hora, p_frecuencia: frecuencia, p_fecha_fin: fechaFin,
+    p_client_name: clientName, p_client_phone: clientPhone, p_client_email: clientEmail,
+    p_notes: notes, p_cliente_id: clienteId,
+  });
+  if (error) throw traducirError(error);
+  return data;
+}
+
+/** Termina el turno fijo desde `desde` (incluida): borra sus turnos de esa fecha en adelante. Devuelve cuántos. */
+export async function terminarTurnoFijo(id, desde) {
+  const { data, error } = await supabase.rpc('terminar_turno_fijo', { p_id: id, p_desde: desde });
+  if (error) throw traducirError(error);
+  return data;
+}
+
+/** El turno fijo y las fechas que no se pudieron agendar de hoy en adelante. */
+export async function getTurnoFijo(id) {
+  const hoy = new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(0, 10);
+  const [{ data, error }, { data: saltados }] = await Promise.all([
+    supabase.from('turnos_fijos').select('*').eq('id', id).maybeSingle(),
+    supabase.from('turnos_fijos_saltados').select('fecha, motivo').eq('turno_fijo_id', id).gte('fecha', hoy).order('fecha'),
+  ]);
+  if (error) throw traducirError(error);
+  return data ? { ...fromRow('turnos_fijos', data), saltados: saltados || [] } : null;
+}
+
+/** Feriados nacionales entre dos fechas ('YYYY-MM-DD'), con nombre y tipo. Públicos. */
+export async function getFeriados(desde, hasta) {
+  const { data, error } = await supabase.from('feriados').select('fecha, nombre, tipo').gte('fecha', desde).lte('fecha', hasta).order('fecha');
+  if (error) throw traducirError(error);
+  return data || [];
+}
+
 export async function getMpConnectionStatus(businessId) {
   const { data, error } = await supabase.rpc('mp_connection_status', { p_business_id: businessId });
   if (error) throw traducirError(error);
