@@ -8,6 +8,7 @@ import { applyTheme } from '../../config/theme';
 import Icon from '../../components/Icon';
 import SenaMercadoPagoCard from '../../components/admin/SenaMercadoPagoCard';
 import GoogleCalendarCard from '../../components/admin/GoogleCalendarCard';
+import VistaPreviaReserva from '../../components/admin/VistaPreviaReserva';
 import { useTenant } from '../../hooks/useTenantData';
 import { validarNegocio, normalizarInstagram, problema, LIMITES } from '../../utils/validaciones';
 import PrimerosPasos from '../../components/admin/PrimerosPasos';
@@ -127,7 +128,7 @@ export default function SettingsPage() {
   const { business, businessId } = useCurrentBusiness();
   const { terminology, theme: resolvedTheme } = useBusinessContext();
   const { dispatch } = useBusiness();
-  const { professionals } = useTenant();
+  const { professionals, services, professionalServices } = useTenant();
   const errorCampo = useErrorDeCampo();
   const [params, setParams] = useSearchParams();
   const esCelular = useEsCelular();
@@ -328,29 +329,17 @@ export default function SettingsPage() {
   const enLista = !actual;
 
   // ── Cada sección ─────────────────────────────────────────────────────────
+  // La página de reserva real (cabecera + servicios) con lo que se está
+  // editando, antes de guardar. Ver VistaPreviaReserva.
   const vistaPrevia = (
     <div className="card">
-      <h3 className="mb-lg">Vista previa</h3>
-      <div style={{ background: 'var(--bg)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-lg)', border: '1px solid var(--border)' }}>
-        <div className="flex items-center gap-sm mb-lg" style={{ padding: 'var(--space-sm)' }}>
-          {form.logoUrl ? (
-            <div style={{ width: 32, height: 32, borderRadius: '50%', background: `center/cover url(${form.logoUrl})`, flexShrink: 0 }} />
-          ) : (
-            <div style={{ width: 32, height: 32, borderRadius: 'var(--radius-sm)', background: `linear-gradient(135deg, ${form.primaryColor}, ${form.secondaryColor})`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '0.75rem', fontWeight: 700, flexShrink: 0 }}>
-              {form.name?.charAt(0).toUpperCase() || 'S'}
-            </div>
-          )}
-          <strong>{form.name}</strong>
-        </div>
-        <p className="text-secondary text-sm mb-md">{form.welcomeMessage}</p>
-        <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
-          <button className="btn btn-sm" style={{ background: form.primaryColor, color: 'white', borderColor: form.primaryColor }}>Reservar</button>
-          <button className="btn btn-outline btn-sm">Ver Más</button>
-        </div>
-        <div className="mt-md">
-          <div className="badge" style={{ background: form.primaryColor + '20', color: form.primaryColor }}>Activo</div>
-        </div>
-      </div>
+      <h3 className="mb-sm">Así te ve tu {terminology.customerNoun}</h3>
+      <VistaPreviaReserva
+        negocio={form}
+        services={services}
+        professionals={professionals}
+        professionalServices={professionalServices}
+      />
     </div>
   );
 

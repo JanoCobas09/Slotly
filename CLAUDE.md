@@ -1341,7 +1341,14 @@ dominio de más autorizado no es un agujero de seguridad, solo ruido).
    `sticky` abajo (no `fixed`: .mov-pantalla anima con transform). Si Guardar
    falla por un campo, `marcar()` abre la sección de ese campo (y marca el
    error 60 ms después, cuando el casillero ya existe). Campo nuevo
-   del negocio → agregarlo a `campos` de su sección.
+   del negocio → agregarlo a `campos` de su sección. Vista previa de "Tu
+   negocio" = la página de reserva REAL (`components/admin/VistaPreviaReserva`):
+   la misma `components/reserva/BusinessHero` que usa BookingPage (se sacó de
+   ahí, junto con `utils/linkComoLlegar.js`) + las tarjetas de servicio del
+   paso 1, con lo que se está editando antes de guardar; los colores van como
+   variables CSS en línea dentro del marco (no tocan el tema del panel). En el
+   celular va arriba de los campos. Si cambia BusinessHero, cambia en los dos
+   lados (VitrinaComercio de la landing sigue siendo una copia aparte).
 6. **Abuso de reservas.** Hecho: un turno por día y tope de 3 a futuro por
    cuenta. Falta, por orden: bloquear cliente desde el panel (para la cuenta que
    se porta mal), y App Check con reCAPTCHA v3 sobre los callables para frenar

@@ -5421,3 +5421,57 @@ button.mapa-celda:hover, button.mapa-celda:focus-visible { outline: 2px solid va
 /* La vista previa acompaña mientras se editan foto, nombre y colores. */
 .config-dos-columnas > div:last-child { position: sticky; top: calc(64px + var(--space-md)); }
 @media (max-width: 900px) { .config-dos-columnas > div:last-child { position: static; } }
+
+/* ── Vista previa de la página de reserva (Configuración → Tu negocio) ──
+   Un marco de pantalla con la página real adentro, achicada. Los colores
+   vienen en línea (VistaPreviaReserva) y no tocan el tema del panel. */
+.vista-previa-marco {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--bg);
+  box-shadow: var(--shadow-sm);
+}
+.vista-previa-barra {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+}
+.vista-previa-puntos { display: inline-flex; gap: 4px; }
+.vista-previa-puntos i { width: 8px; height: 8px; border-radius: 50%; background: var(--border); display: block; }
+.vista-previa-url {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  background: var(--surface);
+  border-radius: 999px;
+  padding: 3px 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vista-previa-pantalla {
+  max-height: 560px;
+  overflow: hidden;
+  pointer-events: none; /* es una imagen de cómo queda: no se toca */
+  user-select: none;
+}
+.vista-previa-reserva.booking-container {
+  min-height: 0;
+  padding: var(--space-md) var(--space-md) var(--space-lg);
+  zoom: 0.85;
+}
+.vista-previa-reserva .business-hero { margin-bottom: var(--space-lg); }
+.vista-previa-nota { margin-top: var(--space-sm); }
+.vista-previa-abrir { margin-top: var(--space-sm); }
+
+/* En el celular, la vista previa va ARRIBA de los campos: es lo que se quiere
+   ver al entrar a "Tu negocio" (abajo de todo nadie la encontraba). */
+@media (max-width: 900px) {
+  .config-dos-columnas > div:last-child { order: -1; }
+  .vista-previa-pantalla { max-height: 420px; }
+}
