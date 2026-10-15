@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useSyncExternalStore } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { updateBusiness, uploadBusinessLogo, removeBusinessLogo } from '../../lib/repository';
@@ -29,43 +29,54 @@ const defaultHours = [
 
 // ── Secciones de Configuración ──────────────────────────────────────────────
 // Antes era una sola página larga (9 tarjetas, una con 10 campos de cosas
-// distintas) y había que scrollear mucho para encontrar algo. Ahora un menú
-// por tema y se ve una sección a la vez. `campos`: qué claves del negocio se
-// editan en cada una — para el punto de "cambios sin guardar" en el menú y
-// para abrir la sección del campo que falló al guardar.
+// distintas) y había que scrollear mucho para encontrar algo. Ahora se ve una
+// sección a la vez. En la compu, con un menú al costado. En el celular, como
+// los Ajustes del teléfono: primero la LISTA de secciones (todas a la vista,
+// con lo que tiene cada una), y al tocar una se abre con "← Volver" — pedido
+// del usuario: lo usa gente con poco manejo del celular, y una fila de
+// pestañas que se desliza escondía secciones. `resumen`: la línea de la
+// lista. `campos`: qué claves del negocio se editan en cada una — para
+// marcar "sin guardar" y para abrir la sección del campo que falló.
 const SECCIONES = [
   {
     id: 'negocio', titulo: 'Tu negocio', icono: 'building',
+    resumen: 'Foto, nombre, mensaje de bienvenida y colores',
     descripcion: (t) => `Foto, nombre, mensaje y colores: cómo te ve el ${t.customerNoun} en tu link de reserva.`,
     campos: ['name', 'welcomeMessage', 'primaryColor', 'secondaryColor', 'accentColor', 'logoUrl'],
   },
   {
     id: 'contacto', titulo: 'Contacto y ubicación', icono: 'pin',
+    resumen: 'Teléfono, dirección, Instagram y mapa',
     descripcion: (t) => `Cómo te encuentra y te escribe el ${t.customerNoun}. Con un dato alcanza; con el link de Maps aparece el mapa.`,
     campos: ['phone', 'address', 'socialLinks', 'instagram', 'mapsUrl'],
   },
   {
     id: 'horarios', titulo: 'Horarios', icono: 'clock',
+    resumen: 'Qué días y a qué hora está abierto',
     descripcion: () => 'Qué días y en qué horario está abierto el local.',
     campos: ['businessHours'],
   },
   {
     id: 'reservas', titulo: 'Reservas', icono: 'calendar',
+    resumen: 'Cómo y con cuánta anticipación te reservan',
     descripcion: (t) => `Las reglas para reservar: quién elige al profesional, cada cuánto hay un ${t.appointmentNoun}, con cuánta anticipación se reserva y se cancela.`,
     campos: ['modoProfesional', 'slotInterval', 'maxAdvanceDays', 'minAdvanceHours', 'minCancelHours'],
   },
   {
     id: 'cobros', titulo: 'Cobros', icono: 'money',
+    resumen: 'Moneda y seña con Mercado Pago',
     descripcion: (t) => `La moneda de tus precios y la seña con Mercado Pago para asegurar el ${t.appointmentNoun}.`,
     campos: ['currency', 'depositEnabled', 'depositType', 'depositValue'],
   },
   {
     id: 'integraciones', titulo: 'Google Calendar', icono: 'link',
+    resumen: 'Los turnos en el calendario del celular',
     descripcion: () => 'Los turnos de cada profesional en el calendario de su celular, y sus actividades fuera de la agenda. Se guarda al toque.',
     campos: [],
   },
   {
     id: 'privacidad', titulo: 'Privacidad', icono: 'lock',
+    resumen: 'Qué ve Slotly de tus clientes',
     descripcion: () => 'Qué puede ver el equipo de Slotly de tus clientes.',
     campos: ['privacidadClientes'],
   },
@@ -83,16 +94,32 @@ function seccionesConCambios(cambios) {
   return new Set(Object.keys(cambios).map(seccionDeCampo).filter(Boolean));
 }
 
+const esSeccion = (id) => SECCIONES.some((s) => s.id === id);
+
 /**
- * Sección con la que abre: la del link (?seccion=), o la que corresponde al
- * volver de Mercado Pago (?mp=) o de Google (?gcal=), o la primera.
+ * Sección pedida al llegar a la pantalla: la del link (?seccion=), o la que
+ * corresponde al volver de Mercado Pago (?mp=) o de Google (?gcal=). null =
+ * ninguna (en el celular se ve la lista; en la compu, la primera).
  */
 function seccionInicial(params) {
   const pedida = params.get('seccion');
-  if (SECCIONES.some((s) => s.id === pedida)) return pedida;
+  if (esSeccion(pedida)) return pedida;
   if (params.get('mp')) return 'cobros';
   if (params.get('gcal')) return 'integraciones';
-  return 'negocio';
+  return null;
+}
+
+const CONSULTA_CELULAR = '(max-width: 900px)';
+/** ¿Pantalla de celular? Mismo corte que el CSS de .config-*. */
+function useEsCelular() {
+  return useSyncExternalStore(
+    (avisar) => {
+      const m = window.matchMedia(CONSULTA_CELULAR);
+      m.addEventListener('change', avisar);
+      return () => m.removeEventListener('change', avisar);
+    },
+    () => window.matchMedia(CONSULTA_CELULAR).matches,
+  );
 }
 
 export default function SettingsPage() {
@@ -103,18 +130,45 @@ export default function SettingsPage() {
   const { professionals } = useTenant();
   const errorCampo = useErrorDeCampo();
   const [params, setParams] = useSearchParams();
-  const [seccion, setSeccion] = useState(() => seccionInicial(params));
-  // En el celular el menú es una fila que se desliza: que la sección elegida
-  // (también la que abre sola por un error al guardar) quede a la vista.
-  const navRef = useRef(null);
+  const esCelular = useEsCelular();
+  // La sección abierta vive en la URL (?seccion=): en el celular, abrir una
+  // es una pantalla nueva, así el botón "atrás" del teléfono vuelve a la
+  // lista (también en la app instalada: useSalidaDeLaApp lleva la pila por
+  // URL). Sin ?seccion=, el celular muestra la lista y la compu la primera.
+  const inicial = useRef(seccionInicial(params));
+  const seccion = esSeccion(params.get('seccion'))
+    ? params.get('seccion')
+    : esCelular ? null : (inicial.current || 'negocio');
+  // Al volver de Mercado Pago / Google: deja anotada la sección en la URL
+  // (las tarjetas borran su ?mp= / ?gcal= al mostrarse). Se lee la URL del
+  // momento, no la del render, por si una tarjeta ya la cambió.
   useEffect(() => {
-    navRef.current?.querySelector('.config-nav-item.activo')?.scrollIntoView({ inline: 'nearest', block: 'nearest' });
-  }, [seccion]);
+    if (!inicial.current || params.get('seccion')) return;
+    const p = new URLSearchParams(window.location.search);
+    p.set('seccion', inicial.current);
+    setParams(p, { replace: true });
+    // Solo al llegar.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  /** Abre una sección. `nuevaPantalla`: suma una entrada al historial (celular). */
+  const abrirSeccion = (id, { nuevaPantalla = false } = {}) => {
+    const p = new URLSearchParams(window.location.search);
+    if (id) p.set('seccion', id); else p.delete('seccion');
+    setParams(p, { replace: !nuevaPantalla });
+    window.scrollTo({ top: 0 });
+  };
   // Marca el campo con error y abre su sección: si no, el error quedaba en
   // una sección que no se está viendo y "Guardar" parecía no hacer nada.
   const marcar = (p) => {
     const donde = seccionDeCampo(p?.campo);
-    if (donde) setSeccion(donde);
+    if (donde && donde !== seccion) {
+      abrirSeccion(donde, { nuevaPantalla: esCelular });
+      // Recién cuando la sección ya está en pantalla: useErrorDeCampo busca
+      // el casillero para llevar la vista hasta él y soltar el error cuando
+      // lo corrigen; marcado antes, todavía no existía.
+      setTimeout(() => errorCampo.marcar(p), 60);
+      return Boolean(p);
+    }
     return errorCampo.marcar(p);
   };
   const [guardando, setGuardando] = useState(false);
@@ -268,15 +322,10 @@ export default function SettingsPage() {
 
   const hayCambios = Object.keys(cambios).length > 0;
   const conCambios = seccionesConCambios(cambios);
-  const actual = SECCIONES.find((s) => s.id === seccion) || SECCIONES[0];
-  const elegirSeccion = (id) => {
-    setSeccion(id);
-    // Que se pueda compartir / volver con el link a una sección (?seccion=).
-    const p = new URLSearchParams(params);
-    p.set('seccion', id);
-    setParams(p, { replace: true });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  const actual = SECCIONES.find((s) => s.id === seccion) || null;
+  const elegirSeccion = (id) => abrirSeccion(id, { nuevaPantalla: esCelular });
+  // Celular sin sección abierta: la lista.
+  const enLista = !actual;
 
   // ── Cada sección ─────────────────────────────────────────────────────────
   const vistaPrevia = (
@@ -638,37 +687,61 @@ export default function SettingsPage() {
 
       <PrimerosPasos variante="pagina" />
 
-      <div className="config-layout">
-        {/* Menú de secciones: al costado en la compu, deslizable arriba en el
-            celular. El punto marca las secciones con cambios sin guardar. */}
-        <nav className="config-nav" ref={navRef} aria-label="Secciones de Configuración">
+      {enLista ? (
+        /* Celular: la lista de secciones, todas a la vista, como los Ajustes
+           del teléfono. Botones grandes y con lo que hay adentro. */
+        <nav className="config-lista" aria-label="Secciones de Configuración">
           {SECCIONES.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              className={`config-nav-item ${s.id === actual.id ? 'activo' : ''}`}
-              aria-current={s.id === actual.id ? 'page' : undefined}
-              onClick={() => elegirSeccion(s.id)}
-            >
-              <Icon name={s.icono} />
-              <span>{s.titulo}</span>
-              {conCambios.has(s.id) && <span className="config-nav-punto" title="Cambios sin guardar" />}
+            <button key={s.id} type="button" className="config-lista-item" onClick={() => elegirSeccion(s.id)}>
+              <span className="config-lista-icono"><Icon name={s.icono} /></span>
+              <span className="config-lista-texto">
+                <strong>{s.titulo}</strong>
+                <span>{s.resumen}</span>
+              </span>
+              {conCambios.has(s.id) && <span className="badge badge-warning">Sin guardar</span>}
+              <Icon name="chevron-right" className="config-lista-flecha" />
             </button>
           ))}
         </nav>
+      ) : (
+        <div className="config-layout">
+          {/* Compu: menú al costado. El punto marca las secciones con
+              cambios sin guardar. En el celular no se muestra (está la lista). */}
+          <nav className="config-nav" aria-label="Secciones de Configuración">
+            {SECCIONES.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                className={`config-nav-item ${s.id === actual.id ? 'activo' : ''}`}
+                aria-current={s.id === actual.id ? 'page' : undefined}
+                onClick={() => elegirSeccion(s.id)}
+              >
+                <Icon name={s.icono} />
+                <span>{s.titulo}</span>
+                {conCambios.has(s.id) && <span className="config-nav-punto" title="Cambios sin guardar" />}
+              </button>
+            ))}
+          </nav>
 
-        <section className="config-seccion" key={actual.id}>
-          <div className="config-seccion-cabecera">
-            <h2>{actual.titulo}</h2>
-            <p className="text-secondary text-sm">{actual.descripcion(terminology)}</p>
-          </div>
-          {contenido[actual.id]}
-        </section>
-      </div>
+          <section className="config-seccion" key={actual.id}>
+            {esCelular && (
+              <button type="button" className="config-volver" onClick={() => abrirSeccion(null, { nuevaPantalla: true })}>
+                <span aria-hidden="true">←</span> Volver a Configuración
+              </button>
+            )}
+            <div className="config-seccion-cabecera">
+              <h2>{actual.titulo}</h2>
+              <p className="text-secondary text-sm">{actual.descripcion(terminology)}</p>
+            </div>
+            {contenido[actual.id]}
+          </section>
+        </div>
+      )}
 
       {/* Fija abajo mientras se scrollea (sticky, no fixed: el envoltorio
           animado del panel no la corre de lugar). Una sola para todas las
           secciones: los cambios se guardan juntos aunque estén en varias. */}
+      {(!enLista || hayCambios || saved || error) && (
       <div className={`config-guardar ${hayCambios ? 'con-cambios' : ''}`}>
         <div className="config-guardar-texto">
           {error
@@ -683,6 +756,7 @@ export default function SettingsPage() {
           {guardando ? 'Guardando…' : <><Icon name="save" /> Guardar cambios</>}
         </button>
       </div>
+      )}
     </div>
   );
 }

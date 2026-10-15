@@ -5347,23 +5347,73 @@ button.mapa-celda:hover, button.mapa-celda:focus-visible { outline: 2px solid va
 .config-guardar.con-cambios { border-color: var(--primary); }
 .config-guardar-texto { min-width: 0; font-size: 0.9rem; }
 
+/* Celular: la lista de secciones (como los Ajustes del teléfono) y, adentro
+   de cada una, el botón "Volver". Grande y claro: lo usa gente con poco
+   manejo del celular. */
+.config-lista {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.config-lista-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  width: 100%;
+  min-height: 72px;
+  padding: var(--space-md);
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  color: var(--text);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.config-lista-item:last-child { border-bottom: 0; }
+.config-lista-item:active { background: var(--bg-secondary); }
+.config-lista-icono {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  color: var(--primary);
+  background: var(--primary-light, var(--bg-secondary));
+}
+.config-lista-texto { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.config-lista-texto strong { font-size: 1.0625rem; }
+.config-lista-texto span { font-size: 0.875rem; color: var(--text-secondary); line-height: 1.35; }
+.config-lista-flecha { flex: 0 0 auto; font-size: 20px; color: var(--text-muted); }
+.config-volver {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  margin-bottom: var(--space-md);
+  padding: 0 var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+}
+.config-volver span { font-size: 1.25rem; line-height: 1; }
+
 @media (max-width: 900px) {
   .config-layout { grid-template-columns: minmax(0, 1fr); gap: var(--space-md); }
-  /* En el celular el menú pasa arriba, en una fila que se desliza. */
-  .config-nav {
-    top: 64px;
-    z-index: 40;
-    flex-direction: row;
-    overflow-x: auto;
-    scrollbar-width: none;
-    border-radius: 0;
-    border-left: 0;
-    border-right: 0;
-    margin: 0 calc(-1 * var(--space-md));
-    padding: var(--space-xs, 6px) var(--space-md);
-  }
-  .config-nav::-webkit-scrollbar { display: none; }
-  .config-nav-item { width: auto; white-space: nowrap; padding: 8px 12px; }
+  /* En el celular no hay menú al costado: está la lista (.config-lista). */
+  .config-nav { display: none; }
   .config-dos-columnas { grid-template-columns: minmax(0, 1fr); }
   .config-guardar { margin-left: calc(-1 * var(--space-md)); margin-right: calc(-1 * var(--space-md)); border-radius: 0; border-left: 0; border-right: 0; }
   .config-guardar .btn { flex-shrink: 0; }
