@@ -19,13 +19,25 @@ import { useErrorDeCampo } from '../../hooks/useErrorDeCampo';
 import { sucursalesActivas, profesionalesDeSucursal, schedulesDeSucursal, precioEn, horarioDe, datosDe } from '../../utils/sucursales';
 import { CUALQUIERA, modoProfesional, candidatosDelServicio, juntarGrillas, esHorarioTomado } from '../../utils/asignacionProfesional';
 
+// ---- PASOS ----
+// Orden pensado para que reserve rápido y sin trabas (pedido del usuario,
+// 15/10/2026): primero elige QUÉ, CON QUIÉN y CUÁNDO — viendo los horarios
+// libres antes de que se le pida nada — y recién al final entra con Google y
+// deja sus datos. Los pasos de una sola opción avanzan solos al tocarla.
+const PASO = { SERVICIO: 1, PROFESIONAL: 2, HORARIO: 3, DATOS: 4, CONFIRMAR: 5 };
+const ETIQUETAS_PASO = ['Servicio', 'Profesional', 'Día y hora', 'Tus datos', 'Confirmar'];
+// Cuánto se ve marcada la opción tocada antes de pasar al paso siguiente:
+// que se note qué eligió, y que no parezca que la pantalla "saltó sola".
+const DEMORA_AVANCE_MS = 320;
+
 // ---- STEPPER ----
-// `step` sigue siendo el número interno (1 a 6) aunque el negocio asigne el
-// profesional solo: ahí el paso 2 no se muestra y los círculos se renumeran.
+// `step` es el número interno (PASO); si el profesional no se pregunta
+// (lo asigna el negocio, o hay uno solo), ese círculo no se muestra y los
+// demás se renumeran.
 function Stepper({ step, saltearProfesional }) {
-  const pasos = ['Servicio', 'Profesional', 'Datos', 'Fecha', 'Horario', 'Confirmar']
+  const pasos = ETIQUETAS_PASO
     .map((label, idx) => ({ label, paso: idx + 1 }))
-    .filter(({ paso }) => !(saltearProfesional && paso === 2));
+    .filter(({ paso }) => !(saltearProfesional && paso === PASO.PROFESIONAL));
   return (
     <div className="stepper">
       {pasos.map(({ label, paso }, idx) => {
@@ -371,8 +383,8 @@ function DatePicker({ selectedDate, onSelect, professionalIds, schedules: allSch
 
   return (
     <div>
-      <h2 className="booking-step-title">Elegí una fecha</h2>
-      <p className="booking-step-subtitle">Seleccioná el día de tu cita</p>
+      <h2 className="booking-step-title">Elegí el día</h2>
+      <p className="booking-step-subtitle">Tocá un día y abajo te mostramos sus horarios libres</p>
       <div className="calendar">
         <div className="calendar-header">
           <button className="calendar-nav" onClick={prevMonth} disabled={enMesMasTemprano} aria-label="Mes anterior">◀</button>
@@ -822,9 +834,6 @@ export default function BookingPage() {
   // Día de la semana de la fecha elegida, para saber si hay una promo activa
   // en ese día — mismo remapeo que usa availabilityEngine (0=Lunes).
   const dayOfWeek = date ? getLocalDayOfWeek(new Date(date + 'T00:00:00')) : null;
-  const faltanCamposExtra = customerFields.some(
-    (f) => f.required && !String(customFieldValues[f.key] || '').trim()
-  );
 
   // Los campos extra (datos del vehículo, de la mascota, motivo de
   // consulta...) no tienen columnas propias en `appointments`: se juntan en
@@ -874,23 +883,32 @@ export default function BookingPage() {
   // grilla junta a todos los que hacen el servicio y cada horario trae quién
   // lo atendería. A partir de ahí, el que atiende es el del horario elegido.
   const modo = modoProfesional(negocio);
-  const saltearProfesional = modo === 'automatico';
+  const asignaElNegocio = modo === 'automatico';
   const esCualquiera = professionalId === CUALQUIERA;
   const candidatos = useMemo(
     () => (serviceId ? candidatosDelServicio(professionals, professionalServices, serviceId) : []),
     [professionals, professionalServices, serviceId],
   );
+  // El paso del profesional no se muestra si no hay nada que elegir: lo
+  // asigna el negocio, o hay uno solo para ese servicio (antes de elegir el
+  // servicio: uno solo en todo el negocio).
+  const unSoloProfesional = serviceId
+    ? candidatos.length === 1
+    : professionals.filter((p) => p.isActive !== false).length === 1;
+  const saltearProfesional = asignaElNegocio || unSoloProfesional;
   const idsAMirar = useMemo(
     () => (esCualquiera ? candidatos.map((p) => p.id) : professionalId ? [professionalId] : []),
     [esCualquiera, candidatos, professionalId],
   );
   const profesionalQueAtiende = esCualquiera ? timeSlot?.professionalId || null : professionalId;
 
+  // Sin paso del profesional, igual tiene que quedar uno elegido: "cualquiera"
+  // si lo asigna el negocio, o el único que hace ese servicio.
   useEffect(() => {
-    if (saltearProfesional && serviceId && !professionalId) {
-      dispatch({ type: 'SET_PROFESSIONAL', payload: CUALQUIERA });
-    }
-  }, [saltearProfesional, serviceId, professionalId, dispatch]);
+    if (!serviceId || professionalId) return;
+    if (asignaElNegocio) dispatch({ type: 'SET_PROFESSIONAL', payload: CUALQUIERA });
+    else if (candidatos.length === 1) dispatch({ type: 'SET_PROFESSIONAL', payload: candidatos[0].id });
+  }, [asignaElNegocio, serviceId, professionalId, candidatos, dispatch]);
 
   const selectedProfessional = professionals.find(p => p.id === profesionalQueAtiende);
   const selectedService = services.find(s => s.id === serviceId);
@@ -922,11 +940,12 @@ export default function BookingPage() {
     return Math.round(precioConDescuento * Math.min(valor, 100)) / 100;
   })();
 
-  // Volvió del login: restaura servicio y profesional (lo único que hacía
-  // falta guardar — el nombre lo precarga el efecto de abajo con el de la
-  // cuenta, y el teléfono todavía no se había cargado en el paso 2) y salta
-  // directo al paso de "Tus datos". No depende de en qué paso arrancó este
-  // montaje: después del redirect siempre arranca en 1, sin nada elegido.
+  // Volvió del login: restaura TODO lo elegido — servicio, profesional, día y
+  // horario (el nombre lo precarga el efecto de abajo con el de la cuenta) —
+  // y salta directo a "Tus datos". No depende de en qué paso arrancó este
+  // montaje: después del redirect siempre arranca en 1, sin nada elegido. Si
+  // mientras tanto alguien tomó ese horario, lo frena el servidor al
+  // confirmar, con "Ese horario ya fue tomado".
   useEffect(() => {
     if (!user) return;
     let draft = null;
@@ -937,12 +956,38 @@ export default function BookingPage() {
     } catch { /* sin sessionStorage, no hay nada que restaurar */ }
     if (!draft?.professionalId || !draft?.serviceId) return;
     if (draft.branchId) dispatch({ type: 'SET_BRANCH', payload: draft.branchId });
-    // En este orden: SET_SERVICE borra el profesional elegido.
+    // En este orden: cada uno borra lo que viene después (servicio →
+    // profesional → día → horario).
     dispatch({ type: 'SET_SERVICE', payload: draft.serviceId });
     dispatch({ type: 'SET_PROFESSIONAL', payload: draft.professionalId });
-    dispatch({ type: 'SET_STEP', payload: 3 });
+    if (draft.date) dispatch({ type: 'SET_DATE', payload: draft.date });
+    if (draft.date && draft.timeSlot) {
+      dispatch({ type: 'SET_TIMESLOT', payload: draft.timeSlot });
+      dispatch({ type: 'SET_STEP', payload: PASO.DATOS });
+    } else {
+      dispatch({ type: 'SET_STEP', payload: PASO.HORARIO });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  // ── Avance automático al tocar una opción ──
+  // Un solo temporizador (DEMORA_AVANCE_MS): tocar otra opción antes de que
+  // avance reemplaza el anterior. Cuando dispara lee el estado del momento
+  // (bookingRef), no el del render en que se tocó: ese todavía no tenía la
+  // opción recién elegida.
+  const avance = useRef(null);
+  const bookingRef = useRef(booking);
+  useEffect(() => { bookingRef.current = booking; });
+  useEffect(() => () => clearTimeout(avance.current), []);
+  // Cada paso nuevo arranca arriba: con el avance solo, el anterior podía
+  // haber quedado scrolleado (una lista larga de servicios).
+  const primerPaso = useRef(true);
+  useEffect(() => {
+    if (primerPaso.current) { primerPaso.current = false; return; }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [step]);
+  // Al tocar un día, la pantalla baja hasta sus horarios.
+  const horariosRef = useRef(null);
 
   // Precarga el nombre con el de la cuenta de Google, editable: el cliente
   // puede estar reservando para otra persona o preferir otra grafía.
@@ -1055,47 +1100,81 @@ export default function BookingPage() {
     && a.depositExpiresAt && new Date(a.depositExpiresAt) > new Date()
   );
 
-  const canGoNext = () => {
-    switch (step) {
-      case 1: return !!serviceId;
-      case 2: return !!professionalId;
-      case 3: return telefonoValido(personalInfo.phone) && nombreValido(personalInfo.name) && !faltanCamposExtra;
-      case 4: return !!date && !hasAppointmentToday;
-      case 5: return !!timeSlot;
-      default: return false;
-    }
-  };
-
-  const handleNext = () => {
-    // En "Tus datos" el botón no se apaga: al tocarlo marca qué falta.
-    if (step === 3 && errorCampo.marcar(problemaDatosPersonales(personalInfo.name, personalInfo.phone, customerFields, customFieldValues))) {
-      return;
-    }
-    if (step === 4 && hasAppointmentToday) {
-      setError('Ya tenés un turno reservado para este día.');
-      return;
-    }
-    // En modo automático el paso 2 no existe: del servicio va directo a "Tus datos".
-    const siguiente = step === 1 && saltearProfesional ? 3 : step + 1;
-    // Hasta acá se puede mirar sin cuenta. Para poner sus datos y confirmar,
-    // tiene que entrar. servicio y profesional se guardan porque el login
-    // recarga la página entera (ver BOOKING_DRAFT_KEY más arriba) — sin
-    // esto, volver de Google largaba de nuevo en "elegí un servicio".
-    if (siguiente === 3 && !user) {
-      setError('');
-      try { sessionStorage.setItem(BOOKING_DRAFT_KEY, JSON.stringify({ professionalId, serviceId, branchId: booking.branchId })); } catch { /* sin storage, hay que re-elegir al volver */ }
+  /**
+   * Va a un paso. Hasta "Día y hora" se puede todo sin cuenta; para "Tus
+   * datos" en adelante hay que entrar con Google: se guarda TODO lo elegido
+   * (el login recarga la página entera, ver BOOKING_DRAFT_KEY) y se manda al
+   * login, que vuelve directo a "Tus datos".
+   */
+  const irAPaso = (paso) => {
+    setError('');
+    if (paso >= PASO.DATOS && !user) {
+      const b = bookingRef.current;
+      try {
+        sessionStorage.setItem(BOOKING_DRAFT_KEY, JSON.stringify({
+          professionalId: b.professionalId, serviceId: b.serviceId, branchId: b.branchId, date: b.date, timeSlot: b.timeSlot,
+        }));
+      } catch { /* sin storage, hay que re-elegir al volver */ }
       navigate('/login', { state: { from: `/${slug}` } });
       return;
     }
-    setError('');
-    dispatch({ type: 'SET_STEP', payload: siguiente });
+    dispatch({ type: 'SET_STEP', payload: paso });
+  };
+  const avanzarDespues = (paso) => {
+    clearTimeout(avance.current);
+    avance.current = setTimeout(() => irAPaso(paso), DEMORA_AVANCE_MS);
+  };
+
+  // Pasos de una sola opción: tocarla avanza sola.
+  const elegirServicio = (id) => {
+    dispatch({ type: 'SET_SERVICE', payload: id });
+    // Qué sigue se decide con ESTE servicio (todavía no está en el estado).
+    const deEse = candidatosDelServicio(professionals, professionalServices, id);
+    if (asignaElNegocio) dispatch({ type: 'SET_PROFESSIONAL', payload: CUALQUIERA });
+    else if (deEse.length === 1) dispatch({ type: 'SET_PROFESSIONAL', payload: deEse[0].id });
+    avanzarDespues(asignaElNegocio || deEse.length === 1 ? PASO.HORARIO : PASO.PROFESIONAL);
+  };
+  const elegirProfesional = (id) => {
+    dispatch({ type: 'SET_PROFESSIONAL', payload: id });
+    avanzarDespues(PASO.HORARIO);
+  };
+  const elegirDia = (d) => {
+    dispatch({ type: 'SET_DATE', payload: d });
+    setTimeout(() => horariosRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+  };
+  const elegirHorario = (slot) => {
+    dispatch({ type: 'SET_TIMESLOT', payload: slot });
+    avanzarDespues(PASO.DATOS);
   };
 
   const handleBack = () => {
+    clearTimeout(avance.current);
     setError('');
-    if (step === 3 && saltearProfesional) dispatch({ type: 'SET_STEP', payload: 1 });
-    else dispatch({ type: 'PREV_STEP' });
+    const anterior = step === PASO.HORARIO && saltearProfesional ? PASO.SERVICIO : Math.max(PASO.SERVICIO, step - 1);
+    dispatch({ type: 'SET_STEP', payload: anterior });
   };
+
+  // "Siguiente": en "Tus datos" (al tocarlo marca qué falta), y de respaldo
+  // en los pasos de una opción cuando volvió atrás y ya la tenía elegida.
+  const handleNext = () => {
+    if (step === PASO.DATOS) {
+      if (errorCampo.marcar(problemaDatosPersonales(personalInfo.name, personalInfo.phone, customerFields, customFieldValues))) return;
+      if (hasAppointmentToday) {
+        setError('Ya tenés un turno reservado para ese día. Volvé y elegí otro día.');
+        return;
+      }
+      irAPaso(PASO.CONFIRMAR);
+    } else if (step === PASO.SERVICIO && serviceId) {
+      irAPaso(saltearProfesional ? PASO.HORARIO : PASO.PROFESIONAL);
+    } else if (step === PASO.PROFESIONAL && professionalId) {
+      irAPaso(PASO.HORARIO);
+    } else if (step === PASO.HORARIO && date && timeSlot) {
+      irAPaso(PASO.DATOS);
+    }
+  };
+  const yaEligio = (step === PASO.SERVICIO && serviceId)
+    || (step === PASO.PROFESIONAL && professionalId)
+    || (step === PASO.HORARIO && date && timeSlot);
 
   const handleConfirm = async () => {
     if (reservando) return;
@@ -1212,8 +1291,8 @@ export default function BookingPage() {
   };
 
   return (
-    <div className={`booking-container ${step === 6 ? 'has-confirm-bar' : ''}`}>
-      <BusinessHero business={business} compacta={step > 1} />
+    <div className={`booking-container ${step === PASO.CONFIRMAR ? 'has-confirm-bar' : ''}`}>
+      <BusinessHero business={business} compacta={step > PASO.SERVICIO} />
       {sucursal && (
         <div className="sucursal-elegida">
           <span><Icon name="pin" /> <strong>{sucursal.name}</strong>{business.address ? ` · ${business.address}` : ''}</span>
@@ -1231,85 +1310,116 @@ export default function BookingPage() {
         </div>
       )}
       <Stepper step={step} saltearProfesional={saltearProfesional} />
+
+      {/* Atrás arriba, grande y siempre a mano (el de Confirmar va en su
+          barra fija). Con el avance solo, es la salida si tocó sin querer. */}
+      {step > PASO.SERVICIO && step < PASO.CONFIRMAR && (
+        <button type="button" className="booking-atras" onClick={handleBack}>
+          <span aria-hidden="true">←</span> Atrás
+        </button>
+      )}
+
       {error && (
         <div className="badge badge-danger mb-md" style={{ display: 'block', textAlign: 'center', padding: '12px', borderRadius: '8px', fontSize: '14px' }}>
           {error}
         </div>
       )}
 
-      {/* key: cada paso vuelve a montar el envoltorio y anima su entrada. El
-          6 solo con fundido: su barra de confirmar es fija a la pantalla y
-          un transform la correría de lugar mientras dura la animación. */}
+      {/* key: cada paso vuelve a montar el envoltorio y anima su entrada.
+          Confirmar solo con fundido: su barra es fija a la pantalla y un
+          transform la correría de lugar mientras dura la animación. */}
       <div
         key={step}
-        className={step === 6 ? 'mov-fundido' : haciaAtras ? 'mov-paso-atras' : 'mov-paso-adelante'}
+        className={step === PASO.CONFIRMAR ? 'mov-fundido' : haciaAtras ? 'mov-paso-atras' : 'mov-paso-adelante'}
       >
-      {step === 1 && (
+      {step === PASO.SERVICIO && (
         <ServiceSelect
           services={services}
           professionals={professionals}
           professionalServices={professionalServices}
           selectedId={serviceId}
-          onSelect={id => dispatch({ type: 'SET_SERVICE', payload: id })}
+          onSelect={elegirServicio}
           currency={business.currency}
           promotions={promotions}
         />
       )}
 
-      {step === 2 && (
+      {step === PASO.PROFESIONAL && (
         <ProfessionalSelect
           professionals={professionals}
           professionalServices={professionalServices}
           service={selectedService}
           selectedId={professionalId}
-          onSelect={id => dispatch({ type: 'SET_PROFESSIONAL', payload: id })}
+          onSelect={elegirProfesional}
           currency={business.currency}
           ofrecerCualquiera={modo === 'elige_o_cualquiera'}
         />
       )}
 
-      {step === 3 && (
-        <PersonalInfoStep
-          user={user}
-          name={personalInfo.name}
-          onNameChange={name => dispatch({ type: 'SET_PERSONAL_INFO', payload: { name } })}
-          phone={personalInfo.phone}
-          onPhoneChange={phone => dispatch({ type: 'SET_PERSONAL_INFO', payload: { phone } })}
-          telefonoRecordado={Boolean(telefonoRecordado) && personalInfo.phone === telefonoRecordado}
-          customFields={customerFields}
-          customFieldValues={customFieldValues}
-          onCustomFieldChange={(key, value) => dispatch({ type: 'SET_CUSTOM_FIELD', payload: { key, value } })}
-          errorCampo={errorCampo}
-        />
+      {/* Día y horario en la misma pantalla: tocás el día y abajo aparecen
+          sus horarios. Si ese día no hay lugar, se elige otro ahí mismo, sin
+          volver para atrás. */}
+      {step === PASO.HORARIO && (
+        <>
+          <DatePicker
+            selectedDate={date}
+            onSelect={elegirDia}
+            professionalIds={idsAMirar}
+            schedules={schedules}
+            businessHours={business.businessHours}
+            maxAdvanceDays={business.maxAdvanceDays}
+            blockedDays={blockedDays}
+          />
+          <div ref={horariosRef} className="booking-horarios">
+            {date ? (
+              <TimeSlotGrid
+                slots={availableSlots}
+                selectedSlot={timeSlot}
+                onSelect={elegirHorario}
+                date={date}
+                cargando={cargandoOcupados}
+                serviceId={serviceId}
+                dayOfWeek={dayOfWeek}
+                promotions={promotions}
+                minAdvanceHours={Number(business.minAdvanceHours) || 0}
+              />
+            ) : (
+              <p className="booking-horarios-vacio">
+                <Icon name="calendar" /> Elegí un día en el calendario para ver los horarios.
+              </p>
+            )}
+          </div>
+        </>
       )}
 
-      {step === 4 && (
-        <DatePicker
-          selectedDate={date}
-          onSelect={d => dispatch({ type: 'SET_DATE', payload: d })}
-          professionalIds={idsAMirar}
-          schedules={schedules}
-          businessHours={business.businessHours}
-          maxAdvanceDays={business.maxAdvanceDays}
-          blockedDays={blockedDays}
-        />
+      {step === PASO.DATOS && (
+        <>
+          {hasAppointmentToday && (
+            <div className="notice notice-warn mb-md" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', flexWrap: 'wrap' }}>
+              <span style={{ flex: 1, minWidth: 200 }}>
+                <Icon name="warning" /> Ya tenés un turno reservado el {formatDate(date)}. Se puede uno por día.
+              </span>
+              <button type="button" className="btn btn-primary btn-sm" onClick={() => irAPaso(PASO.HORARIO)}>
+                Elegir otro día
+              </button>
+            </div>
+          )}
+          <PersonalInfoStep
+            user={user}
+            name={personalInfo.name}
+            onNameChange={name => dispatch({ type: 'SET_PERSONAL_INFO', payload: { name } })}
+            phone={personalInfo.phone}
+            onPhoneChange={phone => dispatch({ type: 'SET_PERSONAL_INFO', payload: { phone } })}
+            telefonoRecordado={Boolean(telefonoRecordado) && personalInfo.phone === telefonoRecordado}
+            customFields={customerFields}
+            customFieldValues={customFieldValues}
+            onCustomFieldChange={(key, value) => dispatch({ type: 'SET_CUSTOM_FIELD', payload: { key, value } })}
+            errorCampo={errorCampo}
+          />
+        </>
       )}
 
-      {step === 5 && (
-        <TimeSlotGrid
-          slots={availableSlots}
-          selectedSlot={timeSlot}
-          onSelect={s => dispatch({ type: 'SET_TIMESLOT', payload: s })}
-          date={date}
-          cargando={cargandoOcupados}
-          serviceId={serviceId}
-          dayOfWeek={dayOfWeek}
-          promotions={promotions}
-          minAdvanceHours={Number(business.minAdvanceHours) || 0}
-        />
-      )}
-
-      {step === 6 && selectedProfessional && selectedService && (
+      {step === PASO.CONFIRMAR && selectedProfessional && selectedService && (
         <BookingSummary
           professional={selectedProfessional}
           asignadoSolo={esCualquiera}
@@ -1328,21 +1438,21 @@ export default function BookingPage() {
       )}
       </div>
 
-      {step < 6 && (
+      {/* "Siguiente": siempre en Tus datos; en los pasos de una opción solo
+          de respaldo, si volvió atrás y ya tenía algo elegido (tocar una
+          opción ya avanza sola). */}
+      {(step === PASO.DATOS || yaEligio) && step < PASO.CONFIRMAR && (
         <div className="booking-nav">
-          {step > 1 ? (
-            <button className="btn btn-outline" onClick={handleBack}>← Atrás</button>
-          ) : <div />}
-
-          <button className="btn btn-primary" disabled={step !== 3 && !canGoNext()} onClick={handleNext}>
-            Siguiente →
+          <div />
+          <button className="btn btn-primary btn-lg" onClick={handleNext}>
+            {step === PASO.DATOS ? 'Revisar y confirmar →' : 'Siguiente →'}
           </button>
         </div>
       )}
 
-      {/* Debajo del "Siguiente" a propósito: está para quien quiere saber
-          dónde queda antes de reservar, sin meterse en el medio del flujo. */}
-      {step === 1 && <BusinessMap business={business} />}
+      {/* Debajo de todo a propósito: está para quien quiere saber dónde
+          queda antes de reservar, sin meterse en el medio del flujo. */}
+      {step === PASO.SERVICIO && <BusinessMap business={business} />}
     </div>
   );
 }

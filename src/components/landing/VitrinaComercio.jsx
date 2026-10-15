@@ -88,7 +88,10 @@ const TELEFONO_DEMO = '11 4567-8910';
 const CLIENTE_DEMO = { nombre: 'Santiago Rossi', email: 'santiago.rossi@gmail.com', telefono: '11 2345-6789' };
 const EXTRAS_DEMO = { vehicleInfo: 'Fiat Cronos · AB 123 CD', petInfo: 'Luna · perra' };
 
-const PASOS = ['Servicio', 'Profesional', 'Datos', 'Fecha', 'Horario', 'Confirmar'];
+// Mismo orden que la reserva real (BookingPage, PASO): elegir primero, los
+// datos al final; los pasos de una opción avanzan solos al tocarla.
+const PASOS = ['Servicio', 'Profesional', 'Día y hora', 'Tus datos', 'Confirmar'];
+const DEMORA_AVANCE_MS = 320;
 
 /** "Barbería El Corte" → "barberia-el-corte" (sin tildes ni símbolos). */
 function slugDe(texto) {
@@ -181,7 +184,7 @@ export default function VitrinaComercio() {
   const servicio = reserva.servicioIdx !== null ? servicios[reserva.servicioIdx] : null;
   const campos = preset.customerFields || [];
   const { paso } = reserva;
-  const confirmado = paso === 7;
+  const confirmado = paso === 6;
 
   // Las mismas variables que pisa applyTheme() en la página del negocio,
   // acotadas al celular para no teñir la landing.
@@ -205,6 +208,14 @@ export default function VitrinaComercio() {
   };
 
   const cambiar = (cambios) => setReserva((r) => ({ ...r, ...cambios }));
+  // Tocar una opción la marca y, un instante después, pasa al paso siguiente.
+  const avance = useRef(null);
+  useEffect(() => () => clearTimeout(avance.current), []);
+  const elegirYAvanzar = (cambios, siguientePaso) => {
+    cambiar(cambios);
+    clearTimeout(avance.current);
+    avance.current = setTimeout(() => cambiar({ paso: siguientePaso }), DEMORA_AVANCE_MS);
+  };
 
   // Cada cambio de paso arranca la pantalla desde arriba, como una página nueva.
   useEffect(() => {
@@ -248,13 +259,12 @@ export default function VitrinaComercio() {
   const puedeSeguir = {
     1: reserva.servicioIdx !== null,
     2: reserva.proIdx !== null,
-    3: nombreValido(reserva.nombre) && telefonoValido(reserva.telefono) && !faltaExtra,
-    4: !!reserva.fecha,
-    5: !!reserva.slot,
+    3: !!reserva.fecha && !!reserva.slot,
+    4: nombreValido(reserva.nombre) && telefonoValido(reserva.telefono) && !faltaExtra,
   }[paso];
 
   const siguiente = () => { if (puedeSeguir) cambiar({ paso: paso + 1 }); };
-  const atras = () => cambiar({ paso: Math.max(1, paso - 1) });
+  const atras = () => { clearTimeout(avance.current); cambiar({ paso: Math.max(1, paso - 1) }); };
 
   const contacto = [
     { key: 'telefono', icon: 'phone', label: TELEFONO_DEMO },
@@ -262,7 +272,7 @@ export default function VitrinaComercio() {
     { key: 'direccion', icon: 'pin', label: 'Cómo llegar' },
   ];
 
-  // ── Calendario (paso 4) ──
+  // ── Calendario (paso 3, con los horarios abajo) ──
   const hoy = toDateString(new Date());
   const ahora = new Date();
   const anio = mes.getFullYear();
@@ -349,7 +359,7 @@ export default function VitrinaComercio() {
                 <span>{nombre}</span>
               </span>
               <div className="header-actions">
-                {paso >= 3
+                {paso >= 4
                   ? <span className="btn btn-ghost btn-sm"><Icon name="calendar" /> Mis Citas</span>
                   : <span className="btn btn-secondary btn-sm">Iniciar Sesión</span>}
               </div>
@@ -380,7 +390,7 @@ export default function VitrinaComercio() {
                 </p>
               </div>
             ) : (
-              <div className={`booking-container ${paso === 6 ? 'has-confirm-bar' : ''}`}>
+              <div className={`booking-container ${paso === 5 ? 'has-confirm-bar' : ''}`}>
                 {/* BusinessHero: completa en el paso 1, compacta después */}
                 <section className={`business-hero ${paso > 1 ? 'compacta' : ''}`}>
                   <div className={`business-hero-band${marca('rubro')}`} aria-hidden="true" />
@@ -419,6 +429,12 @@ export default function VitrinaComercio() {
                   })}
                 </div>
 
+                {paso > 1 && paso < 5 && (
+                  <button type="button" className="booking-atras" onClick={atras}>
+                    <span aria-hidden="true">←</span> Atrás
+                  </button>
+                )}
+
                 {paso === 1 && (
                   <div>
                     <h2 className="booking-step-title">Elegí un servicio</h2>
@@ -428,7 +444,7 @@ export default function VitrinaComercio() {
                         <div
                           key={s.name}
                           className={`card card-selectable service-card ${reserva.servicioIdx === i ? 'card-selected' : ''}`}
-                          onClick={() => cambiar({ servicioIdx: i, proIdx: null, fecha: null, slot: null })}
+                          onClick={() => elegirYAvanzar({ servicioIdx: i, proIdx: null, fecha: null, slot: null }, 2)}
                         >
                           <div className="service-info"><h3>{s.name}</h3></div>
                           <div className="service-meta">
@@ -450,7 +466,7 @@ export default function VitrinaComercio() {
                         <div
                           key={prof.name}
                           className={`card card-selectable professional-card ${reserva.proIdx === i ? 'card-selected' : ''}`}
-                          onClick={() => cambiar({ proIdx: i, fecha: null, slot: null })}
+                          onClick={() => elegirYAvanzar({ proIdx: i, fecha: null, slot: null }, 3)}
                         >
                           <div className="avatar avatar-lg">{iniciales(prof.name)}</div>
                           <h3>{prof.name}</h3>
@@ -461,7 +477,7 @@ export default function VitrinaComercio() {
                   </div>
                 )}
 
-                {paso === 3 && (
+                {paso === 4 && (
                   <div>
                     <h2 className="booking-step-title">Tus datos</h2>
                     <p className="booking-step-subtitle">Necesitamos tu nombre y tu móvil para confirmar la reserva</p>
@@ -522,10 +538,10 @@ export default function VitrinaComercio() {
                   </div>
                 )}
 
-                {paso === 4 && (
+                {paso === 3 && (
                   <div>
-                    <h2 className="booking-step-title">Elegí una fecha</h2>
-                    <p className="booking-step-subtitle">Seleccioná el día de tu cita</p>
+                    <h2 className="booking-step-title">Elegí el día</h2>
+                    <p className="booking-step-subtitle">Tocá un día y abajo te mostramos sus horarios libres</p>
                     <div className="calendar">
                       <div className="calendar-header">
                         <button type="button" className="calendar-nav" disabled={mesesDesdeHoy <= 0} onClick={() => setMes(new Date(anio, m - 1, 1))} aria-label="Mes anterior">◀</button>
@@ -559,14 +575,14 @@ export default function VitrinaComercio() {
                   </div>
                 )}
 
-                {paso === 5 && (() => {
+                {paso === 3 && reserva.fecha && (() => {
                   const slots = horariosDelDia(reserva.fecha, servicio.durationMinutes);
                   const franja = (lista) => lista.map((s) => (
                     <button
                       key={s.startTime}
                       type="button"
                       className={`timeslot ${reserva.slot?.startTime === s.startTime ? 'selected' : ''}`}
-                      onClick={() => cambiar({ slot: s })}
+                      onClick={() => elegirYAvanzar({ slot: s }, 4)}
                     >
                       {s.startTime}
                     </button>
@@ -574,7 +590,7 @@ export default function VitrinaComercio() {
                   const manana = slots.filter((s) => aMin(s.startTime) < 13 * 60);
                   const tarde = slots.filter((s) => aMin(s.startTime) >= 13 * 60);
                   return (
-                    <div>
+                    <div className="booking-horarios">
                       <h2 className="booking-step-title">Elegí un horario</h2>
                       <p className="booking-step-subtitle">{formatDate(reserva.fecha)}</p>
                       <div className="timeslots-container">
@@ -589,7 +605,7 @@ export default function VitrinaComercio() {
                   );
                 })()}
 
-                {paso === 6 && (
+                {paso === 5 && (
                   <div>
                     <h2 className="booking-step-title">Confirmar tu {terminology.appointmentNoun}</h2>
                     <p className="booking-step-subtitle">Revisá los datos antes de confirmar</p>
@@ -611,13 +627,11 @@ export default function VitrinaComercio() {
                   </div>
                 )}
 
-                {paso < 6 && (
+                {(paso === 4 || puedeSeguir) && paso < 5 && (
                   <div className="booking-nav">
-                    {paso > 1
-                      ? <button type="button" className="btn btn-outline" onClick={atras}>← Atrás</button>
-                      : <div />}
-                    <button type="button" className="btn btn-primary" disabled={paso !== 3 && !puedeSeguir} onClick={siguiente}>
-                      Siguiente →
+                    <div />
+                    <button type="button" className="btn btn-primary" disabled={!puedeSeguir} onClick={siguiente}>
+                      {paso === 4 ? 'Revisar y confirmar →' : 'Siguiente →'}
                     </button>
                   </div>
                 )}
@@ -653,11 +667,11 @@ export default function VitrinaComercio() {
 
             {/* Barra de confirmar: afuera del contenedor para que ocupe todo el
                 ancho, como la fija de la página real. */}
-            {paso === 6 && (
+            {paso === 5 && (
               <div className="confirm-bar">
                 <div className="confirm-bar-inner confirm-bar-actions">
                   <button type="button" className="btn btn-outline btn-lg" onClick={atras}>← Atrás</button>
-                  <button type="button" className="btn btn-primary btn-lg" onClick={() => cambiar({ paso: 7 })}>
+                  <button type="button" className="btn btn-primary btn-lg" onClick={() => cambiar({ paso: 6 })}>
                     <Icon name="check-circle" /> Confirmar Reserva
                   </button>
                 </div>
@@ -668,7 +682,7 @@ export default function VitrinaComercio() {
         <figcaption>
           {confirmado
             ? 'Así termina tu cliente. Al negocio le llega el aviso y a él, el mail.'
-            : 'Probalo: elegí servicio, profesional, día y horario, y confirmá.'}
+            : 'Probalo: tocá un servicio, un profesional, el día y el horario, y confirmá.'}
         </figcaption>
       </figure>
     </div>

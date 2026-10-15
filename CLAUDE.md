@@ -1334,6 +1334,20 @@ dominio de más autorizado no es un agujero de seguridad, solo ruido).
    modal avisa y pide confirmar. Encapsulamiento: gcal-oauth-callback rechaza
    (`?gcal=cuenta-en-uso`) una cuenta de Google ya conectada a OTRO
    profesional del negocio. Test: 85/85.
+5w2. **Reserva: elegir primero, entrar al final (15/10/2026).** Pedido del
+   usuario. `BookingPage` tiene `PASO` = Servicio(1) → Profesional(2) →
+   Día y hora(3, calendario + horarios en la MISMA pantalla) → Tus datos(4) →
+   Confirmar(5). Se puede elegir todo sin cuenta; al pasar a "Tus datos" sin
+   sesión se guarda TODO en `slotly:bookingDraft` (servicio, profesional,
+   sucursal, día y horario) y se manda a /login; al volver se restaura y abre
+   en "Tus datos" (el servidor revalida el horario al confirmar). Los pasos de
+   una opción avanzan solos al tocarla (`DEMORA_AVANCE_MS` = 320 ms, el
+   temporizador lee `bookingRef` porque el render del toque todavía no tiene
+   la opción); "Siguiente" solo en Tus datos ("Revisar y confirmar") o de
+   respaldo si volvió atrás con algo elegido; "← Atrás" grande arriba. El
+   paso del profesional se saltea si lo asigna el negocio o hay uno solo para
+   ese servicio. "Un turno por día" se avisa en Tus datos con "Elegir otro
+   día". La vitrina de la landing (VitrinaComercio) sigue el mismo orden.
 5x. **Configuración por secciones (15/10/2026).** Era una página larga de 9
    tarjetas. Ahora `SettingsPage` tiene `SECCIONES` (Tu negocio, Contacto y
    ubicación, Horarios, Reservas, Cobros, Google Calendar, Privacidad): menú al

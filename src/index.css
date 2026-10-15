@@ -5600,3 +5600,31 @@ button.mapa-celda:hover, button.mapa-celda:focus-visible { outline: 2px solid va
   .landing-diferenciales { grid-template-columns: minmax(0, 1fr); }
   .landing-diferencial { padding: var(--space-md); }
 }
+
+/* ── Reserva: Atrás arriba y horarios debajo del calendario ──
+   Los pasos de una opción avanzan solos al tocarla; "Atrás" queda arriba,
+   grande, para el que tocó sin querer. */
+.booking-atras {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  margin: 0 0 var(--space-md);
+  padding: 0 var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  font: inherit;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+}
+.booking-atras span { font-size: 1.2rem; line-height: 1; }
+.booking-horarios { margin-top: var(--space-xl); scroll-margin-top: calc(64px + var(--space-md)); }
+.booking-horarios-vacio {
+  text-align: center;
+  color: var(--text-muted);
+  padding: var(--space-lg) var(--space-md);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-lg);
+}
