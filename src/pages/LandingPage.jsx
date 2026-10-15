@@ -1,9 +1,10 @@
-import { useEffect } from 'react';
+import { Fragment, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { PLANS, FEATURES_COMUNES } from '../config/plans';
 import FloatingActionWidget from '../components/landing/FloatingActionWidget';
 import VitrinaComercio from '../components/landing/VitrinaComercio';
 import ValoresClave from '../components/landing/ValoresClave';
+import { useAnimacionesLanding } from '../components/landing/useAnimacionesLanding';
 import Icon from '../components/Icon';
 
 // ============================================================================
@@ -119,6 +120,26 @@ function CTAWhatsApp({ children = 'Hablemos por WhatsApp', clase = 'btn-primary 
   );
 }
 
+/**
+ * El título del inicio, palabra por palabra: cada línea es una "ventana"
+ * (overflow hidden) y cada palabra sube desde abajo con su demora (--i).
+ * `lineas`: [texto, claseExtra?]. Para lectores de pantalla el h1 lleva el
+ * texto entero en aria-label.
+ */
+function TituloAnimado({ lineas }) {
+  let i = 0;
+  return lineas.map(([texto, clase], n) => (
+    <span key={n} className={`hero-linea ${clase || ''}`} aria-hidden="true">
+      {texto.split(' ').map((palabra, k) => (
+        <Fragment key={k}>
+          {k > 0 && ' '}
+          <span className="hero-palabra" style={{ '--i': i++ }}>{palabra}</span>
+        </Fragment>
+      ))}
+    </span>
+  ));
+}
+
 export default function LandingPage() {
   const { hash } = useLocation();
 
@@ -134,34 +155,36 @@ export default function LandingPage() {
     el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [hash]);
 
+  // Entradas con GSAP (hero, títulos y tarjetas al scrollear, la vitrina).
+  const raiz = useRef(null);
+  useAnimacionesLanding(raiz);
+
   return (
-    <div className="landing">
+    <div className="landing" ref={raiz}>
       {/* ── HERO ─────────────────────────────────────────────────────────── */}
       <section className="landing-hero" id="inicio">
-        <span className="eyebrow">• Turnos y reservas para tu negocio · Argentina</span>
+        <span className="eyebrow hero-entra" style={{ '--d': '0ms' }}>• Turnos y reservas para tu negocio · Argentina</span>
 
-        <h1 className="landing-title">
-          Tu agenda no vive
-          <br />
-          <span className="acento">en WhatsApp.</span>
-          <br />
-          Vive acá.
+        {/* Entra palabra por palabra con CSS puro (.hero-palabra en
+            index.css): es lo primero que se ve, no espera a ninguna librería. */}
+        <h1 className="landing-title" aria-label="Tu agenda no vive en WhatsApp. Vive acá.">
+          <TituloAnimado lineas={[['Tu agenda no vive'], ['en WhatsApp.', 'acento'], ['Vive acá.']]} />
         </h1>
 
-        <p className="landing-lead" style={{ maxWidth: 640 }}>
+        <p className="landing-lead hero-entra" style={{ maxWidth: 640, '--d': '450ms' }}>
           Tus clientes reservan solos desde tu link, solo en los horarios que
           tenés libres. Vos te enterás de cada turno al instante y el sistema
           les recuerda que vengan.
         </p>
 
-        <div className="landing-cta-row">
+        <div className="landing-cta-row hero-entra" style={{ '--d': '550ms' }}>
           <CTAWhatsApp />
           <a href="#precios" className="btn btn-outline btn-lg" style={{ textDecoration: 'none' }}>
             Ver precios
           </a>
         </div>
 
-        <ul className="landing-checks">
+        <ul className="landing-checks hero-entra" style={{ '--d': '650ms' }}>
           <li><Icon name="check" /> Lo configuramos nosotros</li>
           <li><Icon name="check" /> Sin permanencia</li>
           <li><Icon name="check" /> Andando el mismo día</li>
@@ -169,7 +192,9 @@ export default function LandingPage() {
 
         {/* Los cuatro valores fuertes, antes que cualquier otra cosa: el
             dueño tiene que entender en cinco segundos qué le resuelve. */}
-        <ValoresClave />
+        <div className="hero-entra" style={{ '--d': '750ms' }}>
+          <ValoresClave />
+        </div>
 
       </section>
 

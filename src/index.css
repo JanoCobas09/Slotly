@@ -5535,3 +5535,33 @@ button.mapa-celda:hover, button.mapa-celda:focus-visible { outline: 2px solid va
 
 .auth-legal { margin-top: var(--space-lg); font-size: 0.8125rem; color: var(--text-muted); text-align: center; line-height: 1.5; }
 .auth-legal a { color: var(--primary); text-decoration: underline; }
+
+/* ── Landing: entrada del inicio, con CSS puro (no espera a GSAP) ──
+   El título sube palabra por palabra dentro de cada línea (ventana con
+   overflow hidden); lo demás del inicio entra en cascada (--d). Las
+   animaciones al scrollear son de GSAP (landing/useAnimacionesLanding.js). */
+.hero-linea {
+  display: block;
+  overflow: hidden;
+  /* Que la ventana no corte la cola de la g o la p (line-height 0.98). */
+  padding-bottom: 0.1em;
+  margin-bottom: -0.1em;
+}
+.hero-palabra {
+  display: inline-block;
+  animation: hero-palabra 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+  animation-delay: calc(var(--i, 0) * 60ms + 100ms);
+}
+@keyframes hero-palabra {
+  from { transform: translateY(110%); }
+}
+.hero-entra {
+  animation: hero-entra 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+  animation-delay: var(--d, 0ms);
+}
+@keyframes hero-entra {
+  from { opacity: 0; transform: translateY(18px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-palabra, .hero-entra { animation: none; }
+}
