@@ -14,6 +14,8 @@ export default function Footer() {
       <span>{new Date().getFullYear()}</span>
       <span className="footer-sep">·</span>
       <Link to="/privacidad" className="footer-link">Privacidad</Link>
+      <span className="footer-sep">·</span>
+      <Link to="/terminos" className="footer-link">Términos</Link>
     </footer>
   );
 }

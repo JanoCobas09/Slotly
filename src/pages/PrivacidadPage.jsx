@@ -115,7 +115,9 @@ export default function PrivacidadPage() {
         avisamos en la app.
       </p>
 
-      <p className="mt-lg"><Link to="/">← Volver a Slotly</Link></p>
+      <p className="mt-lg">
+        <Link to="/terminos">Términos y condiciones</Link>{' · '}<Link to="/">Volver a Slotly</Link>
+      </p>
     </div>
   );
 }

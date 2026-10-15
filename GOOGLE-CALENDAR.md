@@ -38,6 +38,7 @@ Usá el **mismo proyecto de Google Cloud de Slotly** que ya tiene el login con G
    - Nombre: Slotly · Logo · Mail de asistencia: slotly.turnos@gmail.com
    - Página principal: `https://slotly-turnos.vercel.app`
    - Política de privacidad: `https://slotly-turnos.vercel.app/privacidad`
+   - Condiciones del servicio: `https://slotly-turnos.vercel.app/terminos`
    - Dominios autorizados: `slotly-turnos.vercel.app` (más los que ya tenga el login).
 5. **Público (Audience):** que esté **"En producción"**, NO "En prueba".
    En prueba solo pueden conectarse los mails que cargues a mano y la

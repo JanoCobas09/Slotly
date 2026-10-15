@@ -5532,3 +5532,6 @@ button.mapa-celda:hover, button.mapa-celda:focus-visible { outline: 2px solid va
 .doc-visor-acciones { display: flex; gap: var(--space-sm); margin-top: var(--space-sm); flex-wrap: wrap; justify-content: center; }
 .doc-visor-acciones .btn { background: var(--surface); min-height: 44px; }
 .doc-foto-pie { flex-wrap: wrap; gap: 2px; }
+
+.auth-legal { margin-top: var(--space-lg); font-size: 0.8125rem; color: var(--text-muted); text-align: center; line-height: 1.5; }
+.auth-legal a { color: var(--primary); text-decoration: underline; }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { isPlatformOwner, PLATFORM_OWNERS } from '../../config/platform';
 import Icon from '../../components/Icon';
@@ -273,6 +273,13 @@ export default function LoginPage() {
           )}
         </div>
         )}
+
+        {/* Aceptación de los términos al entrar (también lo mira Google al
+            verificar la app). */}
+        <p className="auth-legal">
+          Al continuar aceptás los <Link to="/terminos">Términos y condiciones</Link> y la{' '}
+          <Link to="/privacidad">Política de privacidad</Link> de Slotly.
+        </p>
 
         {/*
           ACCESO RÁPIDO — SOLO DESARROLLO.
