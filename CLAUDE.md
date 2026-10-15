@@ -1347,7 +1347,8 @@ dominio de más autorizado no es un agujero de seguridad, solo ruido).
    ahí, junto con `utils/linkComoLlegar.js`) + las tarjetas de servicio del
    paso 1, con lo que se está editando antes de guardar; los colores van como
    variables CSS en línea dentro del marco (no tocan el tema del panel). En el
-   celular va arriba de los campos. Si cambia BusinessHero, cambia en los dos
+   celular va ABAJO de los campos (pedido del usuario) con un botón arriba
+   "Ver cómo te ve tu cliente ↓" que baja hasta ella. Si cambia BusinessHero, cambia en los dos
    lados (VitrinaComercio de la landing sigue siendo una copia aparte).
 6. **Abuso de reservas.** Hecho: un turno por día y tope de 3 a futuro por
    cuenta. Falta, por orden: bloquear cliente desde el panel (para la cuenta que

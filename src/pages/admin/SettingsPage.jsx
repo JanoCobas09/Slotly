@@ -332,7 +332,7 @@ export default function SettingsPage() {
   // La página de reserva real (cabecera + servicios) con lo que se está
   // editando, antes de guardar. Ver VistaPreviaReserva.
   const vistaPrevia = (
-    <div className="card">
+    <div className="card" id="vista-previa">
       <h3 className="mb-sm">Así te ve tu {terminology.customerNoun}</h3>
       <VistaPreviaReserva
         negocio={form}
@@ -347,6 +347,17 @@ export default function SettingsPage() {
     negocio: (
       <div className="config-dos-columnas">
         <div>
+          {/* En el celular la vista previa queda abajo de los campos: este
+              botón baja hasta ella, así no hay que saber que está ahí. */}
+          {esCelular && (
+            <button
+              type="button"
+              className="config-ir-vista-previa"
+              onClick={() => document.getElementById('vista-previa')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            >
+              <Icon name="search" /> Ver cómo te ve tu {terminology.customerNoun} <span aria-hidden="true">↓</span>
+            </button>
+          )}
           <div className="card">
             <h3 className="mb-lg">Identidad</h3>
             <div className="flex flex-col gap-md">

@@ -5469,9 +5469,28 @@ button.mapa-celda:hover, button.mapa-celda:focus-visible { outline: 2px solid va
 .vista-previa-nota { margin-top: var(--space-sm); }
 .vista-previa-abrir { margin-top: var(--space-sm); }
 
-/* En el celular, la vista previa va ARRIBA de los campos: es lo que se quiere
-   ver al entrar a "Tu negocio" (abajo de todo nadie la encontraba). */
+/* En el celular la vista previa va ABAJO de los campos (pedido del usuario:
+   primero lo que se configura). Para que no quede escondida, arriba hay un
+   botón que baja hasta ella (.config-ir-vista-previa). */
 @media (max-width: 900px) {
-  .config-dos-columnas > div:last-child { order: -1; }
   .vista-previa-pantalla { max-height: 420px; }
 }
+.config-ir-vista-previa {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 48px;
+  margin-bottom: var(--space-md);
+  border: 1px dashed var(--primary);
+  border-radius: var(--radius-lg);
+  background: var(--primary-light, var(--bg-secondary));
+  color: var(--primary);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Al bajar con el botón, que la barra fija de arriba no la tape. */
+#vista-previa { scroll-margin-top: calc(64px + var(--space-md)); }
