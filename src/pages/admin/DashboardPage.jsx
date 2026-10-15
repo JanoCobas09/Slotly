@@ -229,7 +229,7 @@ export default function DashboardPage() {
     {
       done: Boolean(business?.businessHours?.some(h => h.isActive)),
       label: 'Definir el horario de atención del local',
-      to: '/admin/configuracion',
+      to: '/admin/configuracion?seccion=horarios',
       cta: 'Definir horarios',
     },
     {

@@ -1,4 +1,5 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { updateBusiness, uploadBusinessLogo, removeBusinessLogo } from '../../lib/repository';
 import { useCurrentBusiness } from '../../hooks/useCurrentBusiness';
@@ -26,6 +27,74 @@ const defaultHours = [
   { dayOfWeek: 6, startTime: '', endTime: '', isActive: false },
 ];
 
+// ── Secciones de Configuración ──────────────────────────────────────────────
+// Antes era una sola página larga (9 tarjetas, una con 10 campos de cosas
+// distintas) y había que scrollear mucho para encontrar algo. Ahora un menú
+// por tema y se ve una sección a la vez. `campos`: qué claves del negocio se
+// editan en cada una — para el punto de "cambios sin guardar" en el menú y
+// para abrir la sección del campo que falló al guardar.
+const SECCIONES = [
+  {
+    id: 'negocio', titulo: 'Tu negocio', icono: 'building',
+    descripcion: (t) => `Foto, nombre, mensaje y colores: cómo te ve el ${t.customerNoun} en tu link de reserva.`,
+    campos: ['name', 'welcomeMessage', 'primaryColor', 'secondaryColor', 'accentColor', 'logoUrl'],
+  },
+  {
+    id: 'contacto', titulo: 'Contacto y ubicación', icono: 'pin',
+    descripcion: (t) => `Cómo te encuentra y te escribe el ${t.customerNoun}. Con un dato alcanza; con el link de Maps aparece el mapa.`,
+    campos: ['phone', 'address', 'socialLinks', 'instagram', 'mapsUrl'],
+  },
+  {
+    id: 'horarios', titulo: 'Horarios', icono: 'clock',
+    descripcion: () => 'Qué días y en qué horario está abierto el local.',
+    campos: ['businessHours'],
+  },
+  {
+    id: 'reservas', titulo: 'Reservas', icono: 'calendar',
+    descripcion: (t) => `Las reglas para reservar: quién elige al profesional, cada cuánto hay un ${t.appointmentNoun}, con cuánta anticipación se reserva y se cancela.`,
+    campos: ['modoProfesional', 'slotInterval', 'maxAdvanceDays', 'minAdvanceHours', 'minCancelHours'],
+  },
+  {
+    id: 'cobros', titulo: 'Cobros', icono: 'money',
+    descripcion: (t) => `La moneda de tus precios y la seña con Mercado Pago para asegurar el ${t.appointmentNoun}.`,
+    campos: ['currency', 'depositEnabled', 'depositType', 'depositValue'],
+  },
+  {
+    id: 'integraciones', titulo: 'Google Calendar', icono: 'link',
+    descripcion: () => 'Los turnos de cada profesional en el calendario de su celular, y sus actividades fuera de la agenda. Se guarda al toque.',
+    campos: [],
+  },
+  {
+    id: 'privacidad', titulo: 'Privacidad', icono: 'lock',
+    descripcion: () => 'Qué puede ver el equipo de Slotly de tus clientes.',
+    campos: ['privacidadClientes'],
+  },
+];
+
+/** La sección donde está un campo del formulario (para mostrar el error ahí). */
+function seccionDeCampo(campo) {
+  if (!campo) return null;
+  if (campo.startsWith('horario-')) return 'horarios';
+  return SECCIONES.find((s) => s.campos.includes(campo))?.id || null;
+}
+
+/** Ids de las secciones que tienen algo cambiado sin guardar. */
+function seccionesConCambios(cambios) {
+  return new Set(Object.keys(cambios).map(seccionDeCampo).filter(Boolean));
+}
+
+/**
+ * Sección con la que abre: la del link (?seccion=), o la que corresponde al
+ * volver de Mercado Pago (?mp=) o de Google (?gcal=), o la primera.
+ */
+function seccionInicial(params) {
+  const pedida = params.get('seccion');
+  if (SECCIONES.some((s) => s.id === pedida)) return pedida;
+  if (params.get('mp')) return 'cobros';
+  if (params.get('gcal')) return 'integraciones';
+  return 'negocio';
+}
+
 export default function SettingsPage() {
   const { user } = useAuth();
   const { business, businessId } = useCurrentBusiness();
@@ -33,6 +102,21 @@ export default function SettingsPage() {
   const { dispatch } = useBusiness();
   const { professionals } = useTenant();
   const errorCampo = useErrorDeCampo();
+  const [params, setParams] = useSearchParams();
+  const [seccion, setSeccion] = useState(() => seccionInicial(params));
+  // En el celular el menú es una fila que se desliza: que la sección elegida
+  // (también la que abre sola por un error al guardar) quede a la vista.
+  const navRef = useRef(null);
+  useEffect(() => {
+    navRef.current?.querySelector('.config-nav-item.activo')?.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+  }, [seccion]);
+  // Marca el campo con error y abre su sección: si no, el error quedaba en
+  // una sección que no se está viendo y "Guardar" parecía no hacer nada.
+  const marcar = (p) => {
+    const donde = seccionDeCampo(p?.campo);
+    if (donde) setSeccion(donde);
+    return errorCampo.marcar(p);
+  };
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
@@ -72,11 +156,11 @@ export default function SettingsPage() {
     if (!business?.businessHours) aGuardar.businessHours = form.businessHours;
 
     const final = { ...form, ...aGuardar };
-    if (errorCampo.marcar(validarNegocio(final))) return;
+    if (marcar(validarNegocio(final))) return;
     if (final.depositEnabled) {
       const valor = Number(final.depositValue);
-      if (!valor || valor <= 0) return errorCampo.marcar(problema('depositValue', 'Poné de cuánto es la seña, o desactivala.'));
-      if (final.depositType !== 'fixed' && valor > 100) return errorCampo.marcar(problema('depositValue', 'La seña no puede ser más del 100% del precio.'));
+      if (!valor || valor <= 0) return marcar(problema('depositValue', 'Poné de cuánto es la seña, o desactivala.'));
+      if (final.depositType !== 'fixed' && valor > 100) return marcar(problema('depositValue', 'La seña no puede ser más del 100% del precio.'));
     }
     errorCampo.limpiar();
 
@@ -84,7 +168,7 @@ export default function SettingsPage() {
     // 4 de Primeros pasos no se termina: se marca el teléfono (el primero de
     // esos casilleros) diciendo qué falta, en vez de guardar y no avanzar.
     const faltaContacto = user?.role === 'owner' && !guiaOculta(businessId) && !tieneDatosDeContacto(final);
-    const avisarContacto = () => errorCampo.marcar(problema('phone', FALTA_CONTACTO));
+    const avisarContacto = () => marcar(problema('phone', FALTA_CONTACTO));
 
     // Sin cambios no hay nada que mandar (un UPDATE vacío no toca ninguna fila).
     if (Object.keys(aGuardar).length === 0) {
@@ -182,20 +266,51 @@ export default function SettingsPage() {
     }
   };
 
-  return (
-    <div>
-      <div className="admin-page-header">
-        <h1>Configuración</h1>
-        {saved && <span className="badge badge-success"><Icon name="check-circle" /> Guardado</span>}
+  const hayCambios = Object.keys(cambios).length > 0;
+  const conCambios = seccionesConCambios(cambios);
+  const actual = SECCIONES.find((s) => s.id === seccion) || SECCIONES[0];
+  const elegirSeccion = (id) => {
+    setSeccion(id);
+    // Que se pueda compartir / volver con el link a una sección (?seccion=).
+    const p = new URLSearchParams(params);
+    p.set('seccion', id);
+    setParams(p, { replace: true });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // ── Cada sección ─────────────────────────────────────────────────────────
+  const vistaPrevia = (
+    <div className="card">
+      <h3 className="mb-lg">Vista previa</h3>
+      <div style={{ background: 'var(--bg)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-lg)', border: '1px solid var(--border)' }}>
+        <div className="flex items-center gap-sm mb-lg" style={{ padding: 'var(--space-sm)' }}>
+          {form.logoUrl ? (
+            <div style={{ width: 32, height: 32, borderRadius: '50%', background: `center/cover url(${form.logoUrl})`, flexShrink: 0 }} />
+          ) : (
+            <div style={{ width: 32, height: 32, borderRadius: 'var(--radius-sm)', background: `linear-gradient(135deg, ${form.primaryColor}, ${form.secondaryColor})`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '0.75rem', fontWeight: 700, flexShrink: 0 }}>
+              {form.name?.charAt(0).toUpperCase() || 'S'}
+            </div>
+          )}
+          <strong>{form.name}</strong>
+        </div>
+        <p className="text-secondary text-sm mb-md">{form.welcomeMessage}</p>
+        <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
+          <button className="btn btn-sm" style={{ background: form.primaryColor, color: 'white', borderColor: form.primaryColor }}>Reservar</button>
+          <button className="btn btn-outline btn-sm">Ver Más</button>
+        </div>
+        <div className="mt-md">
+          <div className="badge" style={{ background: form.primaryColor + '20', color: form.primaryColor }}>Activo</div>
+        </div>
       </div>
+    </div>
+  );
 
-      <PrimerosPasos variante="pagina" />
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-lg)' }}>
-        {/* Left: Form */}
+  const contenido = {
+    negocio: (
+      <div className="config-dos-columnas">
         <div>
           <div className="card">
-            <h3 className="mb-lg">Identidad del Negocio</h3>
+            <h3 className="mb-lg">Identidad</h3>
             <div className="flex flex-col gap-md">
               <div className="form-group">
                 <label className="form-label">Foto del negocio</label>
@@ -233,7 +348,7 @@ export default function SettingsPage() {
                       )}
                     </div>
                     <p className="text-xs text-muted">
-                      Es lo primero que ve quien entra a tu link a reservar. JPG o PNG, hasta 5 MB.
+                      Es lo primero que ve quien entra a tu link a reservar. JPG o PNG, hasta 5 MB. Se guarda al toque.
                     </p>
                   </div>
                   <input
@@ -300,239 +415,273 @@ export default function SettingsPage() {
               </div>
             </div>
           </div>
-
-          <div className="card mt-md">
-            <h3 className="mb-lg">Configuración operativa</h3>
-            <div className="flex flex-col gap-md">
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
-                <div className="form-group">
-                  <label className="form-label">Moneda</label>
-                  <select className="form-input" value={form.currency} onChange={e => editar({ currency: e.target.value })}>
-                    <option value="ARS">ARS - Peso Argentino</option>
-                    <option value="USD">USD - Dólar</option>
-                    <option value="CLP">CLP - Peso Chileno</option>
-                    <option value="MXN">MXN - Peso Mexicano</option>
-                    <option value="COP">COP - Peso Colombiano</option>
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Cada cuánto se ofrece un{' '}{terminology.appointmentNoun}</label>
-                  <select className="form-input" value={form.slotInterval} onChange={e => editar({ slotInterval: parseInt(e.target.value) })}>
-                    <option value={15}>Cada 15 minutos</option>
-                    <option value={30}>Cada 30 minutos</option>
-                    <option value={45}>Cada 45 minutos</option>
-                    <option value={60}>Cada 1 hora</option>
-                  </select>
-                  <p className="text-sm text-muted" style={{ marginTop: 6 }}>
-                    Es el paso de la grilla que ve el {terminology.customerNoun}. Con 30, ve 09:00, 09:30, 10:00…
-                    La duración de cada {terminology.appointmentNoun} la define el servicio.
-                  </p>
-                </div>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Con cuánta anticipación puede cancelar el {terminology.customerNoun}</label>
-                <select className="form-input" value={form.minCancelHours || 2} onChange={e => editar({ minCancelHours: parseInt(e.target.value) })}>
-                  <option value={1}>1 hora</option>
-                  <option value={2}>2 horas</option>
-                  <option value={4}>4 horas</option>
-                  <option value={12}>12 horas</option>
-                  <option value={24}>24 horas</option>
-                </select>
-                <p className="text-sm text-muted" style={{ marginTop: 6 }}>
-                  Más cerca del {terminology.appointmentNoun}, el {terminology.customerNoun} ya no puede cancelarlo solo: te tiene que escribir.
-                </p>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Hasta cuándo pueden reservar</label>
-                {/* Vacío = sin límite (lo de siempre). Sirve para no abrir
-                    días cuyos horarios todavía no definiste. Lo hace cumplir
-                    también la base (trigger), no solo este calendario. */}
-                <select
-                  className="form-input"
-                  value={form.maxAdvanceDays ?? ''}
-                  onChange={e => editar({ maxAdvanceDays: e.target.value ? parseInt(e.target.value) : null })}
-                >
-                  <option value="">Sin límite</option>
-                  <option value={3}>3 días</option>
-                  <option value={7}>1 semana</option>
-                  <option value={10}>10 días</option>
-                  <option value={14}>2 semanas</option>
-                  <option value={21}>3 semanas</option>
-                  <option value={30}>1 mes</option>
-                  <option value={60}>2 meses</option>
-                  <option value={90}>3 meses</option>
-                </select>
-                <p className="text-sm text-muted" style={{ marginTop: 6 }}>
-                  El {terminology.customerNoun} solo ve disponibles los días dentro de ese plazo. Útil si todavía no definiste tus horarios de las semanas que vienen. Los {terminology.appointmentNoun}s que cargás vos desde el panel no tienen límite.
-                </p>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Con cuánta anticipación mínima pueden reservar</label>
-                {/* Vacío = sin mínimo (lo de siempre). Lo hace cumplir también
-                    la base (trigger enforce_min_advance_hours), no solo la grilla. */}
-                <select
-                  className="form-input"
-                  value={form.minAdvanceHours ?? ''}
-                  onChange={e => editar({ minAdvanceHours: e.target.value ? parseInt(e.target.value) : null })}
-                >
-                  <option value="">Sin mínimo</option>
-                  <option value={1}>1 hora antes</option>
-                  <option value={2}>2 horas antes</option>
-                  <option value={3}>3 horas antes</option>
-                  <option value={4}>4 horas antes</option>
-                  <option value={6}>6 horas antes</option>
-                  <option value={12}>12 horas antes</option>
-                  <option value={24}>1 día antes</option>
-                  <option value={48}>2 días antes</option>
-                </select>
-                <p className="text-sm text-muted" style={{ marginTop: 6 }}>
-                  Con 3 horas, a las 14:00 el {terminology.customerNoun} ya no ve disponible el {terminology.appointmentNoun} de las 16:00. Los {terminology.appointmentNoun}s que cargás vos desde el panel no tienen mínimo.
-                </p>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Quién elige al profesional</label>
-                {/* modo_profesional (utils/asignacionProfesional.js). Cuando no
-                    elige el cliente, se asigna el que tiene menos turnos ese
-                    día entre los libres en el horario elegido. */}
-                <select
-                  className="form-input"
-                  value={form.modoProfesional || 'elige'}
-                  onChange={e => editar({ modoProfesional: e.target.value })}
-                >
-                  <option value="elige">El {terminology.customerNoun} lo elige</option>
-                  <option value="elige_o_cualquiera">El {terminology.customerNoun} lo elige, o pone &quot;Cualquiera&quot;</option>
-                  <option value="automatico">Se asigna solo (el {terminology.customerNoun} elige solo el servicio)</option>
-                </select>
-                <p className="text-sm text-muted" style={{ marginTop: 6 }}>
-                  {(form.modoProfesional || 'elige') === 'elige'
-                    ? `El ${terminology.customerNoun} ve la lista de profesionales y elige con quién atenderse.`
-                    : `Cuando no elige el ${terminology.customerNoun}, ve todos los horarios libres de quienes hacen ese servicio y le asignamos al que tenga menos ${terminology.appointmentNoun}s ese día, para repartir el trabajo. Antes de confirmar ve quién lo va a atender.`}
-                </p>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Teléfono</label>
-                <input className="form-input" type="tel" {...errorCampo.campo('phone')} value={form.phone || ''} maxLength={LIMITES.telefono} onChange={e => editar({ phone: e.target.value })} />
-                <ErrorDeCampo error={errorCampo} campo="phone" />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Dirección</label>
-                <input className="form-input" {...errorCampo.campo('address')} value={form.address || ''} maxLength={LIMITES.direccion} onChange={e => editar({ address: e.target.value })} />
-                <ErrorDeCampo error={errorCampo} campo="address" />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Instagram</label>
-                <input
-                  className="form-input"
-                  placeholder="@mi_negocio"
-                  {...errorCampo.campo('instagram')}
-                  value={form.socialLinks?.instagram || ''}
-                  maxLength={LIMITES.instagram}
-                  onChange={e => editar({ socialLinks: { ...form.socialLinks, instagram: e.target.value } })}
-                />
-                <ErrorDeCampo error={errorCampo} campo="instagram" />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Link de Google Maps</label>
-                <input
-                  className="form-input"
-                  placeholder="https://maps.app.goo.gl/..."
-                  {...errorCampo.campo('mapsUrl')}
-                  value={form.mapsUrl || ''}
-                  maxLength={LIMITES.url}
-                  onChange={e => editar({ mapsUrl: e.target.value })}
-                />
-                <ErrorDeCampo error={errorCampo} campo="mapsUrl" />
-                <p className="text-xs text-muted" style={{ marginTop: 4 }}>
-                  Abrí tu negocio en Google Maps, tocá "Compartir" y pegá el link acá.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Principio de privacidad: la plataforma ve la agenda, no quién
-              reserva. La base lo hace cumplir (RLS + turnos_sin_cliente) y
-              solo el dueño lo puede cambiar (trigger proteger_privacidad). */}
-          <div className="card mt-md">
-            <h3 className="mb-sm"><Icon name="lock" /> Principio de privacidad</h3>
-            <label className="flex items-center gap-sm" style={{ cursor: user?.role === 'owner' ? 'pointer' : 'default' }}>
-              <input
-                type="checkbox"
-                checked={Boolean(form.privacidadClientes)}
-                disabled={user?.role !== 'owner'}
-                onChange={(e) => editar({ privacidadClientes: e.target.checked })}
-              />
-              <span><strong>Activar el principio de privacidad</strong></span>
-            </label>
-            <p className="text-sm text-secondary" style={{ marginTop: 8 }}>
-              Con esto activado, el equipo de Slotly puede ver tu agenda (qué {terminology.appointmentNoun}s hay, a qué hora y de qué servicio)
-              pero <strong>no quién los reserva</strong>: ni el nombre, ni el teléfono, ni el mail, ni las notas de tus {terminology.customerNoun}s.
-              Tu equipo y vos los siguen viendo igual que siempre.
-            </p>
-            {user?.role !== 'owner' && (
-              <p className="text-xs text-muted" style={{ marginTop: 6 }}>Solo el dueño del negocio lo puede cambiar.</p>
-            )}
-          </div>
-
         </div>
+        <div>{vistaPrevia}</div>
+      </div>
+    ),
 
-        {/* Right: Preview */}
-        <div>
-          <div className="card">
-            <h3 className="mb-lg">Vista Previa</h3>
-            <div style={{ background: 'var(--bg)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-lg)', border: '1px solid var(--border)' }}>
-              <div className="flex items-center gap-sm mb-lg" style={{ padding: 'var(--space-sm)' }}>
-                {form.logoUrl ? (
-                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: `center/cover url(${form.logoUrl})`, flexShrink: 0 }} />
-                ) : (
-                  <div style={{ width: 32, height: 32, borderRadius: 'var(--radius-sm)', background: `linear-gradient(135deg, ${form.primaryColor}, ${form.secondaryColor})`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '0.75rem', fontWeight: 700, flexShrink: 0 }}>
-                    {form.name?.charAt(0).toUpperCase() || 'S'}
-                  </div>
-                )}
-                <strong>{form.name}</strong>
-              </div>
-              <p className="text-secondary text-sm mb-md">{form.welcomeMessage}</p>
-              <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
-                <button className="btn btn-sm" style={{ background: form.primaryColor, color: 'white', borderColor: form.primaryColor }}>Reservar</button>
-                <button className="btn btn-outline btn-sm">Ver Más</button>
-              </div>
-              <div className="mt-md">
-                <div className="badge" style={{ background: form.primaryColor + '20', color: form.primaryColor }}>Activo</div>
-              </div>
-            </div>
+    contacto: (
+      <div className="card">
+        <div className="flex flex-col gap-md">
+          <div className="form-group">
+            <label className="form-label">Teléfono</label>
+            <input className="form-input" type="tel" {...errorCampo.campo('phone')} value={form.phone || ''} maxLength={LIMITES.telefono} onChange={e => editar({ phone: e.target.value })} />
+            <ErrorDeCampo error={errorCampo} campo="phone" />
           </div>
-          {/* Abajo de la vista previa y no al final de la columna de la
-              izquierda: es de lo más importante de la página y ahí quedaba
-              después de todo lo demás. */}
-          <div className="card mt-md">
-            <h3 className="mb-lg">Horarios de atención</h3>
-            <p className="text-secondary text-sm mb-md">Configurá los días y horarios en los que tu negocio se encuentra abierto al público.</p>
-            {/* El mismo editor que Sucursales: al prender un día le pone
-                horas, en vez de dejarlo vacío y que Guardar lo rechace. */}
-            <HorarioAtencion
-              dias={form.businessHours}
-              onChange={(businessHours) => editar({ businessHours })}
-              errorCampo={errorCampo}
+          <div className="form-group">
+            <label className="form-label">Dirección</label>
+            <input className="form-input" {...errorCampo.campo('address')} value={form.address || ''} maxLength={LIMITES.direccion} onChange={e => editar({ address: e.target.value })} />
+            <ErrorDeCampo error={errorCampo} campo="address" />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Instagram</label>
+            <input
+              className="form-input"
+              placeholder="@mi_negocio"
+              {...errorCampo.campo('instagram')}
+              value={form.socialLinks?.instagram || ''}
+              maxLength={LIMITES.instagram}
+              onChange={e => editar({ socialLinks: { ...form.socialLinks, instagram: e.target.value } })}
             />
-            <ErrorDeCampo error={errorCampo} prefijo="horario-" />
+            <ErrorDeCampo error={errorCampo} campo="instagram" />
           </div>
-
-          <SenaMercadoPagoCard form={form} editar={editar} businessId={businessId} terminology={terminology} errorCampo={errorCampo} />
-
-          <GoogleCalendarCard businessId={businessId} profesionales={professionals} terminology={terminology} />
+          <div className="form-group">
+            <label className="form-label">Link de Google Maps</label>
+            <input
+              className="form-input"
+              placeholder="https://maps.app.goo.gl/..."
+              {...errorCampo.campo('mapsUrl')}
+              value={form.mapsUrl || ''}
+              maxLength={LIMITES.url}
+              onChange={e => editar({ mapsUrl: e.target.value })}
+            />
+            <ErrorDeCampo error={errorCampo} campo="mapsUrl" />
+            <p className="text-xs text-muted" style={{ marginTop: 4 }}>
+              Abrí tu negocio en Google Maps, tocá "Compartir" y pegá el link acá. Con eso, en tu link de reserva aparece el mapa y el botón "Cómo llegar".
+            </p>
+          </div>
         </div>
       </div>
+    ),
 
-      {/* Fuera de las dos columnas: con los horarios a la derecha, en el
-          celular (una sola columna) el botón quedaba ARRIBA de ellos. */}
-      {error && (
-        <div className="notice notice-danger mt-md">{error}</div>
-      )}
-      <div className="flex items-center gap-sm mt-lg">
-        <button className="btn btn-primary btn-lg" onClick={handleSave} disabled={guardando}>
-          {guardando ? 'Guardando…' : <><Icon name="save" /> Guardar Cambios</>}
+    horarios: (
+      <div className="card">
+        {/* El mismo editor que Sucursales: al prender un día le pone
+            horas, en vez de dejarlo vacío y que Guardar lo rechace. */}
+        <HorarioAtencion
+          dias={form.businessHours}
+          onChange={(businessHours) => editar({ businessHours })}
+          errorCampo={errorCampo}
+        />
+        <ErrorDeCampo error={errorCampo} prefijo="horario-" />
+        <p className="text-xs text-muted" style={{ marginTop: 'var(--space-md)' }}>
+          Es el horario del local. El de cada profesional se carga en Profesionales, y los feriados o vacaciones en Días bloqueados.
+        </p>
+      </div>
+    ),
+
+    reservas: (
+      <div className="card">
+        <div className="flex flex-col gap-md">
+          <div className="form-group">
+            <label className="form-label">Quién elige al profesional</label>
+            {/* modo_profesional (utils/asignacionProfesional.js). Cuando no
+                elige el cliente, se asigna el que tiene menos turnos ese
+                día entre los libres en el horario elegido. */}
+            <select
+              className="form-input"
+              value={form.modoProfesional || 'elige'}
+              onChange={e => editar({ modoProfesional: e.target.value })}
+            >
+              <option value="elige">El {terminology.customerNoun} lo elige</option>
+              <option value="elige_o_cualquiera">El {terminology.customerNoun} lo elige, o pone &quot;Cualquiera&quot;</option>
+              <option value="automatico">Se asigna solo (el {terminology.customerNoun} elige solo el servicio)</option>
+            </select>
+            <p className="text-sm text-muted" style={{ marginTop: 6 }}>
+              {(form.modoProfesional || 'elige') === 'elige'
+                ? `El ${terminology.customerNoun} ve la lista de profesionales y elige con quién atenderse.`
+                : `Cuando no elige el ${terminology.customerNoun}, ve todos los horarios libres de quienes hacen ese servicio y le asignamos al que tenga menos ${terminology.appointmentNoun}s ese día, para repartir el trabajo. Antes de confirmar ve quién lo va a atender.`}
+            </p>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Cada cuánto se ofrece un{' '}{terminology.appointmentNoun}</label>
+            <select className="form-input" value={form.slotInterval} onChange={e => editar({ slotInterval: parseInt(e.target.value) })}>
+              <option value={15}>Cada 15 minutos</option>
+              <option value={30}>Cada 30 minutos</option>
+              <option value={45}>Cada 45 minutos</option>
+              <option value={60}>Cada 1 hora</option>
+            </select>
+            <p className="text-sm text-muted" style={{ marginTop: 6 }}>
+              Es el paso de la grilla que ve el {terminology.customerNoun}. Con 30, ve 09:00, 09:30, 10:00…
+              La duración de cada {terminology.appointmentNoun} la define el servicio.
+            </p>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Hasta cuándo pueden reservar</label>
+            {/* Vacío = sin límite (lo de siempre). Sirve para no abrir
+                días cuyos horarios todavía no definiste. Lo hace cumplir
+                también la base (trigger), no solo este calendario. */}
+            <select
+              className="form-input"
+              value={form.maxAdvanceDays ?? ''}
+              onChange={e => editar({ maxAdvanceDays: e.target.value ? parseInt(e.target.value) : null })}
+            >
+              <option value="">Sin límite</option>
+              <option value={3}>3 días</option>
+              <option value={7}>1 semana</option>
+              <option value={10}>10 días</option>
+              <option value={14}>2 semanas</option>
+              <option value={21}>3 semanas</option>
+              <option value={30}>1 mes</option>
+              <option value={60}>2 meses</option>
+              <option value={90}>3 meses</option>
+            </select>
+            <p className="text-sm text-muted" style={{ marginTop: 6 }}>
+              El {terminology.customerNoun} solo ve disponibles los días dentro de ese plazo. Útil si todavía no definiste tus horarios de las semanas que vienen. Los {terminology.appointmentNoun}s que cargás vos desde el panel no tienen límite.
+            </p>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Con cuánta anticipación mínima pueden reservar</label>
+            {/* Vacío = sin mínimo (lo de siempre). Lo hace cumplir también
+                la base (trigger enforce_min_advance_hours), no solo la grilla. */}
+            <select
+              className="form-input"
+              value={form.minAdvanceHours ?? ''}
+              onChange={e => editar({ minAdvanceHours: e.target.value ? parseInt(e.target.value) : null })}
+            >
+              <option value="">Sin mínimo</option>
+              <option value={1}>1 hora antes</option>
+              <option value={2}>2 horas antes</option>
+              <option value={3}>3 horas antes</option>
+              <option value={4}>4 horas antes</option>
+              <option value={6}>6 horas antes</option>
+              <option value={12}>12 horas antes</option>
+              <option value={24}>1 día antes</option>
+              <option value={48}>2 días antes</option>
+            </select>
+            <p className="text-sm text-muted" style={{ marginTop: 6 }}>
+              Con 3 horas, a las 14:00 el {terminology.customerNoun} ya no ve disponible el {terminology.appointmentNoun} de las 16:00. Los {terminology.appointmentNoun}s que cargás vos desde el panel no tienen mínimo.
+            </p>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Con cuánta anticipación puede cancelar el {terminology.customerNoun}</label>
+            <select className="form-input" value={form.minCancelHours || 2} onChange={e => editar({ minCancelHours: parseInt(e.target.value) })}>
+              <option value={1}>1 hora</option>
+              <option value={2}>2 horas</option>
+              <option value={4}>4 horas</option>
+              <option value={12}>12 horas</option>
+              <option value={24}>24 horas</option>
+            </select>
+            <p className="text-sm text-muted" style={{ marginTop: 6 }}>
+              Más cerca del {terminology.appointmentNoun}, el {terminology.customerNoun} ya no puede cancelarlo solo: te tiene que escribir.
+            </p>
+          </div>
+        </div>
+      </div>
+    ),
+
+    cobros: (
+      <>
+        <div className="card">
+          <div className="form-group">
+            <label className="form-label">Moneda</label>
+            <select className="form-input" value={form.currency} onChange={e => editar({ currency: e.target.value })} style={{ maxWidth: 320 }}>
+              <option value="ARS">ARS - Peso Argentino</option>
+              <option value="USD">USD - Dólar</option>
+              <option value="CLP">CLP - Peso Chileno</option>
+              <option value="MXN">MXN - Peso Mexicano</option>
+              <option value="COP">COP - Peso Colombiano</option>
+            </select>
+            <p className="text-sm text-muted" style={{ marginTop: 6 }}>En la que se muestran los precios de tus servicios.</p>
+          </div>
+        </div>
+        <SenaMercadoPagoCard form={form} editar={editar} businessId={businessId} terminology={terminology} errorCampo={errorCampo} />
+      </>
+    ),
+
+    integraciones: (
+      <GoogleCalendarCard businessId={businessId} profesionales={professionals} terminology={terminology} />
+    ),
+
+    /* Principio de privacidad: la plataforma ve la agenda, no quién
+       reserva. La base lo hace cumplir (RLS + turnos_sin_cliente) y
+       solo el dueño lo puede cambiar (trigger proteger_privacidad). */
+    privacidad: (
+      <div className="card">
+        <h3 className="mb-sm"><Icon name="lock" /> Principio de privacidad</h3>
+        <label className="flex items-center gap-sm" style={{ cursor: user?.role === 'owner' ? 'pointer' : 'default' }}>
+          <input
+            type="checkbox"
+            checked={Boolean(form.privacidadClientes)}
+            disabled={user?.role !== 'owner'}
+            onChange={(e) => editar({ privacidadClientes: e.target.checked })}
+          />
+          <span><strong>Activar el principio de privacidad</strong></span>
+        </label>
+        <p className="text-sm text-secondary" style={{ marginTop: 8 }}>
+          Con esto activado, el equipo de Slotly puede ver tu agenda (qué {terminology.appointmentNoun}s hay, a qué hora y de qué servicio)
+          pero <strong>no quién los reserva</strong>: ni el nombre, ni el teléfono, ni el mail, ni las notas de tus {terminology.customerNoun}s.
+          Tu equipo y vos los siguen viendo igual que siempre.
+        </p>
+        {user?.role !== 'owner' && (
+          <p className="text-xs text-muted" style={{ marginTop: 6 }}>Solo el dueño del negocio lo puede cambiar.</p>
+        )}
+      </div>
+    ),
+  };
+
+  return (
+    <div>
+      <div className="admin-page-header">
+        <h1>Configuración</h1>
+      </div>
+
+      <PrimerosPasos variante="pagina" />
+
+      <div className="config-layout">
+        {/* Menú de secciones: al costado en la compu, deslizable arriba en el
+            celular. El punto marca las secciones con cambios sin guardar. */}
+        <nav className="config-nav" ref={navRef} aria-label="Secciones de Configuración">
+          {SECCIONES.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              className={`config-nav-item ${s.id === actual.id ? 'activo' : ''}`}
+              aria-current={s.id === actual.id ? 'page' : undefined}
+              onClick={() => elegirSeccion(s.id)}
+            >
+              <Icon name={s.icono} />
+              <span>{s.titulo}</span>
+              {conCambios.has(s.id) && <span className="config-nav-punto" title="Cambios sin guardar" />}
+            </button>
+          ))}
+        </nav>
+
+        <section className="config-seccion" key={actual.id}>
+          <div className="config-seccion-cabecera">
+            <h2>{actual.titulo}</h2>
+            <p className="text-secondary text-sm">{actual.descripcion(terminology)}</p>
+          </div>
+          {contenido[actual.id]}
+        </section>
+      </div>
+
+      {/* Fija abajo mientras se scrollea (sticky, no fixed: el envoltorio
+          animado del panel no la corre de lugar). Una sola para todas las
+          secciones: los cambios se guardan juntos aunque estén en varias. */}
+      <div className={`config-guardar ${hayCambios ? 'con-cambios' : ''}`}>
+        <div className="config-guardar-texto">
+          {error
+            ? <span style={{ color: 'var(--danger)' }}>{error}</span>
+            : saved
+              ? <span className="badge badge-success"><Icon name="check-circle" /> Guardado</span>
+              : hayCambios
+                ? <span><strong>Tenés cambios sin guardar</strong>{conCambios.size > 1 ? ` en ${conCambios.size} secciones` : ''}</span>
+                : <span className="text-muted">Todo guardado</span>}
+        </div>
+        <button className={`btn ${hayCambios ? 'btn-primary' : 'btn-outline'}`} onClick={handleSave} disabled={guardando}>
+          {guardando ? 'Guardando…' : <><Icon name="save" /> Guardar cambios</>}
         </button>
-        {/* También acá: el de arriba de todo no se ve desde el botón. */}
-        {saved && <span className="badge badge-success"><Icon name="check-circle" /> Guardado</span>}
       </div>
     </div>
   );

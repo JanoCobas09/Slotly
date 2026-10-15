@@ -5270,3 +5270,104 @@ button.mapa-celda:hover, button.mapa-celda:focus-visible { outline: 2px solid va
   margin-top: 4px;
 }
 .gcal-bloquea input { margin-top: 3px; }
+
+/* ============================================
+   CONFIGURACIÓN — menú de secciones + una sección a la vez
+   ============================================ */
+.config-layout {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: var(--space-lg);
+  align-items: start;
+}
+.config-nav {
+  position: sticky;
+  top: calc(64px + var(--space-md)); /* debajo de la barra de arriba del panel */
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-sm);
+}
+.config-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: var(--radius-md, 8px);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.9rem;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.config-nav-item:hover { background: var(--bg-secondary); color: var(--text); }
+.config-nav-item.activo { background: var(--primary-light, var(--bg-secondary)); color: var(--primary); font-weight: 600; }
+.config-nav-item span:not(.config-nav-punto) { flex: 1; }
+/* Cambios sin guardar en esa sección. */
+.config-nav-punto {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--warning, #f59e0b);
+  flex: 0 0 auto;
+}
+.config-seccion { min-width: 0; animation: mov-fundido 180ms ease-out backwards; }
+.config-seccion-cabecera { margin-bottom: var(--space-md); }
+.config-seccion-cabecera h2 { font-size: 1.25rem; margin-bottom: 4px; }
+.config-dos-columnas {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: var(--space-lg);
+  align-items: start;
+}
+
+/* Barra de guardar: sticky (no fixed) al pie de la página. */
+.config-guardar {
+  position: sticky;
+  bottom: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-top: var(--space-lg);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
+}
+.config-guardar.con-cambios { border-color: var(--primary); }
+.config-guardar-texto { min-width: 0; font-size: 0.9rem; }
+
+@media (max-width: 900px) {
+  .config-layout { grid-template-columns: minmax(0, 1fr); gap: var(--space-md); }
+  /* En el celular el menú pasa arriba, en una fila que se desliza. */
+  .config-nav {
+    top: 64px;
+    z-index: 40;
+    flex-direction: row;
+    overflow-x: auto;
+    scrollbar-width: none;
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
+    margin: 0 calc(-1 * var(--space-md));
+    padding: var(--space-xs, 6px) var(--space-md);
+  }
+  .config-nav::-webkit-scrollbar { display: none; }
+  .config-nav-item { width: auto; white-space: nowrap; padding: 8px 12px; }
+  .config-dos-columnas { grid-template-columns: minmax(0, 1fr); }
+  .config-guardar { margin-left: calc(-1 * var(--space-md)); margin-right: calc(-1 * var(--space-md)); border-radius: 0; border-left: 0; border-right: 0; }
+  .config-guardar .btn { flex-shrink: 0; }
+}
+/* La vista previa acompaña mientras se editan foto, nombre y colores. */
+.config-dos-columnas > div:last-child { position: sticky; top: calc(64px + var(--space-md)); }
+@media (max-width: 900px) { .config-dos-columnas > div:last-child { position: static; } }

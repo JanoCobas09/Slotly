@@ -1324,6 +1324,17 @@ dominio de más autorizado no es un agujero de seguridad, solo ruido).
    modal avisa y pide confirmar. Encapsulamiento: gcal-oauth-callback rechaza
    (`?gcal=cuenta-en-uso`) una cuenta de Google ya conectada a OTRO
    profesional del negocio. Test: 85/85.
+5x. **Configuración por secciones (15/10/2026).** Era una página larga de 9
+   tarjetas. Ahora `SettingsPage` tiene `SECCIONES` (Tu negocio, Contacto y
+   ubicación, Horarios, Reservas, Cobros, Google Calendar, Privacidad): menú al
+   costado (fila deslizable arriba en el celular, <900px) y una sección a la
+   vez. Link directo con `?seccion=<id>` (Primeros pasos → contacto, Dashboard
+   → horarios); `?mp=` abre Cobros y `?gcal=` Google Calendar. El formulario
+   sigue siendo UNO (`cambios` compartido): punto en el menú en las secciones
+   con cambios sin guardar (`campos` de cada sección) y una barra de guardar
+   `sticky` abajo (no `fixed`: .mov-pantalla anima con transform). Si Guardar
+   falla por un campo, `marcar()` abre la sección de ese campo. Campo nuevo
+   del negocio → agregarlo a `campos` de su sección.
 6. **Abuso de reservas.** Hecho: un turno por día y tope de 3 a futuro por
    cuenta. Falta, por orden: bloquear cliente desde el panel (para la cuenta que
    se porta mal), y App Check con reCAPTCHA v3 sobre los callables para frenar

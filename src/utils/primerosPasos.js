@@ -109,7 +109,7 @@ export function pasosDeConfiguracion({ businessId, business, services, professio
       titulo: 'Completá los datos de tu negocio',
       detalle: 'Con un dato de contacto alcanza (teléfono, dirección, Instagram…). La foto, el link de Maps y lo demás son opcionales, pero es lo primero que ve quien entra a reservar.',
       hecho: tieneDatosDeContacto(business),
-      ir: '/admin/configuracion',
+      ir: '/admin/configuracion?seccion=contacto',
       boton: 'Ir a Configuración',
     },
     {
