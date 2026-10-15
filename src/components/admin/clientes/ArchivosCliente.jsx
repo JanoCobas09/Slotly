@@ -6,6 +6,7 @@ import { formatFechaCorta } from '../../../utils/dateUtils';
 import { ESTADOS_TURNO } from '../../../utils/turnos';
 import { mensajeDeError } from '../../../utils/errores';
 import VisorImagen from './VisorImagen';
+import BotonCompartir from './BotonCompartir';
 import Icon from '../../Icon';
 
 const FILTROS = [
@@ -43,6 +44,7 @@ export default function ArchivosCliente({ clienteId, onAbrirTurno, recargar = 0 
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
   const [visor, setVisor] = useState(null);
+  const [aviso, setAviso] = useState('');
   const pedido = useRef(0);
 
   const cargar = useCallback(async (pag) => {
@@ -73,6 +75,7 @@ export default function ArchivosCliente({ clienteId, onAbrirTurno, recargar = 0 
       if (seVeEnVisor(a)) {
         const t = a.turno;
         setVisor({
+          adjunto: a,
           nombre: a.nombreOriginal,
           url: await urlParaVisor(a),
           detalle: `Turno del ${fechaTurno(t.appointmentDate)}${t.serviceName ? ` · ${t.serviceName}` : ''}`,
@@ -95,6 +98,8 @@ export default function ArchivosCliente({ clienteId, onAbrirTurno, recargar = 0 
   };
 
   const grupos = agruparPorTurno(archivos);
+  // Compartir (WhatsApp, mail…): ver BotonCompartir.
+  const compartir = { onError: setError, onAviso: setAviso };
 
   return (
     <div className="archivos-cliente">
@@ -112,6 +117,13 @@ export default function ArchivosCliente({ clienteId, onAbrirTurno, recargar = 0 
         ))}
         {total > 0 && <span className="text-xs text-muted">{total} {total === 1 ? 'archivo' : 'archivos'}</span>}
       </div>
+
+      {aviso && (
+        <div className="notice notice-info doc-turno-error" role="status">
+          {aviso}
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAviso('')}>Entendido</button>
+        </div>
+      )}
 
       {error && (
         <div className="notice notice-danger doc-turno-error" role="alert">
@@ -160,7 +172,10 @@ export default function ArchivosCliente({ clienteId, onAbrirTurno, recargar = 0 
                         </button>
                         <div className="doc-foto-pie">
                           <span className="text-xs text-muted" title={a.nombreOriginal}>{formatearTamano(a.tamanoBytes)}</span>
-                          <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => descargar(a)} aria-label={`Descargar ${a.nombreOriginal}`}><Icon name="download" /></button>
+                          <div className="flex">
+                            <BotonCompartir adjunto={a} {...compartir} />
+                            <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => descargar(a)} aria-label={`Descargar ${a.nombreOriginal}`}><Icon name="download" /></button>
+                          </div>
                         </div>
                       </li>
                     ))}
@@ -178,6 +193,7 @@ export default function ArchivosCliente({ clienteId, onAbrirTurno, recargar = 0 
                             {formatearTamano(a.tamanoBytes)}{a.subidoPorNombre ? ` · ${a.subidoPorNombre}` : ''}
                           </span>
                         </div>
+                        <BotonCompartir adjunto={a} conTexto {...compartir} />
                         <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => descargar(a)} aria-label={`Descargar ${a.nombreOriginal}`}><Icon name="download" /></button>
                       </li>
                     ))}
@@ -195,7 +211,22 @@ export default function ArchivosCliente({ clienteId, onAbrirTurno, recargar = 0 
         </button>
       )}
 
-      {visor && <VisorImagen nombre={visor.nombre} url={visor.url} detalle={visor.detalle} onClose={() => setVisor(null)} />}
+      {visor && (
+        <VisorImagen
+          nombre={visor.nombre}
+          url={visor.url}
+          detalle={visor.detalle}
+          onClose={() => setVisor(null)}
+          acciones={(
+            <>
+              <BotonCompartir adjunto={visor.adjunto} conTexto {...compartir} />
+              <button type="button" className="btn btn-outline btn-sm" onClick={() => descargar(visor.adjunto)}>
+                <Icon name="download" /> Descargar
+              </button>
+            </>
+          )}
+        />
+      )}
     </div>
   );
 }

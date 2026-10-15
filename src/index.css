@@ -5494,3 +5494,41 @@ button.mapa-celda:hover, button.mapa-celda:focus-visible { outline: 2px solid va
 
 /* Al bajar con el botón, que la barra fija de arriba no la tape. */
 #vista-previa { scroll-margin-top: calc(64px + var(--space-md)); }
+
+/* ── Archivos del turno: elegir → Guardar → "Se guardó" (AdjuntosTurno) ── */
+.doc-elegidos {
+  border: 2px dashed var(--warning, #b45309);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--warning, #b45309) 7%, var(--surface));
+  padding: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+.doc-elegidos-titulo { font-size: 0.9rem; margin: 0; }
+.doc-elegidos-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.doc-elegido {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 8px);
+  padding: 6px 8px;
+}
+.doc-elegido img { width: 48px; height: 48px; object-fit: cover; border-radius: 6px; flex: 0 0 auto; }
+.doc-elegidos-acciones { display: flex; gap: var(--space-sm); flex-wrap: wrap; }
+.doc-elegidos-acciones .btn-primary { flex: 1; min-height: 48px; font-size: 1rem; }
+.doc-guardado {
+  background: var(--success-light);
+  border: 1px solid var(--success);
+  color: var(--success);
+  font-weight: 500;
+}
+/* El archivo ya bajó pero el navegador pide otro toque para abrir "Compartir". */
+.btn-compartir-listo { border-color: var(--primary); color: var(--primary); }
+/* Botones debajo de la foto en el visor. */
+.doc-visor img { max-height: calc(100% - 120px); }
+.doc-visor-acciones { display: flex; gap: var(--space-sm); margin-top: var(--space-sm); flex-wrap: wrap; justify-content: center; }
+.doc-visor-acciones .btn { background: var(--surface); min-height: 44px; }
+.doc-foto-pie { flex-wrap: wrap; gap: 2px; }

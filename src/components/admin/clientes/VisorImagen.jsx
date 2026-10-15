@@ -1,8 +1,12 @@
 import { useEffect } from 'react';
 import Icon from '../../Icon';
 
-/** Foto a pantalla completa. Se cierra tocando afuera, con la X o con Escape. */
-export default function VisorImagen({ nombre, url, detalle = null, onClose }) {
+/**
+ * Foto a pantalla completa. Se cierra tocando afuera, con la X o con Escape.
+ * `acciones`: botones debajo de la foto (Compartir, Descargar) — tocarlos no
+ * cierra el visor.
+ */
+export default function VisorImagen({ nombre, url, detalle = null, acciones = null, onClose }) {
   useEffect(() => {
     const alTeclear = (e) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', alTeclear);
@@ -14,6 +18,9 @@ export default function VisorImagen({ nombre, url, detalle = null, onClose }) {
       <button type="button" className="doc-visor-cerrar" onClick={onClose} aria-label="Cerrar"><Icon name="x" /></button>
       <img src={url} alt={nombre} onClick={(e) => e.stopPropagation()} />
       <span className="doc-visor-nombre">{nombre}{detalle && <><br />{detalle}</>}</span>
+      {acciones && (
+        <div className="doc-visor-acciones" onClick={(e) => e.stopPropagation()}>{acciones}</div>
+      )}
     </div>
   );
 }

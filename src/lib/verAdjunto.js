@@ -29,6 +29,27 @@ export async function abrirEnPestana(a) {
   }
 }
 
+/**
+ * El archivo entero, como File, para mandarlo con el menú "Compartir" del
+ * teléfono (WhatsApp, mail…). Se manda el ARCHIVO y no un link: los links
+ * firmados vencen al minuto y son datos del cliente.
+ */
+export async function archivoDelAdjunto(a) {
+  const url = await urlDeAdjunto(a.rutaObjeto);
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('No se pudo preparar el archivo para compartirlo.');
+  const blob = await res.blob();
+  return new File([blob], a.nombreOriginal || 'archivo', { type: a.mime || blob.type });
+}
+
+/** ¿Este navegador puede mandar ARCHIVOS con el menú de compartir? */
+export function puedeCompartir(archivo) {
+  return typeof navigator !== 'undefined'
+    && typeof navigator.share === 'function'
+    && typeof navigator.canShare === 'function'
+    && navigator.canShare({ files: [archivo] });
+}
+
 /** Baja el archivo con su nombre original. */
 export async function descargarAdjunto(a) {
   const url = await urlDeAdjunto(a.rutaObjeto, { nombre: a.nombreOriginal });
