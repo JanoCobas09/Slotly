@@ -7,10 +7,13 @@
 //   · sincronizar-google escribe, mueve y borra el evento de cada turno.
 //   · get-busy-slots / create-appointment leen lo ocupado en su calendario.
 //
-// Permiso pedido: SOLO `calendar.events` (ver y editar eventos) + `openid
-// email` (para mostrar con qué cuenta quedó conectado). Es un permiso
-// "sensible" de Google: hasta que Google verifique la app, la pantalla de
-// permiso muestra "app no verificada" y hay tope de 100 usuarios.
+// Permisos pedidos: `calendar.events` (ver y editar eventos),
+// `calendar.calendarlist.readonly` (la lista de sus calendarios, para leer lo
+// ocupado en TODOS los suyos y no solo en el principal) y `openid email`
+// (para mostrar con qué cuenta quedó conectado). Son permisos "sensibles" de
+// Google: hasta que Google verifique la app, la pantalla de permiso muestra
+// "app no verificada" y hay tope de 100 usuarios. Los dos de calendario
+// tienen que estar cargados en Google Cloud (Acceso a los datos).
 //
 // El id de cada evento sale del id del turno (`idDeEvento`): así guardar es
 // idempotente (dos sincronizaciones del mismo turno no duplican el evento) y
@@ -35,6 +38,8 @@ const revokeUrl = () => Deno.env.get('GOOGLE_REVOKE_URL') || 'https://oauth2.goo
 const calendarApi = () => (Deno.env.get('GOOGLE_CALENDAR_API') || 'https://www.googleapis.com/calendar/v3').replace(/\/$/, '');
 
 export const SCOPE_CALENDARIO = 'https://www.googleapis.com/auth/calendar.events';
+/** Opcional: sin él (conexiones viejas, o lo destildó) se lee solo el calendario principal. */
+export const SCOPE_LISTA = 'https://www.googleapis.com/auth/calendar.calendarlist.readonly';
 
 // Las fechas y horas de los turnos son hora de Argentina ('YYYY-MM-DD' +
 // 'HH:MM', igual que en todo el esquema). Argentina no tiene horario de
@@ -58,7 +63,7 @@ export function urlDeAutorizacion(state: string): string {
   url.searchParams.set('client_id', Deno.env.get('GOOGLE_CLIENT_ID')!);
   url.searchParams.set('redirect_uri', redirectUriGoogle());
   url.searchParams.set('response_type', 'code');
-  url.searchParams.set('scope', `openid email ${SCOPE_CALENDARIO}`);
+  url.searchParams.set('scope', `openid email ${SCOPE_CALENDARIO} ${SCOPE_LISTA}`);
   // offline + consent: que Google SIEMPRE devuelva refresh_token, también
   // cuando la persona ya había dado el permiso antes (reconectar).
   url.searchParams.set('access_type', 'offline');
@@ -144,6 +149,9 @@ export interface Conexion {
   access_expires_at: string | null;
   calendar_id: string;
   error: string | null;
+  lee_todos?: boolean;
+  calendarios?: string[] | null;
+  calendarios_at?: string | null;
 }
 
 /** La conexión del profesional, solo si anda (sin error pendiente). */
@@ -272,6 +280,39 @@ export async function borrarEvento(admin: SupabaseClient, c: Conexion, appointme
   }
 }
 
+// Cuánto se guarda la lista de calendarios antes de volver a pedirla. Un
+// calendario nuevo tarda como mucho esto en empezar a contar.
+const VIGENCIA_LISTA_MS = 6 * 3600 * 1000;
+
+/**
+ * Los calendarios donde mirar lo ocupado: todos aquellos de los que la
+ * persona es DUEÑA y no tiene ocultos (Google ya saca ocultos y borrados de
+ * la lista). Los compartidos por otros (la agenda de un compañero) y los de
+ * feriados quedan afuera: son de otra persona, no de su tiempo. Sin el
+ * permiso de la lista, o si Google no la da, solo el principal.
+ */
+async function calendariosALeer(admin: SupabaseClient, c: Conexion): Promise<string[]> {
+  if (!c.lee_todos) return [c.calendar_id];
+  if (c.calendarios?.length && c.calendarios_at && Date.now() - new Date(c.calendarios_at).getTime() < VIGENCIA_LISTA_MS) {
+    return c.calendarios;
+  }
+  const r = await calendario(admin, c, '/users/me/calendarList?minAccessRole=owner&maxResults=250');
+  if (!r.ok) {
+    console.error(`[google] No se pudo leer la lista de calendarios (${r.status}); se usa el principal.`, r.cuerpo);
+    return [c.calendar_id];
+  }
+  const ids: string[] = (r.cuerpo?.items || []).map((cal: any) => (cal.primary ? 'primary' : cal.id)).filter(Boolean);
+  if (!ids.includes('primary')) ids.unshift('primary');
+  await admin.from('google_calendar_conexiones')
+    .update({ calendarios: ids, calendarios_at: new Date().toISOString() })
+    .eq('professional_id', c.professional_id);
+  return ids;
+}
+
+// Tipos de evento que no son tiempo ocupado: cumpleaños de contactos y
+// "dónde trabajo hoy" (oficina / casa).
+const TIPOS_QUE_NO_OCUPAN = new Set(['birthday', 'workingLocation']);
+
 function aHora(min: number): string {
   return `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
 }
@@ -283,12 +324,13 @@ function siguienteDia(fecha: string): string {
 }
 
 /**
- * Lo ocupado en el calendario del profesional ese día, con la forma de
- * get-busy-slots ({ startTime, endTime } en hora de Argentina). Se saltean:
- * los eventos que puso Slotly (ya son turnos), los marcados "Disponible"
- * (transparent — así vienen, por ejemplo, los de todo el día por defecto),
- * los cancelados y las invitaciones que la persona rechazó. Un evento que
- * cruza la medianoche se recorta al día.
+ * Lo ocupado en los calendarios del profesional ese día (calendariosALeer),
+ * con la forma de get-busy-slots ({ startTime, endTime } en hora de
+ * Argentina). Se saltean: los eventos que puso Slotly (ya son turnos), los
+ * marcados "Disponible" (transparent — así vienen, por ejemplo, los de todo
+ * el día por defecto), los cancelados, las invitaciones que la persona
+ * rechazó, los cumpleaños y los de "lugar de trabajo". Un evento que cruza
+ * la medianoche se recorta al día.
  *
  * Sin conexión, o si Google falla, devuelve [] — mejor ofrecer la grilla de
  * Slotly que dejar al negocio sin reservas porque Google no contestó.
@@ -303,13 +345,24 @@ export async function ocupadoEnGoogle(admin: SupabaseClient, professionalId: str
       singleEvents: 'true',
       maxResults: '250',
     });
-    const r = await calendario(admin, c, `${rutaEventos(c)}?${params}`);
-    if (!r.ok) throw new ErrorGoogle(r.status, r.cuerpo?.error?.message || `Google respondió ${r.status}`);
+    const ids = await calendariosALeer(admin, c);
+    // En paralelo; si uno falla (lo borraron recién) cuentan los demás.
+    const respuestas = await Promise.all(ids.map((id) =>
+      calendario(admin, c, `/calendars/${encodeURIComponent(id)}/events?${params}`)));
+    const eventos = respuestas.flatMap((r, i) => {
+      if (!r.ok) {
+        console.error(`[google] No se pudo leer el calendario ${ids[i]} (${r.status})`);
+        return [];
+      }
+      return r.cuerpo?.items || [];
+    });
+    if (respuestas.every((r) => !r.ok)) throw new ErrorGoogle(respuestas[0].status, 'Google no devolvió ningún calendario.');
 
     const inicioDelDia = Date.parse(`${fecha}T00:00:00${DESFASE}`);
     const ocupado: { startTime: string; endTime: string }[] = [];
-    for (const e of r.cuerpo?.items || []) {
+    for (const e of eventos) {
       if (e.status === 'cancelled' || e.transparency === 'transparent') continue;
+      if (TIPOS_QUE_NO_OCUPAN.has(e.eventType)) continue;
       if (e.extendedProperties?.private?.slotly === '1') continue;
       if ((e.attendees || []).some((a: any) => a.self && a.responseStatus === 'declined')) continue;
 
@@ -331,6 +384,12 @@ export async function ocupadoEnGoogle(admin: SupabaseClient, professionalId: str
     console.error(`[google] No se pudo leer el calendario del profesional ${professionalId}:`, err);
     return [];
   }
+}
+
+/** Lo ocupado de varios profesionales ese día, en paralelo: { [professionalId]: [...] }. */
+export async function ocupadoEnGoogleDeVarios(admin: SupabaseClient, professionalIds: string[], fecha: string) {
+  const listas = await Promise.all(professionalIds.map((id) => ocupadoEnGoogle(admin, id, fecha)));
+  return Object.fromEntries(professionalIds.map((id, i) => [id, listas[i]]));
 }
 
 /** ¿Choca [inicio, fin) ('HH:MM') con algo de su calendario ese día? */

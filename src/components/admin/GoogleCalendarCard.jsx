@@ -90,8 +90,8 @@ export default function GoogleCalendarCard({ businessId, profesionales, volverA 
       <h3 className="mb-sm"><Icon name="calendar" /> Google Calendar</h3>
       <p className="text-secondary text-sm mb-md">
         {propio
-          ? `Tus ${turno}s aparecen solos en tu Google Calendar (y en el calendario de tu celular): si se mueven o se cancelan, se actualizan. Y lo que tengas ocupado en tu calendario no se le ofrece al ${cliente} para reservar.`
-          : `Cada ${turno} aparece solo en el Google Calendar de quien lo atiende (y en su celular): si se mueve o se cancela, se actualiza. Y lo que tenga ocupado en su calendario no se le ofrece al ${cliente} para reservar.`}
+          ? `Tus ${turno}s aparecen solos en tu Google Calendar (y en el calendario de tu celular): si se mueven o se cancelan, se actualizan. Y lo que tengas ocupado en tus calendarios de Google no se le ofrece al ${cliente} para reservar.`
+          : `Cada ${turno} aparece solo en el Google Calendar de quien lo atiende (y en su celular): si se mueve o se cancela, se actualiza. Y lo que tenga ocupado en sus calendarios de Google no se le ofrece al ${cliente} para reservar.`}
       </p>
 
       {aviso && <div className={`notice ${aviso.clase} mb-md`}>{aviso.texto}</div>}
@@ -120,6 +120,9 @@ export default function GoogleCalendarCard({ businessId, profesionales, volverA 
           {profesionales.map((p) => {
             const c = estado[p.id];
             const ocupado = trabajando === p.id;
+            // Conectado antes de que se pidiera el permiso de la lista de
+            // calendarios: solo cuenta lo de su calendario principal.
+            const soloPrincipal = c && !c.error && c.leeTodos === false;
             return (
               <div key={p.id} className="gcal-fila">
                 <div className="gcal-persona">
@@ -131,11 +134,18 @@ export default function GoogleCalendarCard({ businessId, profesionales, volverA 
                     <span className="badge badge-danger"><Icon name="warning" /> {c.error}</span>
                   )}
                   {!c && <span className="text-sm text-muted">Sin conectar</span>}
+                  {soloPrincipal && (
+                    <span className="text-xs text-muted gcal-nota">
+                      {propio
+                        ? 'Solo cuenta lo de tu calendario principal. Volvé a conectar para que también bloqueen las actividades de tus otros calendarios.'
+                        : 'Solo cuenta lo de su calendario principal. Volvé a conectar para que también bloqueen las actividades de sus otros calendarios.'}
+                    </span>
+                  )}
                 </div>
                 <div className="gcal-acciones">
-                  {(!c || c.error) && (
+                  {(!c || c.error || soloPrincipal) && (
                     <button type="button" className="btn btn-primary btn-sm" onClick={() => conectar(p.id)} disabled={Boolean(trabajando)}>
-                      <Icon name="link" /> {ocupado ? 'Abriendo Google…' : c?.error ? 'Volver a conectar' : 'Conectar'}
+                      <Icon name="link" /> {ocupado ? 'Abriendo Google…' : c ? 'Volver a conectar' : 'Conectar'}
                     </button>
                   )}
                   {c && (

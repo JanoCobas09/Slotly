@@ -1303,6 +1303,18 @@ dominio de más autorizado no es un agujero de seguridad, solo ruido).
    configuración (`GOOGLE_VERIFICO_LA_APP` apaga el aviso de "app no
    verificada"). `supabase/tests/test-google-calendar.mjs` 58/58 con un
    Google falso en el puerto 55390 (env de functions serve: ver su encabezado).
+   Ampliación (14/10/2026, migración `20261026000000_google_calendar_todos.sql`):
+   pedido "si tiene una actividad en su Google, ese horario no se ofrece".
+   Se lee lo ocupado en TODOS los calendarios de los que es dueño (permiso
+   extra `calendar.calendarlist.readonly`, `calendarList?minAccessRole=owner`,
+   lista guardada 6 h en `calendarios`/`calendarios_at`; `lee_todos` = dio ese
+   permiso — sin él, solo el principal y la tarjeta ofrece reconectar). Se
+   saltean también `eventType` birthday y workingLocation. Panel: Edge Function
+   `ocupado-google` (equipo del negocio; un 'admin' solo lo suyo) +
+   `hooks/useOcupadoGoogle.js`: AgendaDelDia muestra "Ocupado en Google
+   Calendar" (sin título; esas franjas no se colapsan como libres) y
+   NuevoTurnoModal marca los horarios que chocan, avisa y pide confirmar
+   (decisión del usuario: avisar y dejar cargar). Test: 70/70.
 6. **Abuso de reservas.** Hecho: un turno por día y tope de 3 a futuro por
    cuenta. Falta, por orden: bloquear cliente desde el panel (para la cuenta que
    se porta mal), y App Check con reCAPTCHA v3 sobre los callables para frenar

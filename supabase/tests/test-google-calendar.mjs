@@ -22,6 +22,7 @@ const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZ
 const SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU';
 const PUERTO_GOOGLE = 55390;
 const SCOPE = 'https://www.googleapis.com/auth/calendar.events';
+const SCOPE_LISTA = 'https://www.googleapis.com/auth/calendar.calendarlist.readonly';
 
 const admin = createClient(API_URL, SERVICE_ROLE_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
 
@@ -34,7 +35,10 @@ function ok(cond, label) {
 // ── Google falso ─────────────────────────────────────────────────────────────
 const google = {
   eventos: new Map(), // id → evento (status 'cancelled' = borrado)
-  externos: [],       // eventos que la persona tiene en su calendario
+  externos: [],       // eventos que la persona tiene en sus calendarios (_cal = id del calendario)
+  // Su lista de calendarios (calendarList, minAccessRole=owner).
+  calendarios: [{ id: 'ana@gmail.test', primary: true }, { id: 'personal-ana' }],
+  pidioLista: 0,
   revocados: [],
   pedidos: [],
 };
@@ -67,7 +71,7 @@ const servidor = http.createServer(async (req, res) => {
     if (p.get('grant_type') === 'authorization_code') {
       const code = p.get('code');
       if (code === 'codigo-ok') {
-        return responder(200, { access_token: 'at-inicial', refresh_token: 'rt-1', expires_in: 3600, scope: `openid ${SCOPE} https://www.googleapis.com/auth/userinfo.email`, id_token: idToken('ana@gmail.test') });
+        return responder(200, { access_token: 'at-inicial', refresh_token: 'rt-1', expires_in: 3600, scope: `openid ${SCOPE} ${SCOPE_LISTA} https://www.googleapis.com/auth/userinfo.email`, id_token: idToken('ana@gmail.test') });
       }
       if (code === 'codigo-sin-calendario') {
         return responder(200, { access_token: 'at-x', refresh_token: 'rt-x', expires_in: 3600, scope: 'openid https://www.googleapis.com/auth/userinfo.email', id_token: idToken('beto@gmail.test') });
@@ -86,10 +90,19 @@ const servidor = http.createServer(async (req, res) => {
     return responder(200, {});
   }
 
+  if (url.pathname === '/calendar/v3/users/me/calendarList') {
+    if (!/^Bearer at-/.test(req.headers.authorization || '')) return responder(401, { error: { message: 'Invalid Credentials' } });
+    google.pidioLista++;
+    if (url.searchParams.get('minAccessRole') !== 'owner') return responder(400, { error: { message: 'se esperaba minAccessRole=owner' } });
+    return responder(200, { items: google.calendarios });
+  }
+
   const m = url.pathname.match(/^\/calendar\/v3\/calendars\/([^/]+)\/events(?:\/([^/]+))?$/);
   if (m) {
     if (!/^Bearer at-/.test(req.headers.authorization || '')) return responder(401, { error: { message: 'Invalid Credentials' } });
     const id = m[2] ? decodeURIComponent(m[2]) : null;
+    // 'primary' y el mail de la cuenta son el mismo calendario.
+    const cal = ['primary', 'ana@gmail.test'].includes(decodeURIComponent(m[1])) ? 'primary' : decodeURIComponent(m[1]);
     const cuerpo = texto ? JSON.parse(texto) : null;
     if (req.method === 'PUT' && id) {
       if (!google.eventos.has(id)) return responder(404, { error: { message: 'Not Found' } });
@@ -113,7 +126,8 @@ const servidor = http.createServer(async (req, res) => {
     if (req.method === 'GET' && !id) {
       const desde = Date.parse(url.searchParams.get('timeMin'));
       const hasta = Date.parse(url.searchParams.get('timeMax'));
-      const items = [...google.eventos.values(), ...google.externos].filter((e) => {
+      const items = [...[...google.eventos.values()].map((e) => ({ ...e, _cal: 'primary' })), ...google.externos].filter((e) => {
+        if ((e._cal || 'primary') !== cal) return false;
         if (e.status === 'cancelled') return false;
         if (e.start.date) return Date.parse(`${e.end.date}T00:00:00-03:00`) > desde && Date.parse(`${e.start.date}T00:00:00-03:00`) < hasta;
         return Date.parse(e.end.dateTime) > desde && Date.parse(e.start.dateTime) < hasta;
@@ -245,6 +259,7 @@ async function main() {
     ok(u.origin === 'https://accounts.google.com', 'manda a la pantalla de permiso de Google');
     ok(u.searchParams.get('client_id') === 'test-client', 'con el client_id de Slotly');
     ok(u.searchParams.get('scope').split(' ').includes(SCOPE), 'pide el permiso del calendario');
+    ok(u.searchParams.get('scope').split(' ').includes(SCOPE_LISTA), 'y el de la lista de calendarios');
     ok(u.searchParams.get('access_type') === 'offline' && u.searchParams.get('prompt') === 'consent', 'pide acceso offline (refresh_token)');
     ok(u.searchParams.get('redirect_uri').endsWith('/functions/v1/gcal-oauth-callback'), 'vuelve a gcal-oauth-callback');
     const r5 = await callFn('gcal-conexion', dueno.token, { action: 'conectar', businessId: bizId, professionalId: crypto.randomUUID() });
@@ -342,6 +357,13 @@ async function main() {
       // En UTC: 12:00Z = 09:00 en Argentina, el día de `otroDia`... de todo el día.
       { id: 'ext4', status: 'confirmed', summary: 'Vacaciones', start: { date: otroDia }, end: { date: enDias(4) } },
       { id: 'ext5', status: 'confirmed', summary: 'Trámite (en UTC)', start: { dateTime: `${fecha}T22:00:00Z` }, end: { dateTime: `${fecha}T23:00:00Z` } },
+      // En OTRO calendario suyo ("Personal"): también ocupa.
+      { id: 'ext6', _cal: 'personal-ana', status: 'confirmed', summary: 'Gimnasio', start: { dateTime: `${fecha}T08:00:00-03:00` }, end: { dateTime: `${fecha}T08:30:00-03:00` } },
+      // En un calendario que NO es suyo (no está en su lista de dueña): no cuenta.
+      { id: 'ext7', _cal: 'agenda-de-otro', status: 'confirmed', summary: 'Ajeno', start: { dateTime: `${fecha}T13:00:00-03:00` }, end: { dateTime: `${fecha}T13:30:00-03:00` } },
+      // Cumpleaños de un contacto y "dónde trabajo hoy": no son tiempo ocupado.
+      { id: 'ext8', status: 'confirmed', eventType: 'birthday', summary: 'Cumple de Juan', start: { dateTime: `${fecha}T10:30:00-03:00` }, end: { dateTime: `${fecha}T11:00:00-03:00` } },
+      { id: 'ext9', status: 'confirmed', eventType: 'workingLocation', summary: 'Oficina', start: { dateTime: `${fecha}T12:30:00-03:00` }, end: { dateTime: `${fecha}T13:00:00-03:00` } },
     );
     const { status, data } = await callFn('get-busy-slots', null, { businessId: bizId, professionalId: ana, appointmentDate: fecha });
     const o = data.ocupados || [];
@@ -352,6 +374,34 @@ async function main() {
     ok(!o.some((x) => x.startTime === '18:00'), 'una invitación rechazada no');
     ok(o.filter((x) => x.startTime === '09:00').length === 1, 'el turno de Slotly no se cuenta dos veces (su propio evento se saltea)');
     ok(!JSON.stringify(data).includes('Dentista'), 'no expone el título de los eventos');
+    ok(o.some((x) => x.startTime === '08:00' && x.endTime === '08:30'), 'lo de OTRO calendario suyo (Personal) también ocupa');
+    ok(!o.some((x) => x.startTime === '13:00'), 'un calendario que no es suyo (compartido por otro) no');
+    ok(!o.some((x) => x.startTime === '10:30') && !o.some((x) => x.startTime === '12:30'), 'cumpleaños y "lugar de trabajo" no ocupan');
+    const { data: cx } = await admin.from('google_calendar_conexiones').select('lee_todos, calendarios').eq('professional_id', ana).single();
+    ok(cx.lee_todos === true && JSON.stringify(cx.calendarios) === JSON.stringify(['primary', 'personal-ana']), `guarda la lista de sus calendarios — ${JSON.stringify(cx)}`);
+    const pedidasAntes = google.pidioLista;
+    await callFn('get-busy-slots', null, { businessId: bizId, professionalId: ana, appointmentDate: fecha });
+    ok(google.pidioLista === pedidasAntes, 'la lista se reusa, no se pide en cada consulta');
+
+    // Conexión vieja, sin el permiso de la lista: solo el principal.
+    await admin.from('google_calendar_conexiones').update({ lee_todos: false, calendarios: null, calendarios_at: null }).eq('professional_id', ana);
+    const { data: viejo } = await callFn('get-busy-slots', null, { businessId: bizId, professionalId: ana, appointmentDate: fecha });
+    ok(!(viejo.ocupados || []).some((x) => x.startTime === '08:00') && (viejo.ocupados || []).some((x) => x.startTime === '15:00'), 'sin el permiso de la lista: solo el calendario principal');
+    const { data: estadoViejo } = await dueno.db.rpc('google_calendar_estado', { p_business_id: bizId });
+    ok(estadoViejo?.[0]?.lee_todos === false, 'y el panel lo sabe (para ofrecer volver a conectar)');
+    await admin.from('google_calendar_conexiones').update({ lee_todos: true }).eq('professional_id', ana);
+  }
+
+  console.log('Panel: ocupado-google:');
+  {
+    const r = await callFn('ocupado-google', dueno.token, { businessId: bizId, professionalIds: [ana, beto], fecha });
+    ok(r.status === 200 && r.data.ocupados?.[ana]?.some((x) => x.startTime === '15:00') && Array.isArray(r.data.ocupados?.[beto]) && r.data.ocupados[beto].length === 0,
+      `el dueño ve lo ocupado de Ana, y Beto (sin Google) vacío — ${r.status}`);
+    ok(!JSON.stringify(r.data).includes('Dentista'), 'sin títulos');
+    const r2 = await callFn('ocupado-google', staffBeto.token, { businessId: bizId, professionalIds: [ana, beto], fecha });
+    ok(r2.status === 200 && !r2.data.ocupados?.[ana] && Array.isArray(r2.data.ocupados?.[beto]), 'un profesional solo recibe lo suyo');
+    const r3 = await callFn('ocupado-google', cliente.token, { businessId: bizId, professionalIds: [ana], fecha });
+    ok(r3.status === 403, `un cliente no (${r3.status})`);
     const { data: d2 } = await callFn('get-busy-slots', null, { businessId: bizId, professionalId: ana, appointmentDate: otroDia });
     ok((d2.ocupados || []).some((x) => x.startTime === '00:00' && x.endTime === '24:00'), 'un evento de todo el día ocupado bloquea el día entero');
   }

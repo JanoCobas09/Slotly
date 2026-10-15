@@ -49,8 +49,9 @@ export default function PrivacidadPage() {
       <h2>Google Calendar</h2>
       <p>
         Los profesionales y dueños de negocios pueden conectar su Google Calendar desde el panel. Es
-        opcional y se puede desconectar en cualquier momento. Si lo conectás, Slotly pide el permiso
-        para <strong>ver y editar los eventos de tu calendario</strong> y lo usa solamente para:
+        opcional y se puede desconectar en cualquier momento. Si lo conectás, Slotly pide permiso
+        para <strong>ver y editar los eventos de tus calendarios</strong> y para{' '}
+        <strong>ver la lista de tus calendarios</strong>, y los usa solamente para:
       </p>
       <ul>
         <li>
@@ -60,9 +61,11 @@ export default function PrivacidadPage() {
         </li>
         <li>
           <strong>Saber en qué horarios estás ocupado</strong>, para no ofrecerlos a quienes reservan.
-          De tus otros eventos Slotly lee solo cuándo empiezan y cuándo terminan, si están marcados
-          como "ocupado" y si rechazaste la invitación. No guarda su título, su descripción ni sus
-          invitados, y nunca se los muestra a nadie.
+          Slotly mira los calendarios de los que sos dueño (de la lista de tus calendarios toma solo
+          cuáles son); no los que otras personas comparten con vos. De tus otros eventos lee solo
+          cuándo empiezan y cuándo terminan, si están marcados como "ocupado" y si rechazaste la
+          invitación. No guarda su título, su descripción ni sus invitados, y nunca se los muestra a
+          nadie: en el panel del negocio aparecen solo como "Ocupado".
         </li>
       </ul>
       <p>

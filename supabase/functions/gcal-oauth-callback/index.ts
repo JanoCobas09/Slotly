@@ -13,7 +13,7 @@
 // sin-permiso (destildó el permiso del calendario) | error.
 import { supabaseAdmin } from '../_shared/auth.ts';
 import { appUrl } from '../_shared/mercadopago.ts';
-import { canjearCodigo, emailDeIdToken, revocar, SCOPE_CALENDARIO } from '../_shared/google.ts';
+import { canjearCodigo, emailDeIdToken, revocar, SCOPE_CALENDARIO, SCOPE_LISTA } from '../_shared/google.ts';
 
 function volver(destino: string, resultado: string): Response {
   const url = new URL(destino);
@@ -43,7 +43,8 @@ Deno.serve(async (req) => {
     const token = await canjearCodigo(code);
     // Google deja destildar cada permiso: sin el del calendario no hay nada
     // que hacer con esta conexión.
-    if (!(token.scope || '').split(' ').includes(SCOPE_CALENDARIO)) {
+    const permisos = (token.scope || '').split(' ');
+    if (!permisos.includes(SCOPE_CALENDARIO)) {
       await revocar(token.refresh_token || token.access_token);
       return volver(destino, 'sin-permiso');
     }
@@ -60,6 +61,10 @@ Deno.serve(async (req) => {
       conectado_at: new Date().toISOString(),
       error: null,
       error_at: null,
+      // El de la lista de calendarios es opcional: sin él se mira solo el principal.
+      lee_todos: permisos.includes(SCOPE_LISTA),
+      calendarios: null,
+      calendarios_at: null,
     }, { onConflict: 'professional_id' });
     if (error) throw error;
 

@@ -10,6 +10,7 @@ import { esTelefono, problema } from '../../utils/validaciones';
 import ErrorDeCampo from '../ErrorDeCampo';
 import { useErrorDeCampo } from '../../hooks/useErrorDeCampo';
 import { turnoBloqueado, diaEnteroBloqueado, bloqueosQueAplican } from '../../utils/bloqueos';
+import { useOcupadoGoogle, chocaCon } from '../../hooks/useOcupadoGoogle';
 
 /**
  * El staff agenda un turno a mano.
@@ -138,6 +139,12 @@ export default function NuevoTurnoModal({ onClose, turno = null }) {
   const diaBloqueado = slot
     ? turnoBloqueado(bloqueosDelTurno, form.date, slot.startTime, slot.endTime)
     : diaEnteroBloqueado(bloqueosDelTurno, form.date);
+  // Lo que el profesional tiene en su Google Calendar ese día. Se avisa y se
+  // deja cargar igual (decisión del usuario): el negocio puede tener motivos
+  // para pisarlo. Online, en cambio, esos horarios no se ofrecen.
+  const ocupadoGoogle = useOcupadoGoogle(businessId, [form.professionalId], form.date)[form.professionalId] || [];
+  const chocaGoogle = Boolean(slot) && chocaCon(ocupadoGoogle, slot.startTime, slot.endTime);
+  const nombreDelProfesional = professionals.find((p) => p.id === form.professionalId)?.name;
   const digitos = form.clientPhone.replace(/\D/g, '');
   const telefonoOk = digitos.length === 0 || (digitos.length >= 10 && digitos.length <= 13 && esTelefono(form.clientPhone));
 
@@ -149,6 +156,7 @@ export default function NuevoTurnoModal({ onClose, turno = null }) {
       || (!form.clientName.trim() && problema('clientName', 'Poné el nombre del cliente.'))
       || (!telefonoOk && problema('clientPhone', 'Tiene que tener entre 10 y 13 dígitos, o dejalo vacío.'));
     if (errorCampo.marcar(falla)) return;
+    if (chocaGoogle && !window.confirm(`${nombreDelProfesional || 'El profesional'} tiene algo anotado en su Google Calendar en ese horario. ¿Agendar el turno igual?`)) return;
     setGuardando(true);
     setError('');
     try {
@@ -275,6 +283,7 @@ export default function NuevoTurnoModal({ onClose, turno = null }) {
                 {slots.map((s) => (
                   <option key={s.startTime} value={s.startTime}>
                     {s.startTime} — {s.endTime}{varias && s.branchId ? ` · ${nombreSucursal(branches, s.branchId)}` : ''}
+                    {chocaCon(ocupadoGoogle, s.startTime, s.endTime) ? ' · ocupado en Google' : ''}
                   </option>
                 ))}
               </select>
@@ -285,6 +294,13 @@ export default function NuevoTurnoModal({ onClose, turno = null }) {
           {diaBloqueado && (
             <div className="notice notice-info" style={{ marginBottom: 'var(--space-md)', fontSize: 14 }}>
               <Icon name="lock" /> Bloqueaste {slot ? 'este horario' : 'este día'}. Podés agendar igual, pero online nadie puede reservar ahí.
+            </div>
+          )}
+
+          {chocaGoogle && (
+            <div className="notice notice-warn" style={{ marginBottom: 'var(--space-md)', fontSize: 14 }}>
+              <Icon name="calendar" /> {nombreDelProfesional || 'El profesional'} tiene algo anotado en su <strong>Google Calendar</strong> en
+              este horario. Podés agendar igual, pero online este horario no se ofrece.
             </div>
           )}
 

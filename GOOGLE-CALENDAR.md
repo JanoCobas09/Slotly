@@ -28,9 +28,12 @@ Usá el **mismo proyecto de Google Cloud de Slotly** que ya tiene el login con G
    dirección es del dominio de la app y no de `supabase.co`.)
    Copiá el **ID de cliente** y el **secreto**.
 3. **Acceso a datos:** Google Auth Platform → Acceso a datos → Agregar o
-   quitar permisos → agregar
-   `https://www.googleapis.com/auth/calendar.events`
-   ("Ver y editar eventos en todos tus calendarios").
+   quitar permisos → agregar los dos:
+   - `https://www.googleapis.com/auth/calendar.events`
+     ("Ver y editar eventos en todos tus calendarios")
+   - `https://www.googleapis.com/auth/calendar.calendarlist.readonly`
+     ("Ver la lista de calendarios") — para que bloqueen las actividades de
+     TODOS los calendarios del profesional, no solo del principal.
 4. **Marca (Branding):**
    - Nombre: Slotly · Logo · Mail de asistencia: slotly.turnos@gmail.com
    - Página principal: `https://slotly-turnos.vercel.app`
@@ -48,7 +51,7 @@ npx supabase secrets set \
   GOOGLE_CLIENT_SECRET=<secreto> \
   GOOGLE_REDIRECT_URI=https://slotly-turnos.vercel.app/api/google-calendar/callback
 npx supabase db push --linked
-npx supabase functions deploy gcal-conexion sincronizar-google get-busy-slots create-appointment
+npx supabase functions deploy gcal-conexion sincronizar-google get-busy-slots create-appointment ocupado-google
 npx supabase functions deploy gcal-oauth-callback --no-verify-jwt
 ```
 
@@ -95,7 +98,8 @@ el paso 1 con el dominio nuevo. Avisame y cambio las direcciones.
 > clinics, workshops). Business owners and their staff can optionally connect
 > their Google Calendar from the Slotly dashboard.
 >
-> We request `https://www.googleapis.com/auth/calendar.events` for two
+> We request `https://www.googleapis.com/auth/calendar.events` and
+> `https://www.googleapis.com/auth/calendar.calendarlist.readonly` for two
 > user-facing features:
 >
 > 1. **Write:** when a customer books, reschedules or cancels an appointment
@@ -106,8 +110,13 @@ el paso 1 con el dominio nuevo. Avisame y cambio las direcciones.
 > 2. **Read busy times:** when a customer views available time slots, we read
 >    the start and end times of the professional's events for that day (and
 >    whether each event is marked busy and not declined) so we do not offer
->    times when the professional is already busy. We do not store or display
->    the title, description, location or attendees of these events.
+>    times when the professional is already busy. Professionals often keep
+>    personal commitments in secondary calendars ("Personal", "Family"), so
+>    we use `calendar.calendarlist.readonly` only to find which calendars the
+>    user owns (minAccessRole=owner) and check busy times on those; calendars
+>    shared by other people are ignored. We do not store or display the
+>    title, description, location or attendees of these events; in the
+>    business dashboard they appear only as "Busy".
 >
 > Data is never sold, used for advertising, shared with third parties, or used
 > to train AI models. Users can disconnect at any time from the dashboard,

@@ -210,6 +210,15 @@ export function desconectarGoogleCalendar({ businessId, professionalId }) {
 }
 
 /**
+ * Para el panel: lo ocupado en el Google Calendar de cada profesional ese día
+ * (solo inicio y fin). Devuelve `{ ocupados: { [professionalId]: [{ startTime, endTime }] } }`;
+ * los que no tienen Google conectado vienen con [].
+ */
+export function getOcupadoGoogle({ businessId, professionalIds, fecha }) {
+  return llamar('ocupado-google', { businessId, professionalIds, fecha });
+}
+
+/**
  * Devuelve entera la seña pagada de un turno, desde la cuenta de MP del
  * negocio. Solo el dueño. Devuelve `{ status: 'devuelta' | 'ya-devuelta' }`.
  */

@@ -5,6 +5,7 @@ import Icon from '../Icon';
 import AvisoWhatsApp from './AvisoWhatsApp';
 import SenaTurno from './SenaTurno';
 import { diaEnteroBloqueado, rangosDelDia } from '../../utils/bloqueos';
+import { useOcupadoGoogle } from '../../hooks/useOcupadoGoogle';
 
 /**
  * La agenda de un día, como un calendario: una fila por franja horaria, con
@@ -15,7 +16,10 @@ import { diaEnteroBloqueado, rangosDelDia } from '../../utils/bloqueos';
  * columnas: en 375px una grilla no se lee. Con más de un profesional (vista
  * del dueño) cada turno lleva el nombre del barbero, y se puede filtrar.
  *
- * Recibe los arrays por props (regla de oro: nada de Firestore acá).
+ * Recibe los arrays por props (regla de oro: nada de Firestore acá). Lo
+ * único que pide por su cuenta es lo ocupado en el Google Calendar de cada
+ * profesional (Edge Function ocupado-google, vía useOcupadoGoogle): se
+ * muestra como "Ocupado en Google Calendar", sin el título del evento.
  */
 
 const ESTADO = {
@@ -99,6 +103,12 @@ export default function AgendaDelDia({
   const { desde, hasta, cerrado } = rangoDelDia(business, fecha);
   const paso = Number(business?.slotInterval) || 30;
 
+  // Google Calendar: de los profesionales que se están mirando.
+  const idsVistos = professionalId ? [professionalId] : profActivo ? [profActivo] : professionals.map((p) => p.id);
+  const ocupadoPorProf = useOcupadoGoogle(business?.id, idsVistos, fecha);
+  const googleDelDia = useMemo(() => Object.entries(ocupadoPorProf).flatMap(([pid, lista]) =>
+    lista.map((o) => ({ ...o, professionalId: pid }))), [ocupadoPorProf]);
+
   const delDia = useMemo(() => {
     return appointments
       .filter((a) => a.appointmentDate === fecha)
@@ -144,8 +154,10 @@ export default function AgendaDelDia({
     }) : null;
     const esAhora = ahoraMin !== null && ahoraMin >= m && ahoraMin < m + paso;
     const yaPaso = ahoraMin !== null && m + paso <= ahoraMin;
-    return { m, turnos, enCurso, esAhora, yaPaso };
-  }), [franjas, delDia, paso, ahoraMin]);
+    // Lo de Google que cae en esta franja (de quién, para la vista de varios).
+    const google = googleDelDia.filter((o) => timeToMinutes(o.startTime) < m + paso && timeToMinutes(o.endTime) > m);
+    return { m, turnos, enCurso, esAhora, yaPaso, google };
+  }), [franjas, delDia, paso, ahoraMin, googleDelDia]);
 
   // Agrupa corridas largas de franjas libres seguidas en un solo resumen
   // ("09:00–13:00 · libre") en vez de una fila por cada media hora vacía.
@@ -169,7 +181,7 @@ export default function AgendaDelDia({
       corrida = [];
     };
     for (const info of infoFranjas) {
-      const esLibre = info.turnos.length === 0 && !info.enCurso && !info.esAhora;
+      const esLibre = info.turnos.length === 0 && !info.enCurso && !info.esAhora && info.google.length === 0;
       if (esLibre) {
         corrida.push(info);
       } else {
@@ -253,7 +265,7 @@ export default function AgendaDelDia({
               );
             }
 
-            const { m, turnos, enCurso, esAhora, yaPaso } = fila.info;
+            const { m, turnos, enCurso, esAhora, yaPaso, google } = fila.info;
             return (
               <div key={m} className={`agenda-franja ${turnos.length ? 'con-turno' : enCurso ? 'ocupada' : 'libre'} ${esAhora ? 'ahora' : ''} ${yaPaso ? 'pasada' : ''}`}>
                 <div className="agenda-hora">{aHora(m)}</div>
@@ -261,7 +273,14 @@ export default function AgendaDelDia({
                   {turnos.length === 0 ? (
                     enCurso
                       ? <span className="agenda-libre agenda-sigue">↑ sigue {enCurso.type === 'walkin' ? 'servicio sin turno' : (enCurso.clientName || 'cliente')}</span>
-                      : <span className="agenda-libre">libre</span>
+                      : google.length > 0
+                        ? (
+                          <span className="agenda-google">
+                            <Icon name="calendar" /> Ocupado en Google Calendar
+                            {varios && !profActivo && ` · ${[...new Set(google.map((o) => nombreProf(o.professionalId)))].join(', ')}`}
+                          </span>
+                        )
+                        : <span className="agenda-libre">libre</span>
                   ) : turnos.map((a) => {
                     const est = ESTADO[a.status] || { label: a.status, clase: 'badge-neutral' };
                     const walkin = a.type === 'walkin';
