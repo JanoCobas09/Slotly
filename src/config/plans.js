@@ -32,7 +32,10 @@
 export const FEATURES_COMUNES = [
   'Turnos e historial sin límite',
   'Tu link público con tu marca',
-  'Seña con Mercado Pago',
+  'Seña con Mercado Pago, sin comisión de Slotly',
+  'Fichas de clientes con historial y archivos',
+  'Sincronización con Google Calendar',
+  'Confirmación y recordatorio por mail',
   'Promociones por día y horario',
   'Estadísticas completas',
   'Servicios sin turno en vivo (walk-in)',

@@ -18,10 +18,17 @@ import Icon from '../components/Icon';
 // El orden de las secciones sigue el recorrido de alguien que no conoce el
 // producto: primero se reconoce en el problema, después ve la solución, después
 // pregunta el precio, y recién al final se le contestan las objeciones.
+//
+// Los textos salen de MARKETING.md (investigación de mercado, 15/10/2026):
+// promesa central "tus clientes reservan solos, vos atendés"; diferenciales
+// verificados en el código (0% de comisión, lo armamos nosotros, todo
+// incluido en todos los planes, precio fijo en pesos). Nada que la app no
+// haga: por ejemplo, el recordatorio automático es por MAIL; el de WhatsApp
+// lo manda el negocio con un toque.
 
 const WHATSAPP = '5492257660073';
 const mensajeWA = encodeURIComponent(
-  'Hola, vi la plataforma y quiero saber más para mi negocio.'
+  'Hola! Vi Slotly y quiero mi agenda online para mi negocio.'
 );
 const LINK_WA = `https://wa.me/${WHATSAPP}?text=${mensajeWA}`;
 
@@ -29,17 +36,42 @@ const DOLORES = [
   {
     icono: 'phone',
     titulo: 'Frenás todo para contestar',
-    texto: 'Cada mensaje que entra te saca de lo que estás haciendo. Y si no contestás en el momento, el cliente se va a otro lado.',
+    texto: 'Estás atendiendo y suena el celular: "¿tenés turno el jueves?". Si no contestás rápido, el cliente le escribe a otro.',
   },
   {
     icono: 'user-x',
     titulo: 'Reservan y no aparecen',
-    texto: 'Un turno vacío es plata que no vuelve. Sin recordatorio, entre el 20% y el 30% no se presenta.',
+    texto: 'Sin un recordatorio, casi 1 de cada 4 se olvida del turno. Es una hora que no vuelve y plata que no entra.',
   },
   {
     icono: 'note',
     titulo: 'La agenda vive en un cuaderno',
-    texto: 'Si el cuaderno no está, nadie sabe quién viene. Y averiguar cuánto facturaste el mes pasado es imposible.',
+    texto: 'Turnos pisados, tachones, y saber cuánto facturaste el mes pasado es imposible.',
+  },
+];
+
+// Diferenciales contra las otras apps (MARKETING.md §3). El número se anima
+// al aparecer (data-contar, ver useAnimacionesLanding): de 15% a 0%, etc.
+const DIFERENCIALES = [
+  {
+    valor: '0%', contar: { desde: 15, hasta: 0, sufijo: '%' },
+    titulo: 'de comisión',
+    texto: 'Ni por turno ni por seña. La seña va directo de tu cliente a tu Mercado Pago.',
+  },
+  {
+    valor: '1 día', contar: { desde: 7, hasta: 1, sufijo: ' día', sufijoPlural: ' días' },
+    titulo: 'y está andando',
+    texto: 'Lo armamos nosotros: tus servicios, tu equipo y tus horarios. Vos solo compartís el link.',
+  },
+  {
+    valor: '∞',
+    titulo: 'turnos sin límite',
+    texto: 'Ni de turnos ni de clientes, en todos los planes. Nada de "llegaste al tope del mes".',
+  },
+  {
+    valor: '$12.000', contar: { desde: 0, hasta: 12000, prefijo: '$', miles: true },
+    titulo: 'por mes, precio fijo',
+    texto: 'Es el plan para un profesional. En pesos y sin sorpresas: no se cobra por turno ni por cliente.',
   },
 ];
 
@@ -47,64 +79,77 @@ const BENEFICIOS = [
   {
     icono: 'link',
     titulo: 'Tu link, tu agenda',
-    texto: 'Cada negocio tiene su propia dirección. La ponés en el perfil de Instagram y tus clientes reservan solos, a cualquier hora, sin instalar nada.',
+    texto: 'Lo ponés en tu Instagram y en tu estado de WhatsApp. Tus clientes reservan solos, a cualquier hora, sin bajar ninguna app.',
+  },
+  {
+    icono: 'bell',
+    titulo: 'Te avisa al instante',
+    texto: 'Cada vez que alguien reserva o cancela, te llega el aviso al celular. Sin tener que mirar nada.',
+  },
+  {
+    icono: 'check-circle',
+    titulo: 'Para que no se olviden',
+    texto: 'A tu cliente le llega la confirmación y un recordatorio por mail, solos. Y por WhatsApp se lo mandás con un toque, con el mensaje ya escrito.',
+  },
+  {
+    icono: 'money',
+    titulo: 'Seña sin comisión',
+    texto: 'Si querés, pedís una seña para reservar. La paga con Mercado Pago, va directo a tu cuenta, y si no paga el horario se libera solo.',
+  },
+  {
+    icono: 'clipboard',
+    titulo: 'La ficha de cada cliente',
+    texto: 'Su historial de turnos, tus notas y las fotos o archivos de cada atención, todo en un lugar.',
   },
   {
     icono: 'calendar',
-    titulo: 'Sabe quién trabaja cuándo',
-    texto: 'Cargás el horario de cada profesional, sus descansos y qué servicios hace. La agenda no ofrece turnos que no se pueden atender.',
-  },
-  {
-    icono: 'users',
-    titulo: 'Cada uno ve lo suyo',
-    texto: 'El dueño ve todo: caja, estadísticas, el equipo completo. Cada profesional ve solo sus propios turnos del día.',
-  },
-  {
-    icono: 'chart-bar',
-    titulo: 'Números de verdad',
-    texto: 'Cuánto facturaste, qué servicio deja más, quién tiene más ausencias. Sin planillas.',
-  },
-  {
-    icono: 'sparkle',
-    titulo: 'Con tu cara, no la nuestra',
-    texto: 'Tu nombre, tus colores y tu propia terminología: cada negocio tiene su paleta y su lenguaje. Para tu cliente es la agenda de tu negocio, no la de un proveedor.',
+    titulo: 'Con tu Google Calendar',
+    texto: 'Los turnos aparecen solos en el calendario de tu celular, y lo que tengas anotado ahí no se ofrece para reservar.',
   },
 ];
 
 const PASOS = [
-  { n: '01', icono: 'chat', t: 'Hablamos', d: 'Nos contás cómo trabajás: a qué te dedicás, cuántos profesionales, qué servicios, qué horarios.' },
-  { n: '02', icono: 'settings', t: 'Te la dejamos lista', d: 'Configuramos todo nosotros: tu equipo, tus precios, tus horarios. Vos no tocás nada.' },
-  { n: '03', icono: 'link', t: 'Compartís el link', d: 'Lo ponés en Instagram y en tu estado de WhatsApp. Esa misma tarde entra el primer turno.' },
+  { n: '01', icono: 'chat', t: 'Nos escribís', d: 'Nos contás cómo trabajás: qué servicios, cuánto salen, quién atiende y en qué horarios.' },
+  { n: '02', icono: 'settings', t: 'Te la dejamos lista', d: 'Cargamos todo nosotros, con tu nombre, tus colores y tu foto. Vos no tocás nada.' },
+  { n: '03', icono: 'link', t: 'Compartís tu link', d: 'Lo ponés en Instagram y en WhatsApp. Ese mismo día te puede entrar el primer turno.' },
 ];
 
 const FAQ = [
   {
+    q: '¿Me cobran comisión por cada turno o por la seña?',
+    a: 'No. Pagás el abono fijo del mes y nada más. La seña va directo de tu cliente a tu cuenta de Mercado Pago: Mercado Pago cobra su comisión de siempre, nosotros nada.',
+  },
+  {
+    q: 'No me llevo bien con la tecnología, ¿lo voy a poder usar?',
+    a: 'Sí. Lo armamos nosotros y te mostramos cómo se usa por WhatsApp. En el día a día es mirar la agenda y tocar el turno. Y si algo no te sale, nos escribís y te contesta una persona.',
+  },
+  {
     q: '¿Mis clientes tienen que bajarse una app?',
-    a: 'No. Abren el link, entran con su cuenta de Google y reservan. Funciona en cualquier celular, desde el navegador.',
+    a: 'No. Abren tu link, entran con su cuenta de Google y reservan. Funciona en cualquier celular, desde el navegador.',
   },
   {
     q: 'Mis clientes son grandes, ¿lo van a poder usar?',
-    a: 'Son cuatro pasos: servicio, profesional, día y hora. Nada de formularios ni contraseñas nuevas. Y el que prefiere llamarte, te sigue llamando: vos cargás ese turno a mano en dos toques.',
+    a: 'Son cuatro pasos: servicio, profesional, día y hora. Y el que prefiere llamarte, te sigue llamando: ese turno lo cargás vos en dos toques.',
+  },
+  {
+    q: '¿A mis clientes les llega un recordatorio?',
+    a: 'Sí: un mail de confirmación cuando reservan y otro unas horas antes del turno, solos. Por WhatsApp se lo mandás vos desde el panel con un toque, con el mensaje ya armado.',
   },
   {
     q: '¿Sirve para cualquier tipo de negocio?',
-    a: 'Sí. Al armar la cuenta nos contás a qué te dedicás — barbería, consultorio, taller, estudio, lo que sea — y dejamos la terminología, los servicios sugeridos y los colores acomodados a tu rubro.',
+    a: 'Sí: peluquería, barbería, consultorio, estética, taller, estudio, lo que sea. Dejamos el lenguaje, los servicios y los colores acomodados a tu rubro.',
   },
   {
     q: '¿Y si ya tengo turnos anotados?',
     a: 'Los pasamos nosotros en el armado. No arrancás con la agenda vacía.',
   },
   {
-    q: '¿Tengo que firmar algo?',
-    a: 'No hay permanencia. Es mes a mes: si no te sirve, avisás y listo.',
-  },
-  {
-    q: '¿Cuánto tarda en estar andando?',
-    a: 'Si tenemos tus datos, el mismo día. Lo que más tarda sos vos decidiendo los precios.',
+    q: '¿Tengo que firmar algo o dejar una tarjeta?',
+    a: 'No. Es mes a mes, sin permanencia y sin tarjeta. Si no te sirve, avisás y listo.',
   },
   {
     q: '¿Qué pasa con la información de mis clientes?',
-    a: 'Es tuya. Cada negocio está separado de los demás: nadie de otro negocio ve tus turnos. Si algún día te vas, coordinamos cómo pasártela.',
+    a: 'Es tuya. Cada negocio está separado de los demás y nadie de otro negocio ve tus turnos. Si algún día te vas, coordinamos cómo pasártela.',
   },
 ];
 
@@ -167,27 +212,28 @@ export default function LandingPage() {
 
         {/* Entra palabra por palabra con CSS puro (.hero-palabra en
             index.css): es lo primero que se ve, no espera a ninguna librería. */}
-        <h1 className="landing-title" aria-label="Tu agenda no vive en WhatsApp. Vive acá.">
-          <TituloAnimado lineas={[['Tu agenda no vive'], ['en WhatsApp.', 'acento'], ['Vive acá.']]} />
+        <h1 className="landing-title" aria-label="Tus clientes reservan solos. Vos atendés.">
+          <TituloAnimado lineas={[['Tus clientes'], ['reservan solos.', 'acento'], ['Vos atendés.']]} />
         </h1>
 
         <p className="landing-lead hero-entra" style={{ maxWidth: 640, '--d': '450ms' }}>
-          Tus clientes reservan solos desde tu link, solo en los horarios que
-          tenés libres. Vos te enterás de cada turno al instante y el sistema
-          les recuerda que vengan.
+          Dejá de contestar WhatsApp para dar turnos. Tus clientes eligen el
+          horario desde tu link, solo entre los que tenés libres; a vos te
+          avisa al instante y a ellos les recuerda que vengan.{' '}
+          <strong>Te lo dejamos andando nosotros, el mismo día.</strong>
         </p>
 
         <div className="landing-cta-row hero-entra" style={{ '--d': '550ms' }}>
-          <CTAWhatsApp />
-          <a href="#precios" className="btn btn-outline btn-lg" style={{ textDecoration: 'none' }}>
-            Ver precios
+          <CTAWhatsApp>Quiero mi agenda online</CTAWhatsApp>
+          <a href="#tu-comercio" className="btn btn-outline btn-lg" style={{ textDecoration: 'none' }}>
+            Ver cómo funciona
           </a>
         </div>
 
         <ul className="landing-checks hero-entra" style={{ '--d': '650ms' }}>
-          <li><Icon name="check" /> Lo configuramos nosotros</li>
-          <li><Icon name="check" /> Sin permanencia</li>
-          <li><Icon name="check" /> Andando el mismo día</li>
+          <li><Icon name="check" /> Lo armamos nosotros</li>
+          <li><Icon name="check" /> 0% de comisión</li>
+          <li><Icon name="check" /> Sin permanencia ni tarjeta</li>
         </ul>
 
         {/* Los cuatro valores fuertes, antes que cualquier otra cosa: el
@@ -196,6 +242,28 @@ export default function LandingPage() {
           <ValoresClave />
         </div>
 
+      </section>
+
+      {/* ── POR QUÉ SLOTLY ──────────────────────────────────────────────── */}
+      {/* Lo que nos separa de las otras apps de turnos (MARKETING.md §3), en
+          cuatro números grandes que se animan al aparecer. */}
+      <section className="landing-section landing-diferenciales-seccion" id="por-que">
+        <span className="eyebrow">• Por qué Slotly</span>
+        <h2 className="landing-h2">Lo que otras apps te cobran aparte, acá viene incluido</h2>
+        <div className="landing-diferenciales">
+          {DIFERENCIALES.map((d) => (
+            <div key={d.titulo} className="card landing-diferencial">
+              <span
+                className="landing-diferencial-valor"
+                data-contar={d.contar ? JSON.stringify(d.contar) : undefined}
+              >
+                {d.valor}
+              </span>
+              <h3>{d.titulo}</h3>
+              <p>{d.texto}</p>
+            </div>
+          ))}
+        </div>
       </section>
 
       {/* ── PROBLEMA ─────────────────────────────────────────────────────── */}
@@ -236,6 +304,9 @@ export default function LandingPage() {
       <section className="landing-section" id="funciones">
         <span className="eyebrow">• Lo que hace</span>
         <h2 className="landing-h2">Una agenda que trabaja sola</h2>
+        <p className="landing-sub">
+          Todo esto viene en todos los planes, también en el más barato.
+        </p>
         <div className="landing-grid-3">
           {BENEFICIOS.map((b) => (
             <div key={b.titulo} className="card landing-card landing-card-benefit">
@@ -254,7 +325,8 @@ export default function LandingPage() {
         <span className="eyebrow">• Cómo arranca</span>
         <h2 className="landing-h2">No tenés que configurar nada</h2>
         <p className="landing-sub">
-          No es un sistema que te bajás y peleás solo. Lo dejamos andando nosotros.
+          No es una app que te bajás y peleás solo. Lo dejamos andando nosotros,
+          y del otro lado del WhatsApp siempre te contesta una persona.
         </p>
         <div className="landing-grid-3">
           {PASOS.map((p) => (
@@ -277,9 +349,9 @@ export default function LandingPage() {
         <span className="eyebrow">• Precios</span>
         <h2 className="landing-h2">Sin letra chica</h2>
         <p className="landing-sub">
-          Mes a mes, sin permanencia. La diferencia entre planes es la capacidad
-          de tu negocio: cuántos profesionales y qué tan lejos llegan las
-          estadísticas.
+          Precio fijo en pesos, mes a mes, sin permanencia y sin comisiones.
+          Todos los planes traen todo; solo cambia cuántos profesionales y
+          sucursales tenés.
         </p>
 
         {/* La prueba sin cargo no se activa sola: la damos nosotros al preparar
