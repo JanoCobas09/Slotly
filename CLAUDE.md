@@ -1253,6 +1253,16 @@ dominio de más autorizado no es un agujero de seguridad, solo ruido).
    `listarArchivosCliente`): todos los archivos del cliente agrupados por turno,
    con un join `turno:appointments!inner` ordenado por la fecha del turno — sin
    migración. `supabase/tests/test-clientes.mjs` 91/91.
+   Después (15/10/2026, pedido del usuario): elegir archivos YA NO los sube
+   solos — AdjuntosTurno los muestra (miniatura local, "Todavía no se guardó")
+   con un botón grande "Guardar"; al terminar, aviso verde "✓ Se guardó…"
+   (6 s). Cada archivo tiene "Compartir" (`clientes/BotonCompartir.jsx`):
+   baja el archivo (`archivoDelAdjunto` en lib/verAdjunto.js) y abre el menú
+   de compartir del sistema con el ARCHIVO (no un link: los firmados vencen y
+   son datos del cliente); si el navegador ya no acepta el toque
+   (NotAllowedError), queda "Tocá para enviar" con el archivo listo; sin
+   soporte de compartir archivos, lo descarga y avisa. También en la pestaña
+   Archivos de la ficha y en el visor de fotos (`acciones`).
 5v. **"Cualquier profesional" y asignación automática (14/10/2026).** Migración
    `20261024000000_modo_profesional.sql`: `businesses.modo_profesional`
    ('elige' por defecto | 'elige_o_cualquiera' | 'automatico'), en
