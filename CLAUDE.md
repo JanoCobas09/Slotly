@@ -1406,6 +1406,32 @@ dominio de más autorizado no es un agujero de seguridad, solo ruido).
    "Próximos feriados") es un bloqueo común que lleva el nombre (trigger).
    Los `feriado_auto` no se listan en "Próximos bloqueos" (irían todos los
    del año): están en "Próximos feriados".
+5z. **Instagram de Slotly, publicación programada (16/10/2026)** — marketing
+   de la plataforma, no toca nada de los negocios. Migración
+   `20261028000000_instagram_publicaciones.sql`: `ig_cuenta` (una fila: id de
+   Instagram + token) y `ig_publicaciones` (la cola: clave única, fecha,
+   tipo post/carrusel/historia/reel, rutas en el bucket público `instagram`,
+   texto, estado pendiente → procesando → publicada | error). Solo la service
+   role las toca. Edge Function `publicar-instagram` (API oficial con
+   Instagram Login, graph.instagram.com): publica lo vencido, un video puede
+   quedar `procesando` y salir en la corrida siguiente, 3 reintentos y después
+   mail a `INSTAGRAM_AVISO_MAIL`; renueva el token (60 días) cuando le quedan
+   menos de 15. Crons `publicar-instagram` (cada 15 min, solo llama si hay
+   algo vencido) e `instagram-token` (diario). La cola se carga desde la compu
+   con `video/scripts/instagram-cola.mjs` (conectar | subir | estado | quitar,
+   usa el CLI logueado, convierte PNG → JPEG porque la API no acepta PNG); el
+   calendario está en `video/instagram/calendario.json` y los datos de la app
+   de Meta en `.env.instagram` (ignorado). `INSTAGRAM_API_URL` existe solo
+   para probar contra una API simulada. Decisión del usuario: NADA de
+   respuestas automáticas a comentarios/DMs; los contesta él. Límites de la
+   API: no arma destacados (se hacen desde el archivo de historias) ni pone
+   stickers de enlace.
+   Mismo día: **`app_settings` estaba abierta al público** (el GRANT en
+   bloque de 20260929 le dio select/insert/update/delete a anon y era la única
+   tabla sin RLS → se podía leer la service role key con la anon key).
+   Cerrada en `20261027500000_app_settings_privada.sql`. Si se agrega otra
+   tabla sin RLS, el GRANT por defecto la deja abierta igual: toda tabla nueva
+   lleva RLS aunque solo la use el servidor.
 6. **Abuso de reservas.** Hecho: un turno por día y tope de 3 a futuro por
    cuenta. Falta, por orden: bloquear cliente desde el panel (para la cuenta que
    se porta mal), y App Check con reCAPTCHA v3 sobre los callables para frenar
