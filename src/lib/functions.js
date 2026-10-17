@@ -101,26 +101,6 @@ export function resolveMapsLink({ businessId, branchId = null }) {
 }
 
 /**
- * Crea la cuenta de un dueño con email y contraseña, y le asigna los permisos.
- * Para el barbero que no usa Gmail o no quiere mezclarlo con lo personal.
- *
- * Si se pasa `password`, se usa esa (mínimo 8 caracteres). Si no, la genera el
- * servidor.
- *
- * Devuelve `{ status: 'created', email, password }`. **La contraseña viene una
- * sola vez**: Supabase guarda solo su hash, así que si se pierde hay que
- * generar otra con `resetOwnerPassword`.
- */
-export function createOwnerWithPassword({ email, businessId, name = '', role = 'owner', professionalId = null, password = null }) {
-  return llamar('create-owner-with-password', { email, businessId, name, role, professionalId, password });
-}
-
-/** Genera una contraseña nueva para quien perdió la suya. Corta sus sesiones abiertas. */
-export function resetOwnerPassword({ email, password = null }) {
-  return llamar('reset-owner-password', { email, password });
-}
-
-/**
  * Nombra a alguien moderador de la plataforma (o le saca el rol con
  * `enabled: false`). Solo el dueño de la plataforma puede llamarla.
  *

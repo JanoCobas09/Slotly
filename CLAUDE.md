@@ -257,9 +257,9 @@ Google OAuth con un proyecto de Google Cloud propio (nunca el de
 `barberos-1d60e`, que es de un tercero), cron activo (facturación diaria,
 recordatorios cada 15 min), dueño de plataforma asignado. El login por
 usuario/contraseña se sacó de la pantalla pública a pedido (solo queda
-Google) — el alta manual de super-admin todavía puede crear un dueño con
-contraseña, pero esa cuenta hoy no tiene desde dónde loguearse; sin
-resolver todavía. `src/lib/firebase.js` ya no se importa en ningún lado
+Google). El 17/10/2026 se sacó también del alta manual de super-admin y se
+borraron las funciones `create-owner-with-password`/`reset-owner-password`
+(ver "Solo Google"). `src/lib/firebase.js` ya no se importa en ningún lado
 (Fase 6) pero el archivo y la dependencia `firebase` de `package.json`
 siguen ahí a propósito, tal como decía el plan original.
 
@@ -448,25 +448,17 @@ mismo mecanismo de pendientes que los admins de barbería para quien nunca entr�
 En el frontend: `user.isModerator`, `user.isPlatformTeam` (dueño o moderador).
 El panel esconde lo que no puede hacer; la barrera real son las Rules.
 
-### Entrar sin Gmail
+### Solo Google (sin usuario y contraseña)
 
-En el alta se elige **cómo entra el dueño**: con su cuenta de Google, o con un
-usuario y contraseña que genera la plataforma. Lo segundo es para el barbero que
-no usa Gmail o no quiere mezclarlo con lo personal.
-
-`createOwnerWithPassword` crea la cuenta y devuelve la contraseña **una sola
-vez**: Firebase guarda el hash, no el texto. Si se pierde, se genera otra con
-`resetOwnerPassword` (que además corta las sesiones abiertas con la vieja).
-
-Crear cuentas es exclusivo de la plataforma. Un dueño puede dar de alta barberos
-con `setBusinessAdmin`, pero no fabricar usuarios.
-
-**Requiere habilitar el proveedor** en Firebase → Authentication → Sign-in
-method → Email/Password. Sin eso, el login con contraseña falla con
-`auth/operation-not-allowed` aunque la cuenta exista.
-
-Los permisos no cambian en nada: son los mismos custom claims, y no saben con
-qué proveedor entró la persona.
+**Decisión firme del usuario (17/10/2026): no puede existir ninguna cuenta con
+usuario y contraseña.** Todos entran con Google. El alta de negocio desde
+`/super-admin` ("+ Nuevo negocio") pide el Gmail del dueño y llama a
+`setBusinessAdmin`: si esa cuenta nunca entró, el permiso queda en
+`pending_admins` y se aplica solo en su primer login con Google
+(`apply-pending-claims`); si ya existía, se aplica en el acto. Las funciones
+`create-owner-with-password` y `reset-owner-password` se borraron (código y
+deploy). El login con contraseña de `/login` existe solo para las cuentas de
+demo en desarrollo (`import.meta.env.DEV`), nunca en el build de producción.
 
 ### Quien entra y no tiene negocio
 

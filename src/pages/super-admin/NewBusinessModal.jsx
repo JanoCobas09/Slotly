@@ -4,7 +4,7 @@ import { PLANS, DEFAULT_PLAN_ID, getPlan, DEFAULT_BUSINESS_HOURS } from '../../c
 import { isPlatformOwner } from '../../config/platform';
 import { slugify, isReservedSlug } from '../../utils/slug';
 import { createBusiness, isSlugAvailable } from '../../lib/repository';
-import { setBusinessAdmin, createOwnerWithPassword } from '../../lib/functions';
+import { setBusinessAdmin } from '../../lib/functions';
 import {
   getProfessionPreset,
   matchProfessionCategory,
@@ -45,11 +45,6 @@ const EMPTY_FORM = {
   whatsapp: '',
   // 0 = cuenta que se cobra desde el arranque. Mayor a 0 = cuenta de prueba.
   trialDays: 0,
-  // 'google' = entra con su Gmail. 'password' = le creamos usuario y contraseña,
-  // para el barbero que no usa Gmail o no quiere mezclarlo con lo personal.
-  accesoPor: 'google',
-  // Vacío = la genera el servidor. Si la escribís, se usa esa.
-  passwordElegida: '',
 };
 
 /** Primer cobro un mes después del alta, para que no arranque con deuda. */
@@ -174,11 +169,6 @@ export default function NewBusinessModal({ onClose, onCreated }) {
 
     if (!form.ownerName.trim()) e.ownerName = 'Poné el nombre del dueño.';
 
-    const pass = form.passwordElegida.trim();
-    if (form.accesoPor === 'password' && pass && pass.length < 8) {
-      e.passwordElegida = 'Si la elegís vos, tiene que tener al menos 8 caracteres.';
-    }
-
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -260,27 +250,20 @@ export default function NewBusinessModal({ onClose, onCreated }) {
       // así que si esto falla el negocio queda creado igual — pero el dueño no
       // va a poder entrar, y eso hay que decirlo en la pantalla de entrega en
       // vez de dejar que lo descubra el cliente.
-      let claims = { ok: false, status: null, error: null, password: null };
+      // Solo Google: el dueño entra con el Gmail que se carga acá. No hay
+      // cuentas con usuario y contraseña (decisión de producto).
+      let claims = { ok: false, status: null, error: null };
       try {
-        const res = form.accesoPor === 'password'
-          ? await createOwnerWithPassword({
-              email: ownerAdmin.email,
-              businessId,
-              name: ownerAdmin.name,
-              role: 'owner',
-              password: form.passwordElegida.trim() || null,
-            })
-          : await setBusinessAdmin({
-              email: ownerAdmin.email,
-              businessId,
-              role: 'owner',
-              name: ownerAdmin.name,
-            });
-        // La contraseña llega UNA sola vez: Firebase guarda el hash, no el texto.
-        claims = { ok: true, status: res?.status ?? null, error: null, password: res?.password ?? null };
+        const res = await setBusinessAdmin({
+          email: ownerAdmin.email,
+          businessId,
+          role: 'owner',
+          name: ownerAdmin.name,
+        });
+        claims = { ok: true, status: res?.status ?? null, error: null };
       } catch (err) {
         console.error('[NewBusinessModal] No se pudieron asignar los permisos:', err);
-        claims = { ok: false, status: null, error: err.message, password: null };
+        claims = { ok: false, status: null, error: err.message };
       }
 
       setCreated({ business: { ...business, id: businessId, ...billing }, ownerAdmin, claims });
@@ -326,33 +309,9 @@ export default function NewBusinessModal({ onClose, onCreated }) {
             <div className="form-group">
               <label className="form-label">Acceso al panel</label>
               <div className="form-input" style={{ background: 'var(--bg-secondary)', fontSize: 13 }}>
-                Entra en <strong>/login</strong>{' '}
-                {created.claims?.password ? 'con usuario y contraseña' : 'con Google'} usando{' '}
+                Entra en <strong>/login</strong> con Google usando{' '}
                 <strong>{created.ownerAdmin.email}</strong>
               </div>
-              {created.claims?.password && (
-                <div
-                  style={{
-                    marginTop: 8,
-                    padding: '10px 12px',
-                    background: 'var(--bg-secondary)',
-                    border: '1px solid var(--primary)',
-                    borderRadius: 8,
-                  }}
-                >
-                  <div className="text-xs text-muted" style={{ marginBottom: 4 }}>
-                    CONTRASEÑA — se muestra una sola vez
-                  </div>
-                  <div style={{ fontFamily: 'monospace', fontSize: 18, letterSpacing: 1 }}>
-                    {created.claims.password}
-                  </div>
-                  <p className="text-xs text-muted" style={{ marginTop: 6, marginBottom: 0 }}>
-                    Copiala ahora: no queda guardada en ningún lado. Si se pierde
-                    hay que generar otra.
-                  </p>
-                </div>
-              )}
-
               {created.claims?.ok && created.claims.status === 'pending' && (
                 <p className="text-xs text-muted" style={{ marginTop: 4 }}>
                   Esa cuenta nunca entró a Slotly. El permiso queda anotado y se
@@ -532,48 +491,6 @@ export default function NewBusinessModal({ onClose, onCreated }) {
                 </div>
               </label>
             ))}
-          </div>
-
-          {/* Cómo entra el dueño */}
-          <div className="form-group" style={{ marginTop: 'var(--space-md)' }}>
-            <label className="form-label">Cómo entra al panel</label>
-            <select
-              className="form-input"
-              value={form.accesoPor}
-              onChange={(e) => set({ accesoPor: e.target.value })}
-              style={{ maxWidth: 320 }}
-            >
-              <option value="google">Con su cuenta de Google</option>
-              <option value="password">Con usuario y contraseña que le damos</option>
-            </select>
-            <p className="text-xs text-muted" style={{ marginTop: 4 }}>
-              {form.accesoPor === 'password'
-                ? 'La contraseña se muestra una sola vez al crear la cuenta, así que copiala antes de cerrar.'
-                : 'Entra con el Gmail de arriba. No hace falta que le pasemos nada.'}
-            </p>
-
-            {form.accesoPor === 'password' && (
-              <div style={{ marginTop: 'var(--space-md)' }}>
-                <label className="form-label">Contraseña temporal (opcional)</label>
-                <input
-                  className="form-input"
-                  type="text"
-                  value={form.passwordElegida}
-                  onChange={(e) => set({ passwordElegida: e.target.value })}
-                  placeholder="Dejalo vacío y la generamos nosotros"
-                  style={{ maxWidth: 320, fontFamily: 'monospace' }}
-                />
-                {errors.passwordElegida && (
-                  <p className="text-xs" style={{ color: 'var(--danger)', marginTop: 4 }}>
-                    {errors.passwordElegida}
-                  </p>
-                )}
-                <p className="text-xs text-muted" style={{ marginTop: 4 }}>
-                  Mínimo 6 caracteres. Se muestra en texto plano a propósito: la
-                  vas a tener que dictar. Decile que la cambie cuando entre.
-                </p>
-              </div>
-            )}
           </div>
 
           {/* Prueba gratis */}

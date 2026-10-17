@@ -42,39 +42,10 @@ async function main() {
   const googley = await createConfirmedUser(googleyEmail, 'Password123!', {});
   const googleyToken = await signIn(googleyEmail, 'Password123!');
 
-  console.log('=== create-owner-with-password ===');
-  let ownerUid, ownerPassword;
-  {
-    const { status, data } = await callFn('create-owner-with-password', platformToken, {
-      email: ownerEmail, businessId: bizId, role: 'owner', name: 'Dueño CoP',
-    });
-    ok(status === 200 && data.status === 'created' && data.password?.length === 12, `crea la cuenta con password de 12 — ${JSON.stringify(data)}`);
-    ownerUid = data.uid; ownerPassword = data.password;
-  }
-  {
-    // No dueño de plataforma no puede
-    const { status } = await callFn('create-owner-with-password', googleyToken, {
-      email: `otro-${suffix}@example.com`, businessId: bizId, role: 'owner',
-    });
-    ok(status === 403, `un no-plataforma no puede crear cuentas (403) — recibido ${status}`);
-  }
-  {
-    // La nueva cuenta puede loguearse con la password devuelta
-    const token = await signIn(ownerEmail, ownerPassword);
-    ok(typeof token === 'string' && token.length > 10, 'la cuenta creada puede loguearse con la password devuelta');
-  }
-
-  console.log('=== reset-owner-password ===');
-  {
-    const { status, data } = await callFn('reset-owner-password', platformToken, { email: ownerEmail });
-    ok(status === 200 && data.status === 'reset' && data.password?.length === 12, `genera password nueva — ${JSON.stringify(data)}`);
-    // Puede loguearse con la nueva
-    const token = await signIn(ownerEmail, data.password);
-    ok(typeof token === 'string', 'la cuenta puede loguearse con la password reseteada');
-  }
-  {
-    const { status, data } = await callFn('reset-owner-password', platformToken, { email: platformEmail });
-    ok(status === 403 && data.error?.code === 'permission-denied', `no se puede resetear la propia password de plataforma — recibido ${status} ${JSON.stringify(data)}`);
+  console.log('=== sin cuentas con contraseña ===');
+  for (const fn of ['create-owner-with-password', 'reset-owner-password']) {
+    const { status } = await callFn(fn, platformToken, { email: ownerEmail, businessId: bizId, role: 'owner' });
+    ok(status === 404, `${fn} ya no existe (404) — recibido ${status}`);
   }
 
   console.log('=== create-business-self-service ===');
