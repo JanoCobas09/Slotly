@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useBooking } from '../../contexts/BookingContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../hooks/useTenantData';
-import { createAppointment, getBusySlots, resolveMapsLink } from '../../lib/functions';
+import { createAppointment, getBusySlots } from '../../lib/functions';
 import { getUltimoTelefono } from '../../lib/repository';
 import { calculateAvailableSlots, professionalWorksOnDate } from '../../utils/availabilityEngine';
 import { promoParaSlot, precioConPromo } from '../../utils/promoEngine';
@@ -11,7 +11,7 @@ import { formatDate, formatPrice, toDateString, getMonthName, getLocalDayOfWeek 
 import { useBusinessContext } from '../../hooks/useBusinessContext';
 import Icon from '../../components/Icon';
 import BusinessHero from '../../components/reserva/BusinessHero';
-import { linkComoLlegar } from '../../utils/linkComoLlegar';
+import BusinessMap from '../../components/reserva/BusinessMap';
 import { esDiaEntero, rangosComoOcupados, bloqueosQueAplican } from '../../utils/bloqueos';
 import { esTelefono, problema, LIMITES } from '../../utils/validaciones';
 import ErrorDeCampo from '../../components/ErrorDeCampo';
@@ -63,118 +63,6 @@ function Stepper({ step, saltearProfesional }) {
 
 // La cabecera del negocio (BusinessHero) vive en components/reserva/: la
 // comparte la vista previa de Configuración → Tu negocio.
-
-/** Coordenadas escritas directo en un link largo de Maps (`!3d..!4d..` o `@lat,lng`). */
-function coordsDelLink(url) {
-  const texto = (() => { try { return decodeURIComponent(url || ''); } catch { return url || ''; } })();
-  const m = texto.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/) || texto.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
-  return m ? `${m[1]},${m[2]}` : null;
-}
-
-/**
- * Dónde centrar el mapa: el lugar REAL del link que cargó el dueño. Si el
- * link es largo, las coordenadas salen de él mismo; si es corto
- * (maps.app.goo.gl/...), las resuelve el servidor (resolve-maps-link),
- * porque el navegador no puede seguir esa redirección. Mientras resuelve, no
- * se pinta nada (sin mapa "de mentira" que después salta). Solo si el
- * link no se pudo resolver, se busca por el texto de la dirección.
- */
-function useUbicacionDelMapa(business) {
-  const link = business.mapsUrl?.trim() || '';
-  const directas = coordsDelLink(link);
-  const hayQueResolver = Boolean(link) && !directas;
-  const [resuelta, setResuelta] = useState({ link: '', coords: null });
-
-  useEffect(() => {
-    if (!hayQueResolver) return;
-    let vigente = true;
-    resolveMapsLink({ businessId: business.id, branchId: business.sucursalId || null })
-      .then(({ ubicacion: u }) => {
-        if (!vigente) return;
-        // Coordenadas, o (links viejos de "compartir") el lugar por nombre
-        // tal como lo puso Google + su id `ftid`.
-        const coords = u?.lat != null ? `${u.lat},${u.lng}` : u?.query || null;
-        setResuelta({ link, coords, ftid: u?.ftid || null });
-      })
-      .catch((err) => {
-        console.error('[BookingPage] No se pudo resolver el link de Maps:', err);
-        if (vigente) setResuelta({ link, coords: null });
-      });
-    return () => { vigente = false; };
-  }, [hayQueResolver, link, business.id, business.sucursalId]);
-
-  const direccion = business.address?.trim() || null;
-  if (directas) return { consulta: directas, cargando: false };
-  if (hayQueResolver && resuelta.link !== link) return { consulta: null, cargando: true };
-  if (resuelta.coords) return { consulta: resuelta.coords, ftid: resuelta.ftid, cargando: false };
-  return { consulta: direccion, cargando: false };
-}
-
-// ---- MAPA ----
-// Vista previa del mapa (embed de Google Maps, sin API key) centrada en la
-// ubicación real del negocio, que abre su link al tocarla, más la dirección
-// como texto plano: se puede seleccionar o copiar con el botón, pero no lleva
-// a ningún lado — para eso está "Cómo llegar". Sin link de Maps cargado, no
-// se muestra nada (ver linkComoLlegar).
-function BusinessMap({ business }) {
-  const [copiado, setCopiado] = useState(false);
-  const { consulta, ftid, cargando } = useUbicacionDelMapa(business);
-  const comoLlegar = linkComoLlegar(business);
-  if (!comoLlegar || (!consulta && !cargando)) return null;
-  const dir = business.address?.trim();
-
-  const copiar = async () => {
-    try {
-      await navigator.clipboard.writeText(dir);
-      setCopiado(true);
-      setTimeout(() => setCopiado(false), 2000);
-    } catch { /* sin permiso de portapapeles: igual se puede seleccionar a mano */ }
-  };
-
-  return (
-    <section className="business-map">
-      <div className="business-map-frame">
-        {consulta && (
-          <iframe
-            title={`Mapa de ${business.name}`}
-            src={`https://maps.google.com/maps?q=${encodeURIComponent(consulta)}${ftid ? `&ftid=${encodeURIComponent(ftid)}` : ''}&z=16&output=embed`}
-            loading="lazy"
-            referrerPolicy="no-referrer-when-downgrade"
-            tabIndex={-1}
-          />
-        )}
-        {/* Capa encima del iframe: el toque abre el link del negocio, no el
-            buscador de Google con la dirección tipeada. */}
-        <a
-          href={comoLlegar}
-          target="_blank"
-          rel="noreferrer"
-          className="business-map-overlay"
-          aria-label={`Abrir la ubicación de ${business.name} en Google Maps`}
-        >
-          <span className="business-map-chip"><Icon name="navigation" /> Ver en Google Maps</span>
-        </a>
-      </div>
-
-      <div className="business-map-footer">
-        <span className="business-map-pin"><Icon name="pin" /></span>
-        <div className="business-map-text">
-          <span className="business-map-label">Dónde estamos</span>
-          {dir && <span className="business-map-address">{dir}</span>}
-        </div>
-        {dir && (
-          <button type="button" className="business-map-copy" onClick={copiar} title="Copiar dirección">
-            <Icon name={copiado ? 'check' : 'copy'} />
-            <span>{copiado ? 'Copiada' : 'Copiar'}</span>
-          </button>
-        )}
-        <a href={comoLlegar} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm business-map-go">
-          <Icon name="navigation" /> Cómo llegar
-        </a>
-      </div>
-    </section>
-  );
-}
 
 // ---- SUCURSAL ----
 // Primer paso cuando el negocio atiende en más de un lugar: dónde. No es un
@@ -843,7 +731,7 @@ export default function BookingPage() {
     if (!pedido || servicioDelLink.current || (varias && !sucursal)) return;
     if (!services.some((s) => s.id === pedido && s.isActive !== false)) return;
     servicioDelLink.current = true;
-    if (!serviceId && step === PASO.SERVICIO) elegirServicio(pedido);
+    if (!serviceId && step === PASO.SERVICIO) elegirServicio(pedido, { sinDemora: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params, services, varias, sucursal]);
   // Día de la semana de la fecha elegida, para saber si hay una promo activa
@@ -1140,14 +1028,19 @@ export default function BookingPage() {
     avance.current = setTimeout(() => irAPaso(paso), DEMORA_AVANCE_MS);
   };
 
-  // Pasos de una sola opción: tocarla avanza sola.
-  const elegirServicio = (id) => {
+  // Pasos de una sola opción: tocarla avanza sola. `sinDemora`: el servicio
+  // que llega por el link (?servicio=) no se "tocó", así que no hay nada que
+  // mostrar marcado — y un temporizador ahí lo cancela el doble montaje de
+  // React en desarrollo.
+  const elegirServicio = (id, { sinDemora = false } = {}) => {
     dispatch({ type: 'SET_SERVICE', payload: id });
     // Qué sigue se decide con ESTE servicio (todavía no está en el estado).
     const deEse = candidatosDelServicio(professionals, professionalServices, id);
     if (asignaElNegocio) dispatch({ type: 'SET_PROFESSIONAL', payload: CUALQUIERA });
     else if (deEse.length === 1) dispatch({ type: 'SET_PROFESSIONAL', payload: deEse[0].id });
-    avanzarDespues(asignaElNegocio || deEse.length === 1 ? PASO.HORARIO : PASO.PROFESIONAL);
+    const siguiente = asignaElNegocio || deEse.length === 1 ? PASO.HORARIO : PASO.PROFESIONAL;
+    if (sinDemora) dispatch({ type: 'SET_STEP', payload: siguiente });
+    else avanzarDespues(siguiente);
   };
   const elegirProfesional = (id) => {
     dispatch({ type: 'SET_PROFESSIONAL', payload: id });

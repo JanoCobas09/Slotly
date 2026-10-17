@@ -1424,28 +1424,34 @@ dominio de más autorizado no es un agujero de seguridad, solo ruido).
    Cerrada en `20261027500000_app_settings_privada.sql`. Si se agrega otra
    tabla sin RLS, el GRANT por defecto la deja abierta igual: toda tabla nueva
    lleva RLS aunque solo la use el servidor.
-5za. **Perfil personalizado: páginas exclusivas (17/10/2026).** Mismo modelo
-   que BarberOS (`cavanna11/BarberOS`, `src/paginas-exclusivas/`, la de
-   Neytan): una página hecha a mano para UN negocio, con su marca, que se ve
-   en `/:slug`. Se da de cortesía (no hay plan ni candado). Registro en
-   `src/paginas-exclusivas/index.js` (`PAGINAS = { <businessId>: lazy(...) }`,
-   por id y no por slug; hoy vacío). `App.jsx` → `InicioDelNegocio`: si el
-   negocio tiene página, `/:slug` la pinta SIN Header/Footer de Slotly
-   (`PaginaExclusiva.jsx`, que le pasa `business`, `servicios` activos,
-   `slug` y `onReservar(servicioId?)`); si no, la reserva de siempre. La
-   reserva vive además en `/:slug/reservar` (alias para todos) y acepta
-   `?servicio=<id>` (entra con ese servicio elegido, después de la sucursal
-   si hay varias). Links que significan "reservar" usan
-   `rutaDeReserva(slug, businessId)` (login desde la reserva, "Reservar de
-   nuevo", "Reservar una cita"); los de "inicio" (logo del Header,
-   confirmación, pago) siguen yendo a `/:slug`. Reglas de cada página: todo
-   dato sale de lo cargado (precios, horarios, WhatsApp, IG, Maps, colores),
-   botón de reservar sin scrollear, CSS con prefijo propio, fotos solo de la
-   marca (logo/portada, nada de galería de trabajos), pie con "Mis turnos"
-   (`/${slug}/mis-citas`) y "Hecho con Slotly". Probado en local con una
-   página temporal: link → página sin encabezado, servicio → reserva en el
-   paso de día, negocios sin página y slug inexistente sin cambios.
-
+5za. **Perfil personalizado: página de marca (17/10/2026).** Se da de
+   cortesía (sin plan ni candado). Modelo de BarberOS (`cavanna11/BarberOS`,
+   la página de Neytan) con una decisión del usuario: el formato es SIEMPRE
+   EL MISMO, para que no pidan cualquier cosa. Una sola plantilla,
+   `src/paginas-exclusivas/marca/PaginaMarca.jsx` + `marca.css` (prefijo
+   `pm-`, carga diferida), y cada negocio es una entrada de configuración en
+   `MARCAS` (`src/paginas-exclusivas/index.js`, por businessId; hoy vacío):
+   `frase`, `ciudad`, `sobre { titulo, parrafos≤3 }`, `portada` (foto de la
+   MARCA en `public/marcas/<slug>/`, nunca galería de trabajos), `estrella`
+   (servicio destacado; si no, el más caro con 3+), `tema` oscuro|claro.
+   Lo demás sale de lo cargado: logo, color principal (`--pm-color`; como
+   texto se corre a negro/blanco para leerse, `--pm-color-texto`), servicios
+   (los MISMOS que ofrece la reserva: hechos por un profesional activo, con
+   "Desde" si el precio varía), horario del negocio (abierto/cerrado en hora
+   argentina, días agrupados), WhatsApp (`telefonoWhatsApp`), Instagram y
+   Maps (`hooks/useUbicacionDelMapa`, compartido con
+   `components/reserva/BusinessMap.jsx`, que salió de BookingPage). Secciones:
+   portada con reservar sin scrollear → cinta → quiénes somos → servicios →
+   Instagram → horarios → dónde → cierre, barra fija de reservar y pie con
+   "Mis turnos". Rutas: `App.jsx` → `InicioDelNegocio`: con marca, `/:slug`
+   pinta `PaginaExclusiva.jsx` SIN Header/Footer; si no, la reserva de
+   siempre. La reserva vive además en `/:slug/reservar` (alias para todos) y
+   acepta `?servicio=<id>` (entra con ese servicio y salta al paso siguiente,
+   sin temporizador: el doble montaje de StrictMode lo cancelaba). Links de
+   "reservar" usan `rutaDeReserva(slug, businessId)`. Con varias sucursales,
+   horario y mapa son los del negocio y la reserva pide la sucursal primero.
+   Probado en local (oscuro, claro, con portada, servicio → paso del día,
+   negocios sin marca y slug inexistente sin cambios).
 6. **Abuso de reservas.** Hecho: un turno por día y tope de 3 a futuro por
    cuenta. Falta, por orden: bloquear cliente desde el panel (para la cuenta que
    se porta mal), y App Check con reCAPTCHA v3 sobre los callables para frenar
