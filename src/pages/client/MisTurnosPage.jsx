@@ -5,6 +5,7 @@ import { cancelAppointment, getMisTurnos } from '../../lib/repository';
 import { borrarDestinoLogin, esDestinoDeTurnos, leerDestinoLogin } from '../../lib/destinoLogin';
 import { formatDate, formatPrice } from '../../utils/dateUtils';
 import Icon from '../../components/Icon';
+import { rutaDeReserva } from '../../paginas-exclusivas';
 
 /**
  * "Verificá tu turno": los turnos que reservó la cuenta de Google con la que
@@ -207,7 +208,7 @@ export default function MisTurnosPage() {
                       )
                     )}
                     {tab === 'pasados' && negocio && (
-                      <Link className="btn btn-outline btn-sm" to={`/${negocio.slug}`}>Reservar de nuevo</Link>
+                      <Link className="btn btn-outline btn-sm" to={rutaDeReserva(negocio.slug, t.businessId)}>Reservar de nuevo</Link>
                     )}
                   </div>
                 </div>

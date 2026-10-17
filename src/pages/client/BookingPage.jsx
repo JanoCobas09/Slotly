@@ -15,6 +15,7 @@ import { linkComoLlegar } from '../../utils/linkComoLlegar';
 import { esDiaEntero, rangosComoOcupados, bloqueosQueAplican } from '../../utils/bloqueos';
 import { esTelefono, problema, LIMITES } from '../../utils/validaciones';
 import ErrorDeCampo from '../../components/ErrorDeCampo';
+import { rutaDeReserva } from '../../paginas-exclusivas';
 import { useErrorDeCampo } from '../../hooks/useErrorDeCampo';
 import { sucursalesActivas, profesionalesDeSucursal, schedulesDeSucursal, precioEn, horarioDe, datosDe } from '../../utils/sucursales';
 import { CUALQUIERA, modoProfesional, candidatosDelServicio, juntarGrillas, esHorarioTomado } from '../../utils/asignacionProfesional';
@@ -831,6 +832,20 @@ export default function BookingPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params, sucursales.length]);
+
+  // `?servicio=<id>`: la página exclusiva del negocio (src/paginas-exclusivas)
+  // deja tocar un servicio y entrar a reservar con ese ya elegido. Una sola
+  // vez, y solo si todavía no hay nada elegido: un borrador que vuelve del
+  // login manda.
+  const servicioDelLink = useRef(false);
+  useEffect(() => {
+    const pedido = params.get('servicio');
+    if (!pedido || servicioDelLink.current || (varias && !sucursal)) return;
+    if (!services.some((s) => s.id === pedido && s.isActive !== false)) return;
+    servicioDelLink.current = true;
+    if (!serviceId && step === PASO.SERVICIO) elegirServicio(pedido);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params, services, varias, sucursal]);
   // Día de la semana de la fecha elegida, para saber si hay una promo activa
   // en ese día — mismo remapeo que usa availabilityEngine (0=Lunes).
   const dayOfWeek = date ? getLocalDayOfWeek(new Date(date + 'T00:00:00')) : null;
@@ -1115,7 +1130,7 @@ export default function BookingPage() {
           professionalId: b.professionalId, serviceId: b.serviceId, branchId: b.branchId, date: b.date, timeSlot: b.timeSlot,
         }));
       } catch { /* sin storage, hay que re-elegir al volver */ }
-      navigate('/login', { state: { from: `/${slug}` } });
+      navigate('/login', { state: { from: rutaDeReserva(slug, businessId) } });
       return;
     }
     dispatch({ type: 'SET_STEP', payload: paso });

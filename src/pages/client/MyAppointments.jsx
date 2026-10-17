@@ -5,6 +5,7 @@ import { useTenant } from '../../hooks/useTenantData';
 import { cancelAppointment } from '../../lib/repository';
 import { formatDate, formatPrice } from '../../utils/dateUtils';
 import Icon from '../../components/Icon';
+import { rutaDeReserva } from '../../paginas-exclusivas';
 
 const STATUS_LABELS = {
   pendiente: { label: 'Pendiente', className: 'badge-warning' },
@@ -93,7 +94,7 @@ export default function MyAppointments() {
         <div className="empty-state">
           <div className="empty-state-icon"><Icon name={tab === 'upcoming' ? 'calendar' : 'clipboard'} /></div>
           <p>{tab === 'upcoming' ? 'No tenés citas próximas' : 'No tenés citas pasadas'}</p>
-          {tab === 'upcoming' && <Link to={`/${slug}`} className="btn btn-primary mt-lg">Reservar una cita</Link>}
+          {tab === 'upcoming' && <Link to={rutaDeReserva(slug, businessId)} className="btn btn-primary mt-lg">Reservar una cita</Link>}
         </div>
       ) : (
         displayed.map(apt => {

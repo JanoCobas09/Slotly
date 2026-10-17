@@ -6,6 +6,7 @@ import BusinessSync from './contexts/BusinessSync';
 import { isPlatformOwner } from './config/platform';
 import { esMisCitasDeNegocio, leerDestinoLogin } from './lib/destinoLogin';
 import { avisarAppLista } from './lib/splash';
+import { paginaExclusiva } from './paginas-exclusivas';
 import Header from './components/layout/Header';
 import Footer from './components/layout/Footer';
 
@@ -30,6 +31,7 @@ const LandingPage      = lazy(() => import('./pages/LandingPage'));
 const BookingPage      = lazy(() => import('./pages/client/BookingPage'));
 const ConfirmationPage = lazy(() => import('./pages/client/ConfirmationPage'));
 const PagoSenaPage = lazy(() => import('./pages/client/PagoSenaPage'));
+const PaginaExclusiva  = lazy(() => import('./paginas-exclusivas/PaginaExclusiva'));
 const MyAppointments   = lazy(() => import('./pages/client/MyAppointments'));
 const MisTurnosPage    = lazy(() => import('./pages/client/MisTurnosPage'));
 const OnboardingPage   = lazy(() => import('./pages/client/OnboardingPage'));
@@ -114,6 +116,27 @@ function TenantRoute({ children }) {
   }
 
   return children;
+}
+
+/**
+ * Lo que se ve en `/:slug`: la página exclusiva del negocio si tiene una
+ * (perfil personalizado, ver src/paginas-exclusivas), y si no la reserva de
+ * siempre. La exclusiva va sin el encabezado ni el pie de Slotly.
+ *
+ * Mientras se busca el negocio, la rueda sola (sin encabezado): todavía no se
+ * sabe si corresponde el de Slotly o la página propia, y mostrarlo para
+ * sacarlo enseguida se vería como un parpadeo.
+ */
+function InicioDelNegocio() {
+  const { businessSlug } = useParams();
+  const { state } = useBusiness();
+  const business = (state.businesses || []).find((b) => b.slug === businessSlug);
+
+  if (!business && state.slugResuelto !== businessSlug) return <CargandoNegocio />;
+  if (business && paginaExclusiva(business.id)) {
+    return <TenantRoute><PaginaExclusiva /></TenantRoute>;
+  }
+  return <ClientLayout><TenantRoute><BookingPage /></TenantRoute></ClientLayout>;
 }
 
 /**
@@ -358,7 +381,10 @@ export default function App() {
             era una pantalla de login con marca Slotly y ni el nombre de la
             barbería — para un link puesto en Instagram es tirar la mitad de
             los que entran. */}
-        <Route path="/:businessSlug" element={
+        <Route path="/:businessSlug" element={<InicioDelNegocio />} />
+        {/* La reserva, para los negocios con página exclusiva (su `/:slug` es
+            la página). Para el resto es un alias de `/:slug`. */}
+        <Route path="/:businessSlug/reservar" element={
           <ClientLayout><TenantRoute><BookingPage /></TenantRoute></ClientLayout>
         } />
         <Route path="/:businessSlug/confirmacion" element={

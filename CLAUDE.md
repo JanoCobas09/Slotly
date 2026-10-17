@@ -1424,6 +1424,28 @@ dominio de más autorizado no es un agujero de seguridad, solo ruido).
    Cerrada en `20261027500000_app_settings_privada.sql`. Si se agrega otra
    tabla sin RLS, el GRANT por defecto la deja abierta igual: toda tabla nueva
    lleva RLS aunque solo la use el servidor.
+5za. **Perfil personalizado: páginas exclusivas (17/10/2026).** Mismo modelo
+   que BarberOS (`cavanna11/BarberOS`, `src/paginas-exclusivas/`, la de
+   Neytan): una página hecha a mano para UN negocio, con su marca, que se ve
+   en `/:slug`. Se da de cortesía (no hay plan ni candado). Registro en
+   `src/paginas-exclusivas/index.js` (`PAGINAS = { <businessId>: lazy(...) }`,
+   por id y no por slug; hoy vacío). `App.jsx` → `InicioDelNegocio`: si el
+   negocio tiene página, `/:slug` la pinta SIN Header/Footer de Slotly
+   (`PaginaExclusiva.jsx`, que le pasa `business`, `servicios` activos,
+   `slug` y `onReservar(servicioId?)`); si no, la reserva de siempre. La
+   reserva vive además en `/:slug/reservar` (alias para todos) y acepta
+   `?servicio=<id>` (entra con ese servicio elegido, después de la sucursal
+   si hay varias). Links que significan "reservar" usan
+   `rutaDeReserva(slug, businessId)` (login desde la reserva, "Reservar de
+   nuevo", "Reservar una cita"); los de "inicio" (logo del Header,
+   confirmación, pago) siguen yendo a `/:slug`. Reglas de cada página: todo
+   dato sale de lo cargado (precios, horarios, WhatsApp, IG, Maps, colores),
+   botón de reservar sin scrollear, CSS con prefijo propio, fotos solo de la
+   marca (logo/portada, nada de galería de trabajos), pie con "Mis turnos"
+   (`/${slug}/mis-citas`) y "Hecho con Slotly". Probado en local con una
+   página temporal: link → página sin encabezado, servicio → reserva en el
+   paso de día, negocios sin página y slug inexistente sin cambios.
+
 6. **Abuso de reservas.** Hecho: un turno por día y tope de 3 a futuro por
    cuenta. Falta, por orden: bloquear cliente desde el panel (para la cuenta que
    se porta mal), y App Check con reCAPTCHA v3 sobre los callables para frenar
